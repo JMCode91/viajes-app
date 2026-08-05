@@ -18,9 +18,9 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - [x] Inicializar proyecto Spring Boot con las dependencias base (Web, JPA, PostgreSQL, Validation, Lombok).
 - [x] Configurar `application.properties` (o `.yml`) con credenciales de base de datos y propiedades de Hibernate (update/validate).
 
-### Fase 2: Entidades Core y Seguridad (Pendiente)
-- [ ] Generar Entidad `Usuario` (id, email, password, nombre, rol).
-- [ ] Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
+### Fase 2: Entidades Core y Seguridad (En Progreso)
+- [x] Generar Entidad `Usuario` (id, email, password, nombre, rol).
+- [x] Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
 - [ ] Implementar Spring Security: Configuración de SecurityFilterChain, PasswordEncoder (BCrypt).
 - [ ] Implementar generación y validación de JWT (JwtUtil, JwtFilter).
 - [ ] Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
@@ -45,21 +45,23 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 1 completada. Preparando Fase 2 (Entidades Core y Seguridad).
-- **Completado en esta sesión:**
-  - Proyecto Spring Boot inicializado en `backend/` con `pom.xml` para Java 21 y Spring Boot 3.5.16 (última versión 3.x).
-  - Dependencias base configuradas: Spring Web, Spring Data JPA, PostgreSQL Driver, Spring Security, Validation y Lombok.
-  - Clase principal `ViajesApplication.java` en el paquete `com.app.viajes`.
-  - `application.properties` con conexión a PostgreSQL (`jdbc:postgresql://localhost:5432/viajes_app_db`, usuario `viajes_app`) y `spring.jpa.hibernate.ddl-auto=update`.
-  - Maven Wrapper incluido (`mvnw` / `mvnw.cmd`) para compilar sin Maven global.
+- **Hito actual:** Fase 2 en progreso (modelado de datos completo; falta la capa de seguridad JWT).
+- **Completado en esta sesión (Fase 2 - Parte 1: Modelado de Datos):**
+  - Enum `Rol` (`USER`, `ADMIN`) en `com.app.viajes.model.enums`.
+  - Enum `EstadoInvitacion` (`PENDIENTE`, `ACEPTADA`, `RECHAZADA`) en `com.app.viajes.model.enums`.
+  - Entidad `Usuario` (UUID id, email único, password, nombre, rol): `com.app.viajes.model.Usuario`.
+  - Entidad `Viaje` (UUID id, titulo, fechaInicio, fechaFin, presupuestoBase): `com.app.viajes.model.Viaje`.
+  - Entidad intermedia `UsuarioViaje` (UUID id, @ManyToOne a Usuario y Viaje, estadoInvitacion por defecto PENDIENTE, rolEnViaje): `com.app.viajes.model.UsuarioViaje`.
+  - Repositorios JPA: `UsuarioRepository`, `ViajeRepository`, `UsuarioViajeRepository`.
+  - `UsuarioViajeRepository` incluye búsquedas clave para la seguridad por pertenencia a un viaje (`existsByUsuarioIdAndViajeId`, `findByUsuarioIdAndViajeId`).
+  - Entidades usan Lombok `@Getter`/`@Setter` (no `@Data`) e IDs UUID para evitar recursividad en relaciones y enumeración de IDs.
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 2):**
-  - Generar Entidad `Usuario` (id, email, password, nombre, rol).
-  - Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
+- **Pendiente para la próxima sesión (Fase 2 - Parte 2: Seguridad):**
   - Implementar Spring Security: SecurityFilterChain, PasswordEncoder (BCrypt).
   - Implementar generación y validación de JWT (JwtUtil, JwtFilter).
   - Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
-- **Últimos commits:** `feat(infra): docker compose para PostgreSQL con PostGIS en Fase 1`.
+- **Enviar a la base de datos por primera vez:** al levantar `docker-compose` y la app, Hibernate creará las tablas (ddl-auto=update).
+- **Últimos commits:** `feat(backend): inicializar proyecto Spring Boot 3.x con Maven y configuracion de base de datos`.
 
 ---
 

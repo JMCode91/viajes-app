@@ -1,0 +1,25 @@
+package com.app.viajes.repository;
+
+import com.app.viajes.model.UsuarioViaje;
+import com.app.viajes.model.enums.EstadoInvitacion;
+import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/**
+ * Repositorio JPA para la tabla intermedia {@link UsuarioViaje}.
+ * Es la pieza clave de la seguridad: permite verificar que un usuario
+ * pertenece a un viaje antes de autorizar cualquier operacion.
+ */
+public interface UsuarioViajeRepository extends JpaRepository<UsuarioViaje, UUID> {
+
+    boolean existsByUsuarioIdAndViajeId(UUID usuarioId, UUID viajeId);
+
+    Optional<UsuarioViaje> findByUsuarioIdAndViajeId(UUID usuarioId, UUID viajeId);
+
+    List<UsuarioViaje> findByViajeId(UUID viajeId);
+
+    List<UsuarioViaje> findByUsuarioIdAndEstadoInvitacion(UUID usuarioId, EstadoInvitacion estadoInvitacion);
+}
