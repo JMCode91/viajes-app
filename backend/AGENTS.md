@@ -35,10 +35,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - [x] Implementar geolocalización: Guardar coordenadas (latitud/longitud) adaptadas para futura compatibilidad con PostGIS.
 - [x] Desarrollar endpoints para listar actividades de un viaje ordenadas por fecha (Timeline).
 
-### Fase 5: Módulos Secundarios y Archivos Seguros (Pendiente)
-- [ ] Entidades y CRUD para `Gastos` (Presupuesto) y `Items` (Checklist).
-- [ ] Entidad y CRUD para `Diccionario` (Vocabulario de supervivencia).
-- [ ] **Módulo de Archivos Seguros:** Implementar servicio de subida/bajada de archivos (Local o S3) con validación estricta de pertenencia al viaje.
+### Fase 5: Módulos Secundarios y Archivos Seguros (Completada)
+- [x] Entidades y CRUD para `Gastos` (Presupuesto) y `Items` (Checklist).
+- [x] Entidad y CRUD para `Diccionario` (Vocabulario de supervivencia), multi-idioma + traducción con DeepL.
+- [x] **Módulo de Archivos Seguros:** Implementar servicio de subida/bajada de archivos (Local o S3) con validación estricta de pertenencia al viaje.
 
 ---
 
@@ -46,27 +46,28 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 4 completada. Preparando Fase 5 (Módulos Secundarios y Archivos Seguros).
-- **Completado en esta sesión (Fase 4: Logística, Calendario y Mapa):**
-  - Enum `TipoActividad` (`VUELO`, `TREN`, `HOTEL`, `EXCURSION`, `RESTAURANTE`, `OTRO`) en `com.app.viajes.model.enums`.
-  - Entidad `Actividad` (UUID id, @ManyToOne a Viaje, titulo, descripcion TEXT, tipoActividad, fechaHoraInicio/Fin LocalDateTime, latitud/longitud Double, urlDocumento): `com.app.viajes.model.Actividad`.
-  - DTOs: `ActividadRequestDTO` (con validaciones) y `ActividadResponseDTO` (campos + id y viajeId).
-  - `ActividadRepository`: `findByViajeIdOrderByFechaHoraInicioAsc` y `findByViajeIdAndFecha` (por día de `fechaHoraInicio`).
-  - `ActividadService` (interfaz) + `ActividadServiceImpl` (`@Service`): verificación de pertenencia al viaje (`existsByUsuarioIdAndViajeId`) en cada método antes de operar.
-  - `ActividadController` (`@RestController` en `/api/viajes/{viajeId}/actividades`): `POST /`, `GET /`, `GET /timeline?fecha=YYYY-MM-DD`, `DELETE /{actividadId}`.
-  - Coordenadas guardadas como Double (latitud/longitud), preparadas para futura migración a columnas PostGIS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5 finalizadas). Preparando integración con frontend Angular.
+- **Completado en esta sesión (Fase 5: Módulos Secundarios, Archivos Seguros y multi-idioma):**
+  - **Checklist (Items):** Entidad `ItemChecklist` (id, viaje, nombre, completado), `ItemChecklistRepository`, `ChecklistService`/`ChecklistServiceImpl` (verificación de pertenencia), `ChecklistController` en `/api/viajes/{viajeId}/checklist`.
+  - **Gastos (Presupuesto):** Entidad `Gasto` (id, viaje, concepto, cantidad BigDecimal, pagadorId), `GastoRepository`, `GastoService`/`GastoServiceImpl`, `GastoController` en `/api/viajes/{viajeId}/gastos`.
+  - **Diccionario multi-idioma:** Entidad `Diccionario` con nuevo campo `idioma` (ISO: JA/EN/FR), `DiccionarioRepository` con `findByIdioma` y `findByIdiomaAndCategoria`, DTOs con campo `idioma`.
+  - **TraductorService (DeepL):** Endpoint `POST /api/diccionario/traducir` que recibe `TraduccionRequestDTO` (texto, idiomaDestino) y llama a DeepL vía `RestClient`. API key configurable con `deepl.api.key` (placeholder; 503 si no está configurada). Excepción `TraduccionException` → 503.
+  - **Archivos Seguros:** `ArchivoService`/`ArchivoServiceImpl` guardan archivos físicamente en `uploads/{viajeId}/` aislado por viaje, con whitelist de extensiones seguras, protección contra path traversal y validación de pertenencia. `ArchivoController` en `/api/viajes/{viajeId}/archivos` (`POST` subida y `GET /{nombreArchivo}` descarga como flujo de bytes).
+  - **Prevención DoS (Fase 5):** `spring.servlet.multipart.max-file-size=5MB` y `max-request-size=5MB`.
+  - **datos iniciales:** `data.sql` con frases de vocabulario JA + `spring.jpa.defer-datasource-initialization=true`.
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 5):**
-  - Entidades y CRUD para `Gastos` (Presupuesto) y `Items` (Checklist).
-  - Entidad y CRUD para `Diccionario` (Vocabulario de supervivencia).
-  - Módulo de Archivos Seguros: subida/bajada de archivos (Local o S3) con validación estricta de pertenencia al viaje y límite de tamaño Max 5MB.
+- **Backend finalizado:** Las 5 fases del roadmap backend están completadas.
+- **Pendiente (fuera del backend):**
+  - Frontend Angular (aún no iniciado).
+  - Rate Limiting en proxy inverso Nginx (previsión DoS a nivel de infraestructura).
+  - Revisar el cifrado/entorno de claves JWT y DeepL en producción.
 - **Notas técnicas:**
   - La clave JWT del `application.properties` es de desarrollo; debe sobrescribirse vía variables de entorno en producción.
+  - `deepl.api.key` es un placeholder vacío; definirla para activar la traducción.
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
-  - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos).
-  - Pendiente: previsión de Rate Limiting en Nginx (DoS) y límite de archivos 5MB (se aplicará en Fase 5).
-- **Últimos commits:** `feat(backend): CRUD de viajes e invitaciones Fase 3 con control de acceso por pertenencia`.
+  - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
+- **Últimos commits:** `feat(backend): actividades de viaje Fase 4 - CRUD, timeline por fecha y coordenadas geograficas`.
 
 ---
 
@@ -85,3 +86,14 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
+| POST | `/api/viajes/{viajeId}/checklist` | Crear un item de la checklist | JWT |
+| GET | `/api/viajes/{viajeId}/checklist` | Listar items de la checklist | JWT |
+| PATCH | `/api/viajes/{viajeId}/checklist/{itemId}?completado=true` | Marcar/desmarcar un item como completado | JWT |
+| DELETE | `/api/viajes/{viajeId}/checklist/{itemId}` | Eliminar un item de la checklist | JWT |
+| POST | `/api/viajes/{viajeId}/gastos` | Registrar un gasto del viaje | JWT |
+| GET | `/api/viajes/{viajeId}/gastos` | Listar gastos del viaje | JWT |
+| DELETE | `/api/viajes/{viajeId}/gastos/{gastoId}` | Eliminar un gasto | JWT |
+| POST | `/api/viajes/{viajeId}/archivos` | Subir un archivo (máx 5MB, whitelist de extensiones) | JWT |
+| GET | `/api/viajes/{viajeId}/archivos/{nombreArchivo}` | Descargar un archivo como flujo de bytes | JWT |
+| GET | `/api/diccionario` | Diccionario (opcional `?idioma=JA` y `?categoria=`) | JWT |
+| POST | `/api/diccionario/traducir` | Traducir texto con DeepL (`texto`, `idiomaDestino`) | JWT |
