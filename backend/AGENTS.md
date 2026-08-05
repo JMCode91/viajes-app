@@ -13,10 +13,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 
 ## 🗺️ Roadmap Backend Inicial (Plan de Acción)
 
-### Fase 1: Infraestructura Base y Base de Datos (Pendiente)
+### Fase 1: Infraestructura Base y Base de Datos (Completada)
 - [x] Crear `docker-compose.yml` para levantar PostgreSQL + PostGIS (incluyendo volumen para persistencia).
-- [ ] Inicializar proyecto Spring Boot con las dependencias base (Web, JPA, PostgreSQL, Validation, Lombok).
-- [ ] Configurar `application.properties` (o `.yml`) con credenciales de base de datos y propiedades de Hibernate (update/validate).
+- [x] Inicializar proyecto Spring Boot con las dependencias base (Web, JPA, PostgreSQL, Validation, Lombok).
+- [x] Configurar `application.properties` (o `.yml`) con credenciales de base de datos y propiedades de Hibernate (update/validate).
 
 ### Fase 2: Entidades Core y Seguridad (Pendiente)
 - [ ] Generar Entidad `Usuario` (id, email, password, nombre, rol).
@@ -45,18 +45,21 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 1 en progreso (infraestructura de base de datos lista).
+- **Hito actual:** Fase 1 completada. Preparando Fase 2 (Entidades Core y Seguridad).
 - **Completado en esta sesión:**
-  - Infraestructura Docker: `infra/docker-compose.yml` con PostgreSQL 16 + PostGIS (`postgis/postgis:16-3.4`).
-  - Puertos: mapeo `5432:5432` (configurable vía `${POSTGRES_PORT}`).
-  - Variables de entorno seguras para usuario, contraseña y base de datos (valores por defecto de desarrollo sobrescribibles con `.env`).
-  - Volumen de persistencia mapeado a la carpeta local `infra/postgres_data`.
-  - Script de inicialización `infra/postgis-init/init.sql` que habilita la extensión PostGIS (`CREATE EXTENSION postgis`).
-  - Healthcheck de disponibilidad configurado.
-- **Pendiente para la próxima sesión:**
-  - Inicializar proyecto Spring Boot (Web, JPA, PostgreSQL, Validation, Lombok).
-  - Configurar `application.properties` con credenciales y propiedades de Hibernate (update/validate).
-- **Últimos commits:** `docs(core): inicializar repositorio y documentacion de agentes de desarrollo`.
+  - Proyecto Spring Boot inicializado en `backend/` con `pom.xml` para Java 21 y Spring Boot 3.5.16 (última versión 3.x).
+  - Dependencias base configuradas: Spring Web, Spring Data JPA, PostgreSQL Driver, Spring Security, Validation y Lombok.
+  - Clase principal `ViajesApplication.java` en el paquete `com.app.viajes`.
+  - `application.properties` con conexión a PostgreSQL (`jdbc:postgresql://localhost:5432/viajes_app_db`, usuario `viajes_app`) y `spring.jpa.hibernate.ddl-auto=update`.
+  - Maven Wrapper incluido (`mvnw` / `mvnw.cmd`) para compilar sin Maven global.
+  - Compilación verificada con éxito: `mvn clean compile`.
+- **Pendiente para la próxima sesión (Fase 2):**
+  - Generar Entidad `Usuario` (id, email, password, nombre, rol).
+  - Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
+  - Implementar Spring Security: SecurityFilterChain, PasswordEncoder (BCrypt).
+  - Implementar generación y validación de JWT (JwtUtil, JwtFilter).
+  - Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
+- **Últimos commits:** `feat(infra): docker compose para PostgreSQL con PostGIS en Fase 1`.
 
 ---
 
