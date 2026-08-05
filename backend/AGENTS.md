@@ -21,8 +21,8 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 ### Fase 2: Entidades Core y Seguridad (En Progreso)
 - [x] Generar Entidad `Usuario` (id, email, password, nombre, rol).
 - [x] Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
-- [ ] Implementar Spring Security: Configuración de SecurityFilterChain, PasswordEncoder (BCrypt).
-- [ ] Implementar generación y validación de JWT (JwtUtil, JwtFilter).
+- [x] Implementar Spring Security: Configuración de SecurityFilterChain, PasswordEncoder (BCrypt).
+- [x] Implementar generación y validación de JWT (JwtUtil, JwtFilter).
 - [ ] Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
 
 ### Fase 3: Gestión de Viajes e Invitaciones (Pendiente)
@@ -45,23 +45,23 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 2 en progreso (modelado de datos completo; falta la capa de seguridad JWT).
-- **Completado en esta sesión (Fase 2 - Parte 1: Modelado de Datos):**
-  - Enum `Rol` (`USER`, `ADMIN`) en `com.app.viajes.model.enums`.
-  - Enum `EstadoInvitacion` (`PENDIENTE`, `ACEPTADA`, `RECHAZADA`) en `com.app.viajes.model.enums`.
-  - Entidad `Usuario` (UUID id, email único, password, nombre, rol): `com.app.viajes.model.Usuario`.
-  - Entidad `Viaje` (UUID id, titulo, fechaInicio, fechaFin, presupuestoBase): `com.app.viajes.model.Viaje`.
-  - Entidad intermedia `UsuarioViaje` (UUID id, @ManyToOne a Usuario y Viaje, estadoInvitacion por defecto PENDIENTE, rolEnViaje): `com.app.viajes.model.UsuarioViaje`.
-  - Repositorios JPA: `UsuarioRepository`, `ViajeRepository`, `UsuarioViajeRepository`.
-  - `UsuarioViajeRepository` incluye búsquedas clave para la seguridad por pertenencia a un viaje (`existsByUsuarioIdAndViajeId`, `findByUsuarioIdAndViajeId`).
-  - Entidades usan Lombok `@Getter`/`@Setter` (no `@Data`) e IDs UUID para evitar recursividad en relaciones y enumeración de IDs.
+- **Hito actual:** Fase 2 en progreso (seguridad JWT implementada; falta registrar el endpoint `/api/auth`).
+- **Completado en esta sesión (Fase 2 - Parte 2: Seguridad y JWT):**
+  - Dependencias jjwt añadidas al `pom.xml` (jjwt-api, jjwt-impl, jjwt-jackson v0.12.6).
+  - `maven-compiler-plugin` configurado con `annotationProcessorPaths` de Lombok (requerido por JDK 23+, donde `javac` no ejecuta procesadores desde el classpath por defecto).
+  - Propiedades JWT en `application.properties`: `app.jwt.secret` (base64, 360 bits, HS256) y `app.jwt.expiration` (86400000 ms = 24 h).
+  - `JwtUtil` (`@Component`): genera, valida y extrae el email del token con jjwt, inyectando secret/expiration desde propiedades.
+  - `CustomUserDetailsService` (`@Service`): implementa `UserDetailsService`, busca por email en `UsuarioRepository` y mapea el rol como autoridad `ROLE_<ROL>`.
+  - `JwtAuthenticationFilter` (`OncePerRequestFilter`): lee header `Authorization: Bearer <token>`, valida JWT y establece el `SecurityContextHolder`.
+  - `SecurityConfig` (`@Configuration`): `PasswordEncoder` BCrypt, `AuthenticationManager`, `SecurityFilterChain` con CORS abierto, CSRF deshabilitado, sesión STATELESS, `/api/auth/**` público y resto autenticado; filtro JWT registrado antes de `UsernamePasswordAuthenticationFilter`.
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 2 - Parte 2: Seguridad):**
-  - Implementar Spring Security: SecurityFilterChain, PasswordEncoder (BCrypt).
-  - Implementar generación y validación de JWT (JwtUtil, JwtFilter).
+- **Pendiente para la próxima sesión (Fase 2 - Parte 3):**
   - Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
-- **Enviar a la base de datos por primera vez:** al levantar `docker-compose` y la app, Hibernate creará las tablas (ddl-auto=update).
-- **Últimos commits:** `feat(backend): inicializar proyecto Spring Boot 3.x con Maven y configuracion de base de datos`.
+  - Definir DTOs de registro/login y manejo global de excepciones (`@RestControllerAdvice`).
+- **Notas técnicas:**
+  - La clave JWT del `application.properties` es de desarrollo; debe sobrescribirse vía variables de entorno en producción.
+  - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
+- **Últimos commits:** `feat(backend): modelado de datos Fase 2 - entidades core, enums y repositorios JPA`.
 
 ---
 
