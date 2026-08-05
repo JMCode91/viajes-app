@@ -8,6 +8,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - **Autenticación:** JSON Web Tokens (JWT) sin estado.
 - **Autorización:** Control de acceso basado en roles (RBAC) y propiedad de recursos. Un usuario solo puede acceder a la información y archivos de un viaje si su `Usuario_ID` está vinculado a dicho `Viaje_ID`.
 - **Archivos Sensibles:** Los documentos no se sirven estáticamente. Se descargan a través de un endpoint protegido que devuelve el flujo de bytes previa validación del JWT y pertenencia al viaje.
+- **Prevención DoS y Agotamiento de Recursos:** Implementación obligatoria de límites de tamaño de archivo (Max 5MB) en Spring Boot y previsión de Rate Limiting en el proxy inverso (Nginx) para evitar ataques que saturen la RAM o el disco.
 
 ---
 
@@ -18,12 +19,12 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - [x] Inicializar proyecto Spring Boot con las dependencias base (Web, JPA, PostgreSQL, Validation, Lombok).
 - [x] Configurar `application.properties` (o `.yml`) con credenciales de base de datos y propiedades de Hibernate (update/validate).
 
-### Fase 2: Entidades Core y Seguridad (En Progreso)
+### Fase 2: Entidades Core y Seguridad (Completada)
 - [x] Generar Entidad `Usuario` (id, email, password, nombre, rol).
 - [x] Generar Entidad `Viaje` y la tabla intermedia de invitaciones/participantes.
 - [x] Implementar Spring Security: Configuración de SecurityFilterChain, PasswordEncoder (BCrypt).
 - [x] Implementar generación y validación de JWT (JwtUtil, JwtFilter).
-- [ ] Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
+- [x] Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
 
 ### Fase 3: Gestión de Viajes e Invitaciones (Pendiente)
 - [ ] Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
@@ -45,23 +46,23 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 2 en progreso (seguridad JWT implementada; falta registrar el endpoint `/api/auth`).
-- **Completado en esta sesión (Fase 2 - Parte 2: Seguridad y JWT):**
-  - Dependencias jjwt añadidas al `pom.xml` (jjwt-api, jjwt-impl, jjwt-jackson v0.12.6).
-  - `maven-compiler-plugin` configurado con `annotationProcessorPaths` de Lombok (requerido por JDK 23+, donde `javac` no ejecuta procesadores desde el classpath por defecto).
-  - Propiedades JWT en `application.properties`: `app.jwt.secret` (base64, 360 bits, HS256) y `app.jwt.expiration` (86400000 ms = 24 h).
-  - `JwtUtil` (`@Component`): genera, valida y extrae el email del token con jjwt, inyectando secret/expiration desde propiedades.
-  - `CustomUserDetailsService` (`@Service`): implementa `UserDetailsService`, busca por email en `UsuarioRepository` y mapea el rol como autoridad `ROLE_<ROL>`.
-  - `JwtAuthenticationFilter` (`OncePerRequestFilter`): lee header `Authorization: Bearer <token>`, valida JWT y establece el `SecurityContextHolder`.
-  - `SecurityConfig` (`@Configuration`): `PasswordEncoder` BCrypt, `AuthenticationManager`, `SecurityFilterChain` con CORS abierto, CSRF deshabilitado, sesión STATELESS, `/api/auth/**` público y resto autenticado; filtro JWT registrado antes de `UsernamePasswordAuthenticationFilter`.
+- **Hito actual:** Fase 2 completada. Preparando Fase 3 (Gestión de Viajes e Invitaciones).
+- **Completado en esta sesión (Fase 2 - Parte 3: Endpoints de Autenticación):**
+  - DTOs en `com.app.viajes.dto`: `RegisterRequestDTO` (nombre, email, password con validaciones), `LoginRequestDTO` (email, password), `AuthResponseDTO` (token, email, nombre).
+  - `AuthService` (interfaz) + `AuthServiceImpl` (`@Service`): `registrar` valida email existente, cifra password con BCrypt, asigna `Rol.USER` y devuelve token; `login` usa `AuthenticationManager`.
+  - `AuthController` (`@RestController` en `/api/auth`): `POST /register` (201 Created) y `POST /login` (200 OK).
+  - Manejo global de excepciones: `GlobalExceptionHandler` (`@RestControllerAdvice`) con formato JSON uniforme (timestamp, status, error, message), `ApiError` y `EmailAlreadyExistsException`.
+  - Login con credenciales inválidas devuelve 401 con mensaje genérico "Credenciales invalidas" (sin revelar si falló email o password).
+  - Actualizada la sección "Arquitectura de Seguridad" con el punto de **Prevención DoS y Agotamiento de Recursos** (límite de archivos Max 5MB + rate limiting en Nginx).
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 2 - Parte 3):**
-  - Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
-  - Definir DTOs de registro/login y manejo global de excepciones (`@RestControllerAdvice`).
+- **Pendiente para la próxima sesión (Fase 3):**
+  - Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
+  - Implementar lógica de negocio: enviar invitación por email/id y aceptar invitación.
 - **Notas técnicas:**
   - La clave JWT del `application.properties` es de desarrollo; debe sobrescribirse vía variables de entorno en producción.
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
-- **Últimos commits:** `feat(backend): modelado de datos Fase 2 - entidades core, enums y repositorios JPA`.
+  - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
+- **Últimos commits:** `feat(backend): capa de seguridad Fase 2 - Spring Security, JWT y filtro de autenticacion`.
 
 ---
 
@@ -70,4 +71,5 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 
 | Método | Ruta | Descripción | Seguridad (JWT / Roles) |
 | :--- | :--- | :--- | :--- |
-| TBD | TBD | TBD | TBD |
+| POST | `/api/auth/register` | Registro de nuevo usuario. Devuelve 201 Created con token JWT | Público |
+| POST | `/api/auth/login` | Inicio de sesión. Devuelve 200 OK con token JWT | Público |
