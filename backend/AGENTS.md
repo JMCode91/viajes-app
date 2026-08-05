@@ -30,10 +30,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - [x] Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
 - [x] Implementar lógica de negocio: Enviar invitación a usuario por email/id y aceptar invitación.
 
-### Fase 4: Logística, Calendario y Mapa (PostGIS) (Pendiente)
-- [ ] Crear entidad `Actividad` (tipo: vuelo, hotel, excursión) vinculada a `Viaje`.
-- [ ] Implementar geolocalización: Guardar coordenadas (latitud/longitud) adaptadas para futura compatibilidad con PostGIS.
-- [ ] Desarrollar endpoints para listar actividades de un viaje ordenadas por fecha (Timeline).
+### Fase 4: Logística, Calendario y Mapa (PostGIS) (Completada)
+- [x] Crear entidad `Actividad` (tipo: vuelo, hotel, excursión) vinculada a `Viaje`.
+- [x] Implementar geolocalización: Guardar coordenadas (latitud/longitud) adaptadas para futura compatibilidad con PostGIS.
+- [x] Desarrollar endpoints para listar actividades de un viaje ordenadas por fecha (Timeline).
 
 ### Fase 5: Módulos Secundarios y Archivos Seguros (Pendiente)
 - [ ] Entidades y CRUD para `Gastos` (Presupuesto) y `Items` (Checklist).
@@ -46,28 +46,27 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 3 completada. Preparando Fase 4 (Logística, Calendario y Mapa PostGIS).
-- **Completado en esta sesión (Fase 3: Gestión de Viajes e Invitaciones):**
-  - DTOs en `com.app.viajes.dto`: `ViajeRequestDTO` (titulo, fechaInicio, fechaFin, presupuestoBase), `ViajeResponseDTO` (datos + rolEnViaje), `InvitacionRequestDTO` (emailInvitado).
-  - `ViajeService` (interfaz) + `ViajeServiceImpl` (`@Service`): usa `SecurityContextHolder` para extraer el email autenticado en todas las operaciones.
-  - `crearViaje`: crea el viaje y vincula al creador como PROPIETARIO/ACEPTADA.
-  - `obtenerMisViajes`: devuelve los viajes del usuario autenticado con estado ACEPTADA.
-  - `invitarUsuario`: valida que el usuario sea PROPIETARIO del viaje, busca el invitado por email y crea el `UsuarioViaje` como INVITADO/PENDIENTE.
-  - `responderInvitacion`: acepta o rechaza una invitación en estado PENDIENTE.
-  - `ViajeController` (`@RestController` en `/api/viajes`): `POST /`, `GET /`, `POST /{id}/invitar`, `PUT /{id}/responder-invitacion`.
-  - Nuevas excepciones: `AccesoDenegadoException` (403), `ViajeNoEncontradoException` y `UsuarioNoEncontradoException` (404), manejadas por `GlobalExceptionHandler` con formato JSON uniforme.
-  - Todos los endpoints de viajes requieren JWT válido (el resto de rutas están autenticadas en `SecurityConfig`).
+- **Hito actual:** Fase 4 completada. Preparando Fase 5 (Módulos Secundarios y Archivos Seguros).
+- **Completado en esta sesión (Fase 4: Logística, Calendario y Mapa):**
+  - Enum `TipoActividad` (`VUELO`, `TREN`, `HOTEL`, `EXCURSION`, `RESTAURANTE`, `OTRO`) en `com.app.viajes.model.enums`.
+  - Entidad `Actividad` (UUID id, @ManyToOne a Viaje, titulo, descripcion TEXT, tipoActividad, fechaHoraInicio/Fin LocalDateTime, latitud/longitud Double, urlDocumento): `com.app.viajes.model.Actividad`.
+  - DTOs: `ActividadRequestDTO` (con validaciones) y `ActividadResponseDTO` (campos + id y viajeId).
+  - `ActividadRepository`: `findByViajeIdOrderByFechaHoraInicioAsc` y `findByViajeIdAndFecha` (por día de `fechaHoraInicio`).
+  - `ActividadService` (interfaz) + `ActividadServiceImpl` (`@Service`): verificación de pertenencia al viaje (`existsByUsuarioIdAndViajeId`) en cada método antes de operar.
+  - `ActividadController` (`@RestController` en `/api/viajes/{viajeId}/actividades`): `POST /`, `GET /`, `GET /timeline?fecha=YYYY-MM-DD`, `DELETE /{actividadId}`.
+  - Coordenadas guardadas como Double (latitud/longitud), preparadas para futura migración a columnas PostGIS.
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 4):**
-  - Crear entidad `Actividad` (tipo: vuelo, hotel, excursión) vinculada a `Viaje`.
-  - Implementar geolocalización: guardar coordenadas (latitud/longitud) adaptadas para futura compatibilidad con PostGIS.
-  - Desarrollar endpoints para listar actividades de un viaje ordenadas por fecha (Timeline).
+- **Pendiente para la próxima sesión (Fase 5):**
+  - Entidades y CRUD para `Gastos` (Presupuesto) y `Items` (Checklist).
+  - Entidad y CRUD para `Diccionario` (Vocabulario de supervivencia).
+  - Módulo de Archivos Seguros: subida/bajada de archivos (Local o S3) con validación estricta de pertenencia al viaje y límite de tamaño Max 5MB.
 - **Notas técnicas:**
   - La clave JWT del `application.properties` es de desarrollo; debe sobrescribirse vía variables de entorno en producción.
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos).
-- **Últimos commits:** `feat(backend): endpoints de autenticacion Fase 2 - registro, login y manejo global de excepciones`.
+  - Pendiente: previsión de Rate Limiting en Nginx (DoS) y límite de archivos 5MB (se aplicará en Fase 5).
+- **Últimos commits:** `feat(backend): CRUD de viajes e invitaciones Fase 3 con control de acceso por pertenencia`.
 
 ---
 
@@ -82,3 +81,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | GET | `/api/viajes` | Listar los viajes del usuario autenticado (ACEPTADOS) | JWT |
 | POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |
 | PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente | JWT |
+| POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
+| GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
+| GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
+| DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
