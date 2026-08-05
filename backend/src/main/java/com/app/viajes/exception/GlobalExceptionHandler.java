@@ -26,6 +26,16 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.CONFLICT, ex.getMessage());
     }
 
+    @ExceptionHandler(AccesoDenegadoException.class)
+    public ResponseEntity<ApiError> handleAccesoDenegado(AccesoDenegadoException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
+    @ExceptionHandler({ViajeNoEncontradoException.class, UsuarioNoEncontradoException.class})
+    public ResponseEntity<ApiError> handleNotFound(RuntimeException ex) {
+        return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex) {
         // Mensaje generico: no se revela si fallo el email o la contrasena.

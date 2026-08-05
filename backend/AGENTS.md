@@ -26,9 +26,9 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 - [x] Implementar generación y validación de JWT (JwtUtil, JwtFilter).
 - [x] Desarrollar endpoints públicos: `/api/auth/register` y `/api/auth/login`.
 
-### Fase 3: Gestión de Viajes e Invitaciones (Pendiente)
-- [ ] Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
-- [ ] Implementar lógica de negocio: Enviar invitación a usuario por email/id y aceptar invitación.
+### Fase 3: Gestión de Viajes e Invitaciones (Completada)
+- [x] Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
+- [x] Implementar lógica de negocio: Enviar invitación a usuario por email/id y aceptar invitación.
 
 ### Fase 4: Logística, Calendario y Mapa (PostGIS) (Pendiente)
 - [ ] Crear entidad `Actividad` (tipo: vuelo, hotel, excursión) vinculada a `Viaje`.
@@ -46,23 +46,28 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 05/08/2026
-- **Hito actual:** Fase 2 completada. Preparando Fase 3 (Gestión de Viajes e Invitaciones).
-- **Completado en esta sesión (Fase 2 - Parte 3: Endpoints de Autenticación):**
-  - DTOs en `com.app.viajes.dto`: `RegisterRequestDTO` (nombre, email, password con validaciones), `LoginRequestDTO` (email, password), `AuthResponseDTO` (token, email, nombre).
-  - `AuthService` (interfaz) + `AuthServiceImpl` (`@Service`): `registrar` valida email existente, cifra password con BCrypt, asigna `Rol.USER` y devuelve token; `login` usa `AuthenticationManager`.
-  - `AuthController` (`@RestController` en `/api/auth`): `POST /register` (201 Created) y `POST /login` (200 OK).
-  - Manejo global de excepciones: `GlobalExceptionHandler` (`@RestControllerAdvice`) con formato JSON uniforme (timestamp, status, error, message), `ApiError` y `EmailAlreadyExistsException`.
-  - Login con credenciales inválidas devuelve 401 con mensaje genérico "Credenciales invalidas" (sin revelar si falló email o password).
-  - Actualizada la sección "Arquitectura de Seguridad" con el punto de **Prevención DoS y Agotamiento de Recursos** (límite de archivos Max 5MB + rate limiting en Nginx).
+- **Hito actual:** Fase 3 completada. Preparando Fase 4 (Logística, Calendario y Mapa PostGIS).
+- **Completado en esta sesión (Fase 3: Gestión de Viajes e Invitaciones):**
+  - DTOs en `com.app.viajes.dto`: `ViajeRequestDTO` (titulo, fechaInicio, fechaFin, presupuestoBase), `ViajeResponseDTO` (datos + rolEnViaje), `InvitacionRequestDTO` (emailInvitado).
+  - `ViajeService` (interfaz) + `ViajeServiceImpl` (`@Service`): usa `SecurityContextHolder` para extraer el email autenticado en todas las operaciones.
+  - `crearViaje`: crea el viaje y vincula al creador como PROPIETARIO/ACEPTADA.
+  - `obtenerMisViajes`: devuelve los viajes del usuario autenticado con estado ACEPTADA.
+  - `invitarUsuario`: valida que el usuario sea PROPIETARIO del viaje, busca el invitado por email y crea el `UsuarioViaje` como INVITADO/PENDIENTE.
+  - `responderInvitacion`: acepta o rechaza una invitación en estado PENDIENTE.
+  - `ViajeController` (`@RestController` en `/api/viajes`): `POST /`, `GET /`, `POST /{id}/invitar`, `PUT /{id}/responder-invitacion`.
+  - Nuevas excepciones: `AccesoDenegadoException` (403), `ViajeNoEncontradoException` y `UsuarioNoEncontradoException` (404), manejadas por `GlobalExceptionHandler` con formato JSON uniforme.
+  - Todos los endpoints de viajes requieren JWT válido (el resto de rutas están autenticadas en `SecurityConfig`).
   - Compilación verificada con éxito: `mvn clean compile`.
-- **Pendiente para la próxima sesión (Fase 3):**
-  - Desarrollar CRUD de Viajes (solo lectura/escritura para usuarios pertenecientes al viaje).
-  - Implementar lógica de negocio: enviar invitación por email/id y aceptar invitación.
+- **Pendiente para la próxima sesión (Fase 4):**
+  - Crear entidad `Actividad` (tipo: vuelo, hotel, excursión) vinculada a `Viaje`.
+  - Implementar geolocalización: guardar coordenadas (latitud/longitud) adaptadas para futura compatibilidad con PostGIS.
+  - Desarrollar endpoints para listar actividades de un viaje ordenadas por fecha (Timeline).
 - **Notas técnicas:**
   - La clave JWT del `application.properties` es de desarrollo; debe sobrescribirse vía variables de entorno en producción.
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
-- **Últimos commits:** `feat(backend): capa de seguridad Fase 2 - Spring Security, JWT y filtro de autenticacion`.
+  - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos).
+- **Últimos commits:** `feat(backend): endpoints de autenticacion Fase 2 - registro, login y manejo global de excepciones`.
 
 ---
 
@@ -73,3 +78,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | :--- | :--- | :--- | :--- |
 | POST | `/api/auth/register` | Registro de nuevo usuario. Devuelve 201 Created con token JWT | Público |
 | POST | `/api/auth/login` | Inicio de sesión. Devuelve 200 OK con token JWT | Público |
+| POST | `/api/viajes` | Crear un viaje (creador queda como PROPIETARIO) | JWT |
+| GET | `/api/viajes` | Listar los viajes del usuario autenticado (ACEPTADOS) | JWT |
+| POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |
+| PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente | JWT |
