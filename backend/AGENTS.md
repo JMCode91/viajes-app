@@ -14,7 +14,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 ## 🗺️ Roadmap Backend Inicial (Plan de Acción)
 
 ### Fase 1: Infraestructura Base y Base de Datos (Pendiente)
-- [ ] Crear `docker-compose.yml` para levantar PostgreSQL + PostGIS (incluyendo volumen para persistencia).
+- [x] Crear `docker-compose.yml` para levantar PostgreSQL + PostGIS (incluyendo volumen para persistencia).
 - [ ] Inicializar proyecto Spring Boot con las dependencias base (Web, JPA, PostgreSQL, Validation, Lombok).
 - [ ] Configurar `application.properties` (o `.yml`) con credenciales de base de datos y propiedades de Hibernate (update/validate).
 
@@ -44,9 +44,19 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 ## 📊 Estado Actual del Proyecto
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
-- **Última actualización:** [Inicio del proyecto]
-- **Hito actual:** Preparando Fase 1.
-- **Últimos commits:** Ninguno.
+- **Última actualización:** 05/08/2026
+- **Hito actual:** Fase 1 en progreso (infraestructura de base de datos lista).
+- **Completado en esta sesión:**
+  - Infraestructura Docker: `infra/docker-compose.yml` con PostgreSQL 16 + PostGIS (`postgis/postgis:16-3.4`).
+  - Puertos: mapeo `5432:5432` (configurable vía `${POSTGRES_PORT}`).
+  - Variables de entorno seguras para usuario, contraseña y base de datos (valores por defecto de desarrollo sobrescribibles con `.env`).
+  - Volumen de persistencia mapeado a la carpeta local `infra/postgres_data`.
+  - Script de inicialización `infra/postgis-init/init.sql` que habilita la extensión PostGIS (`CREATE EXTENSION postgis`).
+  - Healthcheck de disponibilidad configurado.
+- **Pendiente para la próxima sesión:**
+  - Inicializar proyecto Spring Boot (Web, JPA, PostgreSQL, Validation, Lombok).
+  - Configurar `application.properties` con credenciales y propiedades de Hibernate (update/validate).
+- **Últimos commits:** `docs(core): inicializar repositorio y documentacion de agentes de desarrollo`.
 
 ---
 

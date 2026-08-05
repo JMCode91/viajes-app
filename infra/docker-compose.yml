@@ -1,0 +1,43 @@
+# =====================================================================
+# Viajes-App - Infraestructura de Base de Datos (Fase 1)
+# Servicio PostgreSQL con extensión PostGIS habilitada para soporte
+# de geolocalización (calendario interactivo geolocalizado).
+#
+# Uso:
+#   docker compose -f infra/docker-compose.yml up -d
+#
+# Credenciales: se definen mediante variables de entorno con valores
+# por defecto seguros solo para desarrollo local. Sobrescribir desde
+# un archivo .env en esta misma carpeta en entornos superiores.
+# =====================================================================
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: viajes-postgres
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-viajes_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-viajes_app_secreto_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-viajes_app_db}
+
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+    volumes:
+      # Persistencia de datos en carpeta local del proyecto.
+      - ./postgres_data:/var/lib/postgresql/data
+      # Script de arranque que habilita la extensión PostGIS.
+      - ./postgis-init:/docker-entrypoint-initdb.d
+
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
