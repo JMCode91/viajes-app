@@ -1,0 +1,72 @@
+<div class="min-h-screen bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
+  <header class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Perfil</h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400">Tu cuenta y ajustes.</p>
+  </header>
+
+  <section class="flex flex-col items-center rounded-3xl bg-white dark:bg-gray-800 p-8 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
+    <div class="flex h-28 w-28 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-5xl font-extrabold text-white shadow-xl shadow-blue-600/30">
+      {{ inicial() }}
+    </div>
+
+    @if (usuario(); as usuarioSesion) {
+      <h2 class="mt-5 text-2xl font-bold text-gray-900 dark:text-white">{{ usuarioSesion.nombre }}</h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ usuarioSesion.email }}</p>
+    } @else {
+      <h2 class="mt-5 text-2xl font-bold text-gray-900 dark:text-white">Invitado</h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Sin sesión activa</p>
+    }
+  </section>
+
+  <section class="mt-6 overflow-hidden rounded-3xl bg-white dark:bg-gray-800 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
+    <div class="flex items-center gap-4 px-5 py-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Cuenta</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Gestión de tu cuenta e invitaciones</p>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 dark:text-gray-600">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+      </svg>
+    </div>
+
+    <div class="h-px bg-gray-100 dark:bg-gray-700"></div>
+
+    <div class="flex items-center gap-4 px-5 py-4">
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.645.127l-.213 1.282c-.09.542-.56.94-1.11.94h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.127-.127 6.51 6.51 0 0 1-.873-.105 6.55 6.55 0 0 1-.307-.033c-.294.166-.643.427-.717.723-.13.456-.06.935.24 1.288l1.024 1.178c.291.327.68.52 1.112.52h2.13c.55 0 1.02-.398 1.11-.94l.245-1.472c.037-.224.14-.43.292-.588.147-.154.268-.29.322-.427.821-.025 1.46-.02 1.498-.009.136.164.089.337.045.554l-.178 1.012c-.09.54.36 1.006.91 1.006h2.593c.55 0 1.02-.398 1.11-.94l.29-1.739c.086-.516.163-1.109.313-1.452.182-.414.42-.706.692-.958.059-.056.12-.107.181-.157a6.56 6.56 0 0 1 .144-.11c.313-.234.472-.516.538-.88l.163-.907c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.687.645.87.074.04.147.083.325.127.355.133.75.072 1.076-.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827a1.11 1.11 0 0 0-.43.992 7.7 7.7 0 0 0 0 .255c-.008.378.137.75.43.991M18.375 12c0 1.449-.478 2.785-1.282 3.868m-6.186-3.868a3.375 3.375 0 1 1 6.75 0 3.375 3.375 0 0 1-6.75 0Z" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Notificaciones</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Alertas de viajes y actividad</p>
+      </div>
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 dark:text-gray-600">
+        <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+      </svg>
+    </div>
+
+    <div class="h-px bg-gray-100 dark:bg-gray-700"></div>
+
+    <button
+      type="button"
+      (click)="cerrarSesion()"
+      class="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-red-50 dark:active:bg-red-500/10"
+    >
+      <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 dark:bg-red-500/10 text-red-600 dark:text-red-400">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" />
+        </svg>
+      </div>
+      <div class="min-w-0">
+        <p class="text-sm font-semibold text-red-600 dark:text-red-400">Cerrar Sesión</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400">Sal de la aplicación</p>
+      </div>
+    </button>
+  </section>
+</div>

@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + **ITERACIÓN UI/UX: Picker custom fecha/hora, modal detalle de actividad y botón unirse global** COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + **HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil** COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -256,3 +256,22 @@ src/app/
 - Los pickers son `ControlValueAccessor` (`NG_VALUE_ACCESSOR` + `forwardRef`) y por tanto funcionan con `ReactiveFormsModule` y `formControlName` sin librerías externas.
 - `scrollbar-hide` (ocultar scrollbar de las columnas) vive ahora también en `custom-time-picker.css`; el existente en `detalle-viaje.css` sigue usándose para el mini-calendario.
 - Los formatos de valor son compatibles con el backend: `YYYY-MM-DD` para fechas (`LocalDate`) y `HH:MM` para horas (concatenado como `${dia}T${hora}`).
+
+---
+
+## 🔐🔒 HOTFIX Backend + Escudo 401/403 + Módulo de Perfil (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **HOTFIX Crítico (Backend):** `spring.jpa.hibernate.ddl-auto` quedó estrictamente en **`update`** en `backend/src/main/resources/application.properties` (revertido un cambio accidental de `create` que caía en el commit anterior). `update` crea/actualiza el esquema sin perder datos en cada reinicio.
+- [x] **Escudo de Seguridad (Interceptor 401/403):** `auth.interceptor.ts` ahora inyecta `AuthService` y `Router`. Con `pipe(catchError(...))` captura cualquier `HttpErrorResponse` de URLs `/api/`; si el status es **401 (Unauthorized)** o **403 (Forbidden)** → llama `authService.logout()` (borra `auth_token`/`auth_usuario` y resetea los Signals `isAuthenticated`/`usuario`) y redirige inmediatamente a `/login` con `router.navigate(['/login'])`. El error se re-lanza (`throwError`) para que cada componente siga gestionando su `error` callback.
+- [x] **Módulo Perfil** (`features/perfil/`, Standalone, dentro del `MainLayout`):
+  - **Lógica:** inyecta `AuthService`; expone `usuario` (computed signal) y `inicial` (computed: primera letra en mayúscula del nombre, fallback `'?'`). Método `cerrarSesion()` → `logout()` + `router.navigate(['/login'])`.
+  - **UI Premium:** card superior centrada con **avatar grande circular** (`h-28 w-28`, gradiente azul→índigo, inicial en `text-5xl`), nombre (`text-2xl font-bold`) y email. Debajo: si no hay sesión muestra "Invitado".
+  - **Lista de opciones estilo menú de ajustes iOS/Android:** sección `rounded-3xl` con fila "Cuenta" (icono persona), "Notificaciones" (icono campana) y —al final— un botón **rojo "Cerrar Sesión"** (`text-red-600`, icono de logout, `active:bg-red-50`) que ejecuta `cerrarSesion()`. Dividers `h-px bg-gray-100 dark:bg-gray-700`.
+- [x] **Ruta `/perfil`:** añadida a `app.routes.ts` dentro de los `children` de `MainLayout` (protegida por `authGuard` y con Bottom Nav visible), `loadComponent` lazy → `Perfil`. El botón "Perfil" de la Bottom Navigation Bar ya apuntaba a `/perfil` (última pestaña).
+- [x] **Verificación:** `ng build` compila sin errores (nuevo lazy chunk `perfil`, 5.73 kB).
+
+### 📝 Notas técnicas (Hotfix + Interceptor + Perfil)
+- La intercepción 401/403 se aplica SOLO a requests `/api/**` (protege `diccionario`, `gasto`, etc.); APIs externas (ej. files) no se ve afectadas.
+- El re-lanzamiento del error con `throwError` permite que los componentes (Finanzas, Dashboard, etc.) sigan mostrando su propio mensaje inline tras el logout.
+- `ddl-auto=update` es el valor correcto para desarrollo local; en producción se recomienda `validate` con migraciones.

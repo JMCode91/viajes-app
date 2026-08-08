@@ -26,6 +26,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/finanzas/finanzas').then((m) => m.Finanzas),
       },
+      {
+        path: 'perfil',
+        loadComponent: () =>
+          import('./features/perfil/perfil').then((m) => m.Perfil),
+      },
     ],
   },
   {
