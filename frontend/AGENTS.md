@@ -197,3 +197,23 @@ src/app/
 - **Backend-First:** el DTO de gastos no tiene campo `fecha` ni nombre del pagador (solo `pagadorId` UUID); el formulario no incluye `type="date"` ni se muestra fecha en la tarjeta. Soportarla exigiría evolución del backend.
 - El avatar/nombre del pagador se reconstruye en cliente con el mapa `finanzas_pagadores` del `localStorage` (UUID determinista por nombre normalizado); gastos creados fuera de este frontend se muestran como "Invitado".
 - El FAB `bottom-24` queda 12px por encima de la BottomNav (mismo criterio que Dashboard); el modal usa `z-50` para quedar por encima.
+
+---
+
+## 🎨 Refactor UI: Selector de Día, Documentos y Checklist Dual (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **Modal de Actividades — Selector de día explícito:** se sustituyó el texto hardcodeado del modal por un `<select>` (`h-14 appearance-none rounded-2xl`) que itera sobre `dias()` para poblar las `<option>` "Día N — etiqueta". Nuevo control `dia` en `formActividad` (requerido); al abrir el modal se `patchValue` con `diaActivo()`; al guardar, `fechaHoraInicio = ${dia}T${hora}` (ya no depende del día activo del mini-calendario). Subtítulo del modal ahora genérico.
+- [x] **Modal de actividad — Adjuntar documento:** `input type="file"` oculto (`#archivoInput`, `accept="application/pdf,image/*"`) disparado por botón estilizado con borde punteado e icono de clip: "Adjuntar reserva (PDF/Imagen)". Estado `archivo = signal<{nombre,url}>(null)` + `subiendoArchivo`; al seleccionar se muestra chip con icono de documento + nombre y botón X para quitar. `ActividadRequest.urlDocumento` se rellena con la URL devuelta. El campo se limpia al abrir/cerrar el modal.
+- [x] **ActividadService.subirDocumento(file):** función mockeada que devuelve `Observable<string>` con una URL temporal inventada (`https://r2.placeholder.viajes.app/reservas/<nombre-saneado>`) tras un `delay(600)` — arquitectura lista para Cloudflare R2 (devolverá la URL real del upload).
+- [x] **Checklist dual (pestaña "Checklist"):** **Checklist dual (pestaña "Checklist"):** contenedor con **dos pestañas** (pills con fondo `bg-gray-100 dark:bg-gray-900`): **"Lista Común (Grupo)"** vs **"Mi Lista Privada"** → `listaChecklist = signal<'comun'|'privada'>` (default `comun`); `listaActiva` computed devuelve la lista correspondiente.
+  - **Añadir tarea:** input (h-14) + botón `+` cuadrado; Enter también añade. `anadirTarea()` empuja a la lista activa (`nuevaTarea` se resetea).
+  - **Items:** `@for` con tarjetas `rounded-xl bg-gray-50 dark:bg-gray-800 px-3.5 py-3.5`, checkbox nativo `h-6 w-6 accent-blue-600`; si está marcado → `line-through text-gray-400`. `toggleTarea(id)` muta inmutablemente la lista activa con `update`.
+  - `@empty` con ilustración y texto según lista activa.
+  - **Estado provisional local** (Signals), sin backend. IDs `Date.now()`.
+- [x] **Verificación:** `ng build` compila sin errores.
+
+### 📝 Notas técnicas (Refactor UI)
+- El selector de día usa el mismo `dias()` del mini-calendario; `Día N — 12 sep`. Si no hay viaje cargado (`dias()` vacío), el `<select>` queda sin opciones y la validación `dia` bloquea el guardado.
+- `subirDocumento` es un mock deliberado: preparado para incrustar la lógica de presign de Cloudflare R2 (subida directa a bucket y persistencia de la URL en `Actividad.urlDocumento`).
+- Las listas de checklist son provisionales (Signals locales); en futuras fases se conectarán a `ItemChecklist` del backend.

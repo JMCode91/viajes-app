@@ -21,6 +21,14 @@ export interface Dia {
   etiqueta: string;
 }
 
+export interface ChecklistItem {
+  id: number;
+  texto: string;
+  hecha: boolean;
+}
+
+export type ListaChecklist = 'comun' | 'privada';
+
 @Component({
   selector: 'app-detalle-viaje',
   imports: [DatePipe, ReactiveFormsModule],
@@ -41,6 +49,15 @@ export class DetalleViaje {
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
+
+  protected readonly listaChecklist = signal<ListaChecklist>('comun');
+  protected readonly listaComun = signal<ChecklistItem[]>([]);
+  protected readonly listaPrivada = signal<ChecklistItem[]>([]);
+  protected readonly nuevaTarea = signal('');
+  protected readonly archivo = signal<{ nombre: string; url: string } | null>(
+    null
+  );
+  protected readonly subiendoArchivo = signal(false);
 
   private readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
     'id'
@@ -68,7 +85,16 @@ export class DetalleViaje {
     );
   });
 
+  protected readonly listaActiva = computed<ChecklistItem[]>(() =>
+    this.listaChecklist() === 'comun'
+      ? this.listaComun()
+      : this.listaPrivada()
+  );
+
+  protected readonly urlDocumento = computed(() => this.archivo()?.url);
+
   protected readonly formActividad = this.fb.nonNullable.group({
+    dia: ['', Validators.required],
     titulo: ['', [Validators.required, Validators.maxLength(200)]],
     hora: ['', Validators.required],
     ubicacion: [''],
@@ -120,7 +146,9 @@ export class DetalleViaje {
 
   protected abrirModal(): void {
     this.errorForm.set(null);
+    this.archivo.set(null);
     this.formActividad.reset();
+    this.formActividad.patchValue({ dia: this.diaActivo() ?? '' });
     this.modalAbierto.set(true);
   }
 
@@ -128,7 +156,7 @@ export class DetalleViaje {
     this.modalAbierto.set(false);
   }
 
-  protected hasError(field: 'titulo' | 'hora' | 'ubicacion'): boolean {
+  protected hasError(field: 'dia' | 'titulo' | 'hora' | 'ubicacion'): boolean {
     const control = this.formActividad.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
   }
@@ -139,8 +167,8 @@ export class DetalleViaje {
       return;
     }
 
-    const { titulo, hora, ubicacion } = this.formActividad.getRawValue();
-    const fechaHoraInicio = `${this.diaActivo()}T${hora}`;
+    const { dia, titulo, hora, ubicacion } = this.formActividad.getRawValue();
+    const fechaHoraInicio = `${dia}T${hora}`;
 
     const request: Partial<ActividadRequest> = {
       titulo,
@@ -148,6 +176,7 @@ export class DetalleViaje {
       fechaHoraInicio,
       fechaHoraFin: fechaHoraInicio,
       descripcion: ubicacion || undefined,
+      urlDocumento: this.urlDocumento() ?? undefined,
     };
 
     this.guardando.set(true);
@@ -166,6 +195,57 @@ export class DetalleViaje {
           this.errorForm.set('No se pudo guardar el plan. Inténtalo de nuevo.');
         },
       });
+  }
+
+  protected onArchivoSeleccionado(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) {
+      return;
+    }
+    this.subiendoArchivo.set(true);
+    this.actividadService.subirDocumento(file).subscribe({
+      next: (url) => {
+        this.archivo.set({ nombre: file.name, url });
+        this.subiendoArchivo.set(false);
+      },
+      error: () => {
+        this.subiendoArchivo.set(false);
+      },
+    });
+    input.value = '';
+  }
+
+  protected quitarArchivo(): void {
+    this.archivo.set(null);
+  }
+
+  protected setListaChecklist(lista: ListaChecklist): void {
+    this.listaChecklist.set(lista);
+  }
+
+  protected anadirTarea(): void {
+    const texto = this.nuevaTarea().trim();
+    if (!texto) {
+      return;
+    }
+    const item: ChecklistItem = { id: Date.now(), texto, hecha: false };
+    if (this.listaChecklist() === 'comun') {
+      this.listaComun.update((l) => [...l, item]);
+    } else {
+      this.listaPrivada.update((l) => [...l, item]);
+    }
+    this.nuevaTarea.set('');
+  }
+
+  protected toggleTarea(id: number): void {
+    const alternar = (item: ChecklistItem): ChecklistItem =>
+      item.id === id ? { ...item, hecha: !item.hecha } : item;
+    if (this.listaChecklist() === 'comun') {
+      this.listaComun.update((l) => l.map(alternar));
+    } else {
+      this.listaPrivada.update((l) => l.map(alternar));
+    }
   }
 
   private generarDias(inicio: string, fin: string): Dia[] {
