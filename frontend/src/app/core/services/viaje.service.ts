@@ -50,6 +50,10 @@ export class ViajeService {
     return this.http.delete<void>(`/api/viajes/${id}`);
   }
 
+  abandonarViaje(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/viajes/${id}/participantes/me`);
+  }
+
   getParticipantes(viajeId: UUID): Observable<Participante[]> {
     return this.http.get<Participante[]>(
       `/api/viajes/${viajeId}/participantes`

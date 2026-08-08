@@ -50,4 +50,12 @@ public class UsuarioViaje {
 
     @Column(name = "rol_en_viaje", nullable = false, length = 30)
     private String rolEnViaje;
+
+    /**
+     * Borrado logico: indica si la pertenencia sigue activa.
+     * El usuario que abandona el viaje pasa a {@code activo = false} sin
+     * borrarse fisicamente, preservando la integridad de gastos y listas.
+     */
+    @Column(name = "activo", nullable = false, columnDefinition = "boolean default true")
+    private boolean activo = true;
 }

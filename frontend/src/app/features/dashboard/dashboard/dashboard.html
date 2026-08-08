@@ -53,11 +53,29 @@
           </span>
         </div>
 
-        <div class="mt-4 flex items-center justify-between rounded-2xl bg-gray-50 dark:bg-gray-900 px-4 py-3">
+        <div class="mt-4 flex items-center justify-between gap-3 rounded-2xl bg-gray-50 dark:bg-gray-900 px-4 py-3">
           <p class="text-sm text-gray-500 dark:text-gray-400">Presupuesto base</p>
-          <p class="text-base font-semibold text-gray-900 dark:text-white">
-            {{ viaje.presupuestoBase | currency: 'EUR' }}
-          </p>
+          <div class="flex items-center gap-3">
+            <p class="text-base font-semibold text-gray-900 dark:text-white">
+              {{ viaje.presupuestoBase | currency: 'EUR' }}
+            </p>
+            <button
+              type="button"
+              [attr.aria-label]="esEliminar(viaje) ? 'Eliminar viaje' : 'Abandonar viaje'"
+              (click)="$event.stopPropagation(); esEliminar(viaje) ? abrirAccion(viaje, 'eliminar') : abrirAccion(viaje, 'abandonar')"
+              class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 active:scale-95"
+            >
+              @if (esEliminar(viaje)) {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-5 w-5 text-red-500">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                </svg>
+              } @else {
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-5 w-5 text-gray-500 dark:text-gray-300">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+                </svg>
+              }
+            </button>
+          </div>
         </div>
       </article>
     } @empty {
@@ -99,6 +117,73 @@
     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
   </svg>
 </button>
+
+@if (modalAccion && viajeAccion && tipoAccion) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+    (click)="cerrarAccion()"
+  >
+    <div
+      class="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="flex flex-col items-center text-center">
+        <div
+          class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+          [class]="tipoAccion === 'eliminar' ? 'bg-red-100 dark:bg-red-500/10' : 'bg-blue-100 dark:bg-blue-500/10'"
+        >
+          @if (tipoAccion === 'eliminar') {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-8 w-8 text-red-600 dark:text-red-400">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+            </svg>
+          } @else {
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-8 w-8 text-blue-600 dark:text-blue-400">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3 0l3-3m0 0l-3-3m3 3H9" />
+            </svg>
+          }
+        </div>
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+          @if (tipoAccion === 'eliminar') { Eliminar viaje } @else { Abandonar viaje }
+        </h2>
+        <p class="mt-2 max-w-xs text-sm text-gray-500 dark:text-gray-400">
+          @if (tipoAccion === 'eliminar') {
+            ¿Seguro que quieres eliminar «{{ viajeAccion.titulo }}»? Se borrarán
+            gastos, actividades y documentos. Esta acción no se puede deshacer.
+          } @else {
+            Abandonarás «{{ viajeAccion.titulo }}». Podrás volver a unirte más tarde con el mismo código si lo compartes de nuevo.
+          }
+        </p>
+      </div>
+
+      @if (errorAccion) {
+        <p class="mt-4 text-center text-xs text-red-600">{{ errorAccion }}</p>
+      }
+
+      <div class="mt-6 flex flex-col gap-3">
+        <button
+          type="button"
+          (click)="confirmarAccion()"
+          [disabled]="procesandoAccion"
+          class="h-14 w-full rounded-2xl text-base font-semibold text-white active:scale-[0.98] disabled:opacity-60"
+          [class]="tipoAccion === 'eliminar' ? 'bg-red-600 shadow-lg shadow-red-600/30 active:bg-red-700' : 'bg-blue-600 shadow-lg shadow-blue-600/30 active:bg-blue-700'"
+        >
+          @if (procesandoAccion) {
+            Eliminando…
+          } @else {
+            @if (tipoAccion === 'eliminar') { Eliminar viaje } @else { Abandonar viaje }
+          }
+        </button>
+        <button
+          type="button"
+          (click)="cerrarAccion()"
+          class="h-14 w-full rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-base font-semibold text-gray-700 dark:text-gray-200 active:scale-[0.98]"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 @if (modalUnirse) {
   <div

@@ -64,6 +64,12 @@ public class ViajeController {
         return ResponseEntity.ok(viajeService.obtenerParticipantes(id));
     }
 
+    @DeleteMapping("/{id}/participantes/me")
+    public ResponseEntity<Void> abandonarViaje(@PathVariable UUID id) {
+        viajeService.abandonarViaje(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarViaje(@PathVariable UUID id) {
         viajeService.eliminarViaje(id);

@@ -44,7 +44,14 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil + USABILIDAD UI/UX + INTEGRACIÓN CHECKLIST CON BACKEND + SUBIDA DE DOCUMENTOS REAL (R2) + SELECTOR DE ASIGNACIÓN CHECKLIST + **UI MULTI-DOCUMENTO (1:N) CON BORRADO** COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil + USABILIDAD UI/UX + INTEGRACIÓN CHECKLIST CON BACKEND + SUBIDA DE DOCUMENTOS REAL (R2) + SELECTOR DE ASIGNACIÓN CHECKLIST + **UI MULTI-DOCUMENTO (1:N) CON BORRADO + ABANDONAR VIAJE (BORRADO LÓGICO)** COMPLETADOS.
+
+### ✅ Completado en esta sesión (Abandonar vs Eliminar viaje — borrado lógico en el Dashboard)
+- [x] **`ViajeService.abandonarViaje(id)`:** nuevo método → `DELETE /api/viajes/{id}/participantes/me` (borrado lógico del invitado, 204).
+- [x] **Botón de acción por card en el Dashboard:** en la fila de "Presupuesto base" de cada tarjeta. Si `viaje.rolEnViaje === 'PROPIETARIO'` (el creador) muestra la **papelera roja** (elimina todo el viaje); si es invitado muestra el **icono de salida** (abandonar el viaje). El botón hace `$event.stopPropagation()` para no navegar al detalle. helper `esEliminar(viaje)`.
+- [x] **Modal de confirmación unificado (`modalAccion`):** al pulsar el botón se abre un bottom-sheet con chip rojo (Eliminar) o azul (Abandonar), título y mensaje específico. Confirmación roja `"No se puede deshacer"` para eliminar o azul "podrás volver a unirte con el código" para abandonar. Estados `procesandoAccion` (deshabilita y muestra "Eliminando…") y `errorAccion` inline. Al confirmar llama a `eliminarViaje` o `abandonarViaje` y **recarga el listado** (`cargarMisViajes()`).
+- [x] **Unirse a un viaje:** al recibir el 200 OK ahora cierra el modal y **dispara la recarga de la lista** (`cargarMisViajes`).
+- [x] **Verificación:** `ng build` compila sin errores (chunk `dashboard` regenerado).
 
 ### ✅ Completado en esta sesión (UI multi-documento 1:N — ver y borrar documentos por actividad)
 - [x] **Tipo `Documento`** en `shared/types/index.ts` (`id`, `nombreOriginal`, `urlArchivo`). `Actividad` reemplaza `urlDocumento: string` por `documentos: Documento[]`; `ActividadRequest` pierde `urlDocumento` (espejo exacto del `ActividadResponseDTO`/`ActividadRequestDTO` del backend).

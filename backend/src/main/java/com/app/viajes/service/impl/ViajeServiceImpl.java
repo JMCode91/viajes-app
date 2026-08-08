@@ -104,6 +104,9 @@ public class ViajeServiceImpl implements ViajeService {
         return usuarioViajeRepository.findByUsuarioIdAndEstadoInvitacion(
                         usuario.getId(), EstadoInvitacion.ACEPTADA)
                 .stream()
+                // Borrado logico: si el usuario abandono el viaje (activo=false),
+                // este deja de aparecer en su listado.
+                .filter(UsuarioViaje::isActivo)
                 .map(this::toResponseDTO)
                 .toList();
     }
@@ -171,6 +174,12 @@ public class ViajeServiceImpl implements ViajeService {
                         "No tiene una invitacion pendiente para este viaje"));
 
         if (pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA) {
+            // Reunion: si el usuario habia abandonado el viaje (borrado logico),
+            // volver a unirse con el codigo lo reactiva.
+            if (!pertenencia.isActivo()) {
+                pertenencia.setActivo(true);
+                usuarioViajeRepository.save(pertenencia);
+            }
             return;
         }
 
@@ -182,6 +191,26 @@ public class ViajeServiceImpl implements ViajeService {
         pertenencia.setEstadoInvitacion(aceptar
                 ? EstadoInvitacion.ACEPTADA
                 : EstadoInvitacion.RECHAZADA);
+        usuarioViajeRepository.save(pertenencia);
+    }
+
+    @Override
+    @Transactional
+    public void abandonarViaje(UUID viajeId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        UsuarioViaje pertenencia = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "No tiene acceso a este viaje"));
+        if (ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
+            throw new AccesoDenegadoException(
+                    "El propietario no puede abandonar el viaje");
+        }
+
+        // Borrado logico: el invitado deja de ver el viaje en su listado,
+        // se conserva la integridad historica de gastos y listas.
+        pertenencia.setActivo(false);
         usuarioViajeRepository.save(pertenencia);
     }
 

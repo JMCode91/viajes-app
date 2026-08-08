@@ -23,6 +23,8 @@ public interface ViajeService {
 
     void responderInvitacion(UUID viajeId, boolean aceptar);
 
+    void abandonarViaje(UUID viajeId);
+
     void eliminarViaje(UUID viajeId);
 
     List<ParticipanteResponseDTO> obtenerParticipantes(UUID viajeId);
