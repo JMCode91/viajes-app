@@ -2,3 +2,7 @@
 # Datos locales de PostgreSQL creados por docker-compose (volumen bind)
 # =====================================================================
 postgres_data/
+
+
+# Archivos de secretos
+.env

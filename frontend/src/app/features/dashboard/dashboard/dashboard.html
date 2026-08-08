@@ -1,0 +1,122 @@
+<div class="min-h-screen bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
+  <header class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Mis viajes</h1>
+    <p class="text-sm text-gray-500 dark:text-gray-400">Tus planes, en un solo lugar.</p>
+  </header>
+
+  <section class="flex flex-col gap-4">
+    @for (viaje of viajes(); track viaje.id) {
+      <article class="rounded-3xl bg-white dark:bg-gray-800 p-5 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ viaje.titulo }}</h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ viaje.fechaInicio | date: 'd MMM yyyy' }} — {{ viaje.fechaFin | date: 'd MMM yyyy' }}
+            </p>
+          </div>
+          <span class="shrink-0 rounded-full bg-blue-50 dark:bg-blue-500/10 px-3 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+            {{ viaje.rolEnViaje }}
+          </span>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between rounded-2xl bg-gray-50 dark:bg-gray-900 px-4 py-3">
+          <p class="text-sm text-gray-500 dark:text-gray-400">Presupuesto base</p>
+          <p class="text-base font-semibold text-gray-900 dark:text-white">
+            {{ viaje.presupuestoBase | currency: 'EUR' }}
+          </p>
+        </div>
+      </article>
+    } @empty {
+      <section class="flex flex-col items-center justify-center py-24 text-center">
+        <div class="mb-6 flex h-24 w-24 items-center justify-center rounded-3xl bg-blue-100 dark:bg-blue-500/10">
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" class="h-14 w-14 text-blue-600 dark:text-blue-400">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" />
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold text-gray-900 dark:text-white">Aún no tienes viajes</h2>
+        <p class="mt-2 max-w-xs text-sm text-gray-500 dark:text-gray-400">
+          Crea tu primer viaje y empieza a planificar la aventura de tus sueños.
+        </p>
+        <button type="button" routerLink="/crear-viaje" class="mt-6 h-12 rounded-2xl bg-blue-600 px-6 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-95">
+          Crear mi primer viaje
+        </button>
+        <button
+          type="button"
+          (click)="abrirModalUnirse()"
+          class="mt-3 flex h-12 items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 text-sm font-semibold text-gray-700 dark:text-gray-200 active:scale-95"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+          </svg>
+          Unirse a un viaje con código
+        </button>
+      </section>
+    }
+  </section>
+</div>
+
+<button
+  type="button"
+  routerLink="/crear-viaje"
+  aria-label="Crear nuevo viaje"
+  class="fixed bottom-24 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/40 active:scale-95"
+>
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="h-8 w-8">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+</button>
+
+@if (modalUnirse) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+    (click)="cerrarModalUnirse()"
+  >
+    <div
+      class="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="mb-5 flex items-start justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-gray-900 dark:text-white">Unirse a un viaje</h2>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+            Introduce el código UUID compartido por el propietario del viaje.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Cerrar"
+          (click)="cerrarModalUnirse()"
+          class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 active:scale-95"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <form [formGroup]="formUnirse" (ngSubmit)="unirse()" class="flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <input
+            type="text"
+            formControlName="uuid"
+            placeholder="00000000-0000-0000-0000-000000000000"
+            class="h-14 w-full rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 font-mono text-sm text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+          />
+          @if (hasError('uuid')) {
+            <span class="text-xs text-red-600">Introduce un código válido.</span>
+          }
+          @if (errorUnirse) {
+            <span class="text-xs text-red-600">{{ errorUnirse }}</span>
+          }
+        </div>
+
+        <button
+          type="submit"
+          class="h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+        >
+          Unirse
+        </button>
+      </form>
+    </div>
+  </div>
+}

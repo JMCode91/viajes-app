@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Arrancar Backend Viajes",
+            "request": "launch",
+            "mainClass": "com.app.viajes.ViajesApplication",
+            "envFile": "${workspaceFolder}/infra/.env"
+        }
+    ]
+}

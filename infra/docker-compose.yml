@@ -18,16 +18,16 @@ services:
     restart: unless-stopped
 
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-viajes_app}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-viajes_app_secreto_dev}
+      POSTGRES_USER: ${MI_USUARIO}
+      POSTGRES_PASSWORD: ${MI_CONTRASENA}
       POSTGRES_DB: ${POSTGRES_DB:-viajes_app_db}
 
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_PORT:-5435}:5432"
 
     volumes:
-      # Persistencia de datos en carpeta local del proyecto.
-      - ./postgres_data:/var/lib/postgresql/data
+      # Usamos un volumen gestionado por Docker en lugar de una carpeta local
+      - db_data:/var/lib/postgresql/data
       # Script de arranque que habilita la extensión PostGIS.
       - ./postgis-init:/docker-entrypoint-initdb.d
 
@@ -41,3 +41,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
+
+volumes:
+  db_data:

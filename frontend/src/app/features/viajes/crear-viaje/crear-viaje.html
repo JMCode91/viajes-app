@@ -1,0 +1,88 @@
+<div class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 px-6 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+  <header class="mb-8 flex items-center gap-3">
+    <button
+      type="button"
+      aria-label="Volver al dashboard"
+      (click)="goBack()"
+      class="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </button>
+    <div>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Nuevo viaje</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400">Organiza tu próxima aventura.</p>
+    </div>
+  </header>
+
+  <form
+    [formGroup]="form"
+    (ngSubmit)="onSubmit()"
+    class="flex flex-col gap-5 rounded-3xl bg-white dark:bg-gray-900 p-7 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800"
+  >
+    <div class="flex flex-col gap-2">
+      <label for="titulo" class="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del viaje</label>
+      <input
+        id="titulo"
+        type="text"
+        formControlName="titulo"
+        maxlength="200"
+        placeholder="Viaje a Japón 2026"
+        class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+      />
+      @if (hasError('titulo')) {
+        <span class="text-xs text-red-600">El nombre es obligatorio.</span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="fechaInicio" class="text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de inicio</label>
+      <input
+        id="fechaInicio"
+        type="date"
+        formControlName="fechaInicio"
+        class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+      />
+      @if (hasError('fechaInicio')) {
+        <span class="text-xs text-red-600">Selecciona una fecha de inicio.</span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="fechaFin" class="text-sm font-medium text-gray-700 dark:text-gray-300">Fecha de fin</label>
+      <input
+        id="fechaFin"
+        type="date"
+        formControlName="fechaFin"
+        class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+      />
+      @if (hasError('fechaFin')) {
+        <span class="text-xs text-red-600">Selecciona una fecha de fin.</span>
+      }
+    </div>
+
+    <div class="flex flex-col gap-2">
+      <label for="presupuestoBase" class="text-sm font-medium text-gray-700 dark:text-gray-300">Presupuesto base (€)</label>
+      <input
+        id="presupuestoBase"
+        type="number"
+        min="0"
+        step="0.01"
+        formControlName="presupuestoBase"
+        placeholder="2500"
+        class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+      />
+      @if (hasError('presupuestoBase')) {
+        <span class="text-xs text-red-600">El presupuesto no puede ser negativo.</span>
+      }
+    </div>
+
+    <button
+      type="submit"
+      class="mt-2 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+    >
+      Crear viaje
+    </button>
+  </form>
+</div>

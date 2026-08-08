@@ -1,0 +1,79 @@
+<div class="min-h-screen flex items-center justify-center px-6 py-10 bg-gradient-to-b from-blue-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+  <div class="w-full max-w-md">
+    <div class="text-center mb-10">
+      <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-blue-600 text-white shadow-xl shadow-blue-600/30">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-8 w-8">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18Zm-2.25-6.75h4.5m-4.5-4.5h4.5" />
+        </svg>
+      </div>
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Bienvenido de nuevo</h1>
+      <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        Accede a tus viajes y sigue planificando.
+      </p>
+    </div>
+
+    <form
+      [formGroup]="form"
+      (ngSubmit)="onSubmit()"
+      class="flex flex-col gap-5 rounded-3xl bg-white dark:bg-gray-900 p-8 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800"
+    >
+      <div class="flex flex-col gap-2">
+        <label for="email" class="text-sm font-medium text-gray-700 dark:text-gray-300">Email</label>
+        <input
+          id="email"
+          type="email"
+          formControlName="email"
+          autocomplete="email"
+          placeholder="tu@email.com"
+          class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+        />
+        @if (hasError('email')) {
+          <span class="text-xs text-red-600">Introduce un email válido.</span>
+        }
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <label for="password" class="text-sm font-medium text-gray-700 dark:text-gray-300">Contraseña</label>
+        <input
+          id="password"
+          type="password"
+          formControlName="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 border border-transparent px-4 text-base text-gray-900 dark:text-white placeholder-gray-400 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500"
+        />
+        @if (hasError('password')) {
+          <span class="text-xs text-red-600">La contraseña es obligatoria.</span>
+        }
+      </div>
+
+      <button
+        type="submit"
+        class="mt-2 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+      >
+        Entrar
+      </button>
+    </form>
+
+    <div class="mt-6 border-t border-gray-200 dark:border-gray-800 pt-6">
+      <p class="mb-3 text-center text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-gray-500">
+        Acceso rápido de desarrollo
+      </p>
+      <button
+        type="button"
+        (click)="autofillDev()"
+        class="mx-auto flex h-11 items-center gap-2 rounded-full bg-gray-100 dark:bg-gray-800 px-5 text-sm font-medium text-gray-600 dark:text-gray-300 active:scale-95 active:bg-gray-200"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 8.25v4.5l3 1.5m5.25-2.25a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+        Rellenar demo
+      </button>
+    </div>
+
+    <p class="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+      ¿Aún no tienes cuenta?
+      <a routerLink="/registro" class="font-semibold text-blue-600 dark:text-blue-400">Regístrate</a>
+    </p>
+  </div>
+</div>
