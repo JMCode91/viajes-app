@@ -73,6 +73,12 @@ export interface Gasto {
   pagadorId: UUID;
 }
 
+export interface GastoRequest {
+  concepto: string;
+  cantidad: number;
+  pagadorId: UUID;
+}
+
 export interface Diccionario {
   id: UUID;
   fraseEspanol: string;

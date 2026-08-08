@@ -21,6 +21,11 @@ export const routes: Routes = [
             (m) => m.Dashboard
           ),
       },
+      {
+        path: 'gastos',
+        loadComponent: () =>
+          import('./features/finanzas/finanzas').then((m) => m.Finanzas),
+      },
     ],
   },
   {
