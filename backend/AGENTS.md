@@ -45,8 +45,19 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 ## 📊 Estado Actual del Proyecto
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
-- **Última actualización:** 08/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA** COMPLETADOS.
+- **Última actualización:** 09/08/2026
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD** COMPLETADOS.
+- **Completado en esta sesión (Geolocalización — coordenadas y dirección en Actividad):**
+  - **`Actividad` ahora soporta geolocalización completa:** `latitud` y `longitud` (Double, nullable) ya existían; se añade **`direccion`** (`String`, nullable, `length = 255`). El modelo queda preparado para el mapa Leaflet + geocodificación Nominatim del frontend.
+  - **DTOs:** `ActividadRequestDTO` y `ActividadResponseDTO` exponen los tres campos (`latitud`, `longitud`, `direccion`), todos opcionales. `direccion` valida `@Size(max = 255)`.
+  - **`ActividadServiceImpl`:** `crearActividad` mapea `dto.direccion() → actividad.setDireccion(...)` y `toResponseDTO` devuelve el campo en la respuesta. El resto de endpoints (lista, timeline, documentos) heredan el campo automáticamente vía `toResponseDTO`.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
+- **Completado en esta sesión (Borrado lógico — abandonar viaje invitado + filtro listado):**
+  - **`UsuarioViaje.activo` (boolean, default true, `columnDefinition = "boolean default true"`):** la pertenencia ahora se puede desactivar sin borrado físico, preservando la integridad histórica de gastos (pagadorId) y listas compartidas.
+  - **`ViajeServiceImpl.obtenerMisViajes`:** añadido `.filter(UsuarioViaje::isActivo)` → `GET /api/viajes` solo devuelve viajes donde el usuario es el Creador (PROPIETARIO, siempre `activo=true`) o invitado con `activo==true`.
+  - **`ViajeServiceImpl.responderInvitacion`:** si una pertenencia ACEPTADA estaba `activo=false` (abandonada), volver a unirse con el código la reactiva (`activo=true`).
+  - **`ViajeService.abandonarViaje(UUID viajeId)` / `ViajeServiceImpl`:** valida pertenencia del usuario autenticado, rechaza con `AccesoDenegadoException` si el usuario es PROPIETARIO ("El propietario no puede abandonar el viaje") y marca la pertenencia como `activo=false`. Nuevo endpoint `DELETE /api/viajes/{id}/participantes/me` (204).
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Borrado físico en cascada — purga de R2 al borrar Actividad/Viaje):**
   - **`ActividadServiceImpl.eliminarActividad`:** antes de borrar la actividad de la BD, itera sobre `actividad.getDocumentos()` y llama a `StorageService.eliminarDocumento(url)` por cada uno (purga física en Cloudflare R2). El borrado en cascada JPA (`cascade=ALL` + `orphanRemoval`) elimina después las filas de `documentos`.
   - **`ViajeServiceImpl.eliminarViaje`:** ahora inyecta `StorageService`. Antes del borrado de filas, obtiene todos los documentos del viaje con el nuevo método del repositorio `DocumentoRepository.findByActividadViajeId(viajeId)` y llama a `eliminarDocumento(url)` por cada uno (purga física). Después sigue con el borrado en cascada manual (`documentos` → `actividades` → `usuarios_viajes` → viaje).
@@ -122,6 +133,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |
 | PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente (o unirse por UUID) | JWT |
 | GET | `/api/viajes/{id}/participantes` | Listar participantes con pertenencia ACEPTADA | JWT |
+| DELETE | `/api/viajes/{id}/participantes/me` | Abandonar el viaje en el que eres invitado (borrado lógico: `activo=false`) | JWT |
 | DELETE | `/api/viajes/{id}` | Eliminar un viaje (solo PROPIETARIO, borrado en cascada manual) | JWT |
 | POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |

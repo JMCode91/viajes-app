@@ -28,6 +28,9 @@ public record ActividadRequestDTO(
 
         Double latitud,
 
-        Double longitud
+        Double longitud,
+
+        @Size(max = 255, message = "La direccion no puede superar los 255 caracteres")
+        String direccion
 ) {
 }

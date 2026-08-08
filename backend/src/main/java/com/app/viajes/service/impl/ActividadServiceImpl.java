@@ -73,6 +73,7 @@ public class ActividadServiceImpl implements ActividadService {
         actividad.setFechaHoraFin(dto.fechaHoraFin());
         actividad.setLatitud(dto.latitud());
         actividad.setLongitud(dto.longitud());
+        actividad.setDireccion(dto.direccion());
         actividadRepository.save(actividad);
 
         return toResponseDTO(actividad);
@@ -197,6 +198,7 @@ public class ActividadServiceImpl implements ActividadService {
                 actividad.getFechaHoraFin(),
                 actividad.getLatitud(),
                 actividad.getLongitud(),
+                actividad.getDireccion(),
                 actividad.getDocumentos().stream()
                         .map(documento -> new DocumentoDTO(
                                 documento.getId(),

@@ -20,6 +20,7 @@ public record ActividadResponseDTO(
         LocalDateTime fechaHoraFin,
         Double latitud,
         Double longitud,
+        String direccion,
         List<DocumentoDTO> documentos
 ) {
 }
