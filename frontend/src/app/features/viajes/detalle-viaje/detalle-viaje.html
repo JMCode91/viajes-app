@@ -42,7 +42,80 @@
   <section>
     @switch (tabActiva()) {
       @case ('itinerario') {
-        <p class="text-sm text-gray-500 dark:text-gray-400">Contenido del itinerario...</p>
+        <div class="scrollbar-hide -mx-4 mb-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
+          @for (dia of dias(); track dia.valor) {
+            <button
+              type="button"
+              (click)="seleccionarDia(dia.valor)"
+              [class]="
+                diaActivo() === dia.valor
+                  ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-blue-600 px-2 py-3 shadow-lg shadow-blue-600/30 active:scale-95'
+                  : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95'
+              "
+            >
+              <span
+                class="text-xs font-bold uppercase tracking-wide"
+                [class.text-blue-100]="diaActivo() === dia.valor"
+                [class.text-gray-400]="diaActivo() !== dia.valor"
+              >
+                Día {{ dia.numero }}
+              </span>
+              <span
+                [class]="
+                  diaActivo() === dia.valor
+                    ? 'mt-0.5 text-sm font-semibold text-white'
+                    : 'mt-0.5 text-sm font-semibold text-gray-900 dark:text-white'
+                "
+              >
+                {{ dia.etiqueta }}
+              </span>
+            </button>
+          }
+        </div>
+
+        <div class="relative ml-6">
+          <div class="absolute bottom-2 left-[6px] top-2 w-0.5 bg-gray-200 dark:bg-gray-700"></div>
+
+          @for (actividad of actividadesDelDia(); track actividad.id) {
+            <div class="relative mb-5 flex items-start gap-3">
+              <span
+                class="mt-1 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border-2 border-blue-600 bg-white dark:bg-gray-900"
+              ></span>
+              <article class="w-full rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-md shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700">
+                <p class="text-xs font-bold text-blue-600 dark:text-blue-400">{{ actividad.fechaHoraInicio | date: 'HH:mm' }}</p>
+                <h3 class="mt-0.5 truncate text-base font-semibold text-gray-900 dark:text-white">{{ actividad.titulo }}</h3>
+                @if (actividad.descripcion) {
+                  <p class="mt-1 flex items-center gap-1 text-sm text-gray-500 dark:text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-4 w-4 shrink-0">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+                    </svg>
+                    {{ actividad.descripcion }}
+                  </p>
+                }
+              </article>
+            </div>
+          } @empty {
+            <div class="relative flex min-h-32 flex-col items-center justify-center rounded-3xl bg-white/60 p-6 text-center dark:bg-gray-800/40">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" class="mb-2 h-10 w-10 text-blue-500 dark:text-blue-400">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+              </svg>
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Este día aún no tiene planes</p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Añade tu primera actividad para este día.</p>
+            </div>
+          }
+        </div>
+
+        <button
+          type="button"
+          (click)="abrirModal()"
+          class="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="h-5 w-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Añadir plan
+        </button>
       }
       @case ('mapa') {
         <p class="text-sm text-gray-500 dark:text-gray-400">Contenido del mapa...</p>
@@ -53,3 +126,74 @@
     }
   </section>
 </div>
+
+@if (modalAbierto()) {
+  <div
+    class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+    (click)="cerrarModal()"
+  >
+    <div
+      class="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
+      (click)="$event.stopPropagation()"
+    >
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white">Añadir plan</h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        Planifica una nueva actividad para el {{ diaActivo() | date: 'd MMM yyyy' }}.
+      </p>
+
+      <form [formGroup]="formActividad" (ngSubmit)="guardarActividad()" class="mt-5 flex flex-col gap-4">
+        <div class="flex flex-col gap-2">
+          <label for="titulo" class="text-sm font-medium text-gray-700 dark:text-gray-300">Título</label>
+          <input
+            id="titulo"
+            type="text"
+            formControlName="titulo"
+            maxlength="200"
+            placeholder="Excursión al templo..."
+            class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+          />
+          @if (hasError('titulo')) {
+            <span class="text-xs text-red-600">El título es obligatorio.</span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="hora" class="text-sm font-medium text-gray-700 dark:text-gray-300">Hora</label>
+          <input
+            id="hora"
+            type="time"
+            formControlName="hora"
+            class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+          />
+          @if (hasError('hora')) {
+            <span class="text-xs text-red-600">Selecciona una hora.</span>
+          }
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label for="ubicacion" class="text-sm font-medium text-gray-700 dark:text-gray-300">Ubicación (opcional)</label>
+          <input
+            id="ubicacion"
+            type="text"
+            formControlName="ubicacion"
+            maxlength="500"
+            placeholder="Kyoto, Japón"
+            class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        @if (errorForm()) {
+          <span class="text-xs text-red-600">{{ errorForm() }}</span>
+        }
+
+        <button
+          type="submit"
+          [disabled]="guardando()"
+          class="mt-1 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700 disabled:opacity-60"
+        >
+          {{ guardando() ? 'Guardando...' : 'Guardar' }}
+        </button>
+      </form>
+    </div>
+  </div>
+}

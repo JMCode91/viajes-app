@@ -1,8 +1,11 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
+import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ViajeService } from '../../../core/services/viaje.service';
+import { ActividadService } from '../../../core/services/actividad.service';
+import { ActividadRequest, UUID } from '../../../shared/types';
 
 export type Tab = 'itinerario' | 'mapa' | 'checklist';
 
@@ -12,19 +15,64 @@ export interface TabItem {
   icon: string;
 }
 
+export interface Dia {
+  valor: string;
+  numero: number;
+  etiqueta: string;
+}
+
 @Component({
   selector: 'app-detalle-viaje',
-  imports: [DatePipe],
+  imports: [DatePipe, ReactiveFormsModule],
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
 })
 export class DetalleViaje {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  private readonly fb = inject(FormBuilder);
   private readonly viajeService = inject(ViajeService);
+  private readonly actividadService = inject(ActividadService);
 
   protected readonly viaje = this.viajeService.viajeDetalle;
+  protected readonly actividades = this.actividadService.actividades;
   protected readonly tabActiva = signal<Tab>('itinerario');
+  protected readonly diaSeleccionado = signal<string | null>(null);
+  protected readonly modalAbierto = signal(false);
+  protected readonly guardando = signal(false);
+  protected readonly errorForm = signal<string | null>(null);
+
+  private readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
+    'id'
+  ) as UUID | null;
+
+  protected readonly dias = computed<Dia[]>(() => {
+    const viaje = this.viaje();
+    if (!viaje) {
+      return [];
+    }
+    return this.generarDias(viaje.fechaInicio, viaje.fechaFin);
+  });
+
+  protected readonly diaActivo = computed<string | null>(
+    () => this.diaSeleccionado() ?? this.dias()[0]?.valor ?? null
+  );
+
+  protected readonly actividadesDelDia = computed(() => {
+    const dia = this.diaActivo();
+    if (!dia) {
+      return [];
+    }
+    return this.actividades().filter((a) =>
+      a.fechaHoraInicio.startsWith(dia)
+    );
+  });
+
+  protected readonly formActividad = this.fb.nonNullable.group({
+    titulo: ['', [Validators.required, Validators.maxLength(200)]],
+    hora: ['', Validators.required],
+    ubicacion: [''],
+  });
 
   protected readonly tabs: TabItem[] = [
     {
@@ -45,10 +93,17 @@ export class DetalleViaje {
   ];
 
   constructor() {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      this.viajeService.cargarViaje(id);
+    if (this.viajeId) {
+      this.viajeService.cargarViaje(this.viajeId);
+      this.actividadService.cargarActividades(this.viajeId);
     }
+
+    effect(() => {
+      const primerDia = this.dias()[0]?.valor;
+      if (primerDia && !this.diaSeleccionado()) {
+        this.diaSeleccionado.set(primerDia);
+      }
+    });
   }
 
   protected goBack(): void {
@@ -57,5 +112,83 @@ export class DetalleViaje {
 
   protected setTab(tab: Tab): void {
     this.tabActiva.set(tab);
+  }
+
+  protected seleccionarDia(valor: string): void {
+    this.diaSeleccionado.set(valor);
+  }
+
+  protected abrirModal(): void {
+    this.errorForm.set(null);
+    this.formActividad.reset();
+    this.modalAbierto.set(true);
+  }
+
+  protected cerrarModal(): void {
+    this.modalAbierto.set(false);
+  }
+
+  protected hasError(field: 'titulo' | 'hora' | 'ubicacion'): boolean {
+    const control = this.formActividad.get(field);
+    return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  protected guardarActividad(): void {
+    if (!this.viajeId || this.formActividad.invalid) {
+      this.formActividad.markAllAsTouched();
+      return;
+    }
+
+    const { titulo, hora, ubicacion } = this.formActividad.getRawValue();
+    const fechaHoraInicio = `${this.diaActivo()}T${hora}`;
+
+    const request: Partial<ActividadRequest> = {
+      titulo,
+      tipoActividad: 'OTRO',
+      fechaHoraInicio,
+      fechaHoraFin: fechaHoraInicio,
+      descripcion: ubicacion || undefined,
+    };
+
+    this.guardando.set(true);
+    this.errorForm.set(null);
+
+    this.actividadService
+      .crearActividad(this.viajeId, request)
+      .subscribe({
+        next: () => {
+          this.actividadService.cargarActividades(this.viajeId!);
+          this.guardando.set(false);
+          this.cerrarModal();
+        },
+        error: () => {
+          this.guardando.set(false);
+          this.errorForm.set('No se pudo guardar el plan. Inténtalo de nuevo.');
+        },
+      });
+  }
+
+  private generarDias(inicio: string, fin: string): Dia[] {
+    const start = new Date(`${inicio}T00:00:00`);
+    const end = new Date(`${fin}T00:00:00`);
+    const dias: Dia[] = [];
+    let numero = 1;
+
+    for (
+      let d = new Date(start.getTime());
+      d <= end;
+      d.setDate(d.getDate() + 1)
+    ) {
+      dias.push({
+        valor: d.toISOString().slice(0, 10),
+        numero,
+        etiqueta: d.toLocaleDateString('es-ES', {
+          day: 'numeric',
+          month: 'short',
+        }),
+      });
+      numero++;
+    }
+    return dias;
   }
 }

@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + Dark Mode + Proxy + HOTFIX Tailwind v3 COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + Dark Mode + Proxy + HOTFIX Tailwind v3 COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -207,3 +207,29 @@ src/app/
 ### 📝 Notas técnicas (Bloque 4, Parte 1)
 - **Backend-First:** no existe `GET /api/viajes/{id}`; `getViajeById` filtra el listado ACEPTADO en cliente. Si no se encuentra, `viajeDetalle` queda `null` y la cabecera muestra "Viaje".
 - Los templates de Angular no pueden referenciar tipos TS; por eso `tabs` está tipado en el componente y la plantilla usa `tab.key` directamente.
+
+---
+
+## 📅 Bloque 4, Parte 2: Itinerario Interactivo + Mini-Calendario (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **ActividadService** (`src/app/core/services/actividad.service.ts`):
+  - `getActividadesPorViaje(viajeId)` → `GET /api/viajes/{viajeId}/actividades` (listado ordenado por `fechaHoraInicio` asc; JWT + pertenencia).
+  - `crearActividad(viajeId, actividad)` → `POST /api/viajes/{viajeId}/actividades` (201 Created); el body es `ActividadRequestDTO`.
+  - `actividades = signal<Actividad[]>([])` y `cargarActividades(viajeId)` que lo actualiza.
+- [x] **ActividadRequest** (`src/app/shared/types/index.ts`): interfaz espejo de `ActividadRequestDTO` (`titulo`, `descripcion?`, `tipoActividad`, `fechaHoraInicio`, `fechaHoraFin`, coords/url opcionales). El `Actividad` ya existía.
+- [x] **Mini-Calendario (Selector de Días)** en el `@case ('itinerario')` de `ViajeDetalleComponent`:
+  - `computed días` generado desde `viaje.fechaInicio..fechaFin` (objetos `Dia { valor/numero/etiqueta }`). `diaSeleccionado = signal<string|null>` y `diaActivo` computado con fallback al primer día (vía `effect` en constructor).
+  - Scroll horizontal `overflow-x-auto snap-x snap-mandatory` (+ clase `.scrollbar-hide` en CSS del componente). Chips `w-20 rounded-2xl`, formato "Día N" + "21 Sep"; activo = `bg-blue-600 text-white shadow-lg`.
+- [x] **Timeline Vertical de Actividades:**
+  - Contenedor `relative ml-6` con línea `absolute left-[6px] w-0.5 bg-gray-200`; cada actividad: nodo circular `h-3.5 w-3.5 rounded-full border-2 border-blue-600` superpuesto a la línea + tarjeta `rounded-2xl` con hora (`date: 'HH:mm'`), título y ubicación/descripción si la tiene.
+  - Filtro por día: `computed 'actividadesDelDia'` compara `fechaHoraInicio.startsWith(dia)`.
+  - `@empty` muestra ilustración + "Este día aún no tiene planes".
+- [x] **Creación de Actividades (Modal Rápido):**
+  - Botón "Añadir plan" (full-width al final de la lista del día) → Modal `fixed inset-0 z-50 backdrop-blur-sm` con formato: Título, Hora (`type="time"`) y Ubicación (opcional).
+  - `ReactiveFormsModule`; al guardar construye `fechaHoraInicio = diaActivo + 'T' + hora`, `tipoActividad: 'OTRO'` (el `@NotNull` del backend lo exige) y mapea Ubicación a `descripcion` (campo libre del backend; no existe campo "ubicación" en el DTO). Éxito → cierra modal + `cargarActividades()`.
+- [x] **Verificación:** `ng build` compila sin errores.
+
+### 📝 Notas técnicas (Bloque 4, Parte 2)
+- **Backend-First:** `ActividadRequestDTO` exige `tipoActividad` (`@NotNull`, se manda `OTRO`) y `fechaHoraInicio`/`fechaHoraFin`. El text "Ubicación" del formulario se guarda en `descripcion` (el backend NO tiene campo `ubicacion`: tiene `descripcion`, `latitud`, `longitud`).
+- `diaSeleccionado` se inicializa con `effect()` una vez que el viaje carga (el default es el primer día del viaje). Los demás textos ("Contenido del mapa...") siguen provisionales hasta B4-P3.

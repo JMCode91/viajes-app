@@ -54,6 +54,17 @@ export interface Actividad {
   urlDocumento: string;
 }
 
+export interface ActividadRequest {
+  titulo: string;
+  descripcion?: string;
+  tipoActividad: TipoActividad;
+  fechaHoraInicio: string;
+  fechaHoraFin: string;
+  latitud?: number;
+  longitud?: number;
+  urlDocumento?: string;
+}
+
 export interface Gasto {
   id: UUID;
   viajeId: UUID;
