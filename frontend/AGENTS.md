@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + HOTFIX Tailwind v3 COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + Dark Mode + Proxy + HOTFIX Tailwind v3 COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -170,3 +170,40 @@ src/app/
 - **Backend-First:** `unirseViaje(uuid)` se mapeó a `PUT /api/viajes/{uuid}/responder-invitacion?aceptar=true`. Requisito: el usuario debe tener una invitación pendiente (creada por el propietario con `POST /api/viajes/{id}/invitar`); si no, el backend lanza 403 (el frontend muestra "La invitación no es válida o ya ha sido respondida").
 - El `crearViaje()`/`unirseViaje()` devuelven el `Observable` directamente; el componente de creación y el modal del Dashboard deciden la navegación/cierre tras `next`, y ambos dependen de `cargarMisViajes()` para refrescar el signal `viajes`.
 - Modal sin "X de a11y": se cierra con el botón X, con tap en el backdrop y con `$event.stopPropagation()` en la card para no cerrarse al tocar dentro.
+
+---
+
+## 🌐 Infraestructura: Proxy local + Dark Mode + Regla de Versiones (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **Regla Control de Versiones** en `AGENTS_TEMPLATE.md`: al finalizar cada tarea/fase hay que ejecutar `git add .` + `git commit -m` con mensaje descriptivo. **Commit inicial aplicado:** `feat(frontend): auth, dashboard y creacion de viajes con proxy a backend - B1-B3 completados`.
+- [x] **Proxy local:** `frontend/proxy.conf.json` reenvía todo `/api/*` a `http://localhost:8080` (`secure: false`, `changeOrigin: true`). Añadido en `angular.json` → `architect.serve.options.proxyConfig`. Evita CORS en desarrollo. Los Services usan rutas relativas `/api/**` (nunca el host literal).
+- [x] **Dark Mode (Tailwind v3):** `tailwind.config.js` con `darkMode: 'class'`.
+- [x] **ThemeService** (`src/app/core/services/theme.service.ts`): signal `theme` ('light'/'dark') persistido en `localStorage` (clave `theme`, por defecto claro). Un `effect()` añade/quita `dark` en `<html>`. Método `toggle()`.
+- [x] **Toggle en MainLayout:** botón circular `fixed right-4 top-4 z-40 h-10 w-10 rounded-full` con icono Sol/Luna (Heroicons) según `theme()`, con `@if/@else`.
+- [x] **Verificación:** `ng build` compila sin errores.
+
+### 📝 Notas técnicas (Infraestructura)
+- El dark mode funciona con `@media` reemplazado por la clase `.dark` en `<html>`; todas las vistas ya tenían variantes `dark:`.
+- `ThemeService` inyecta `effect()` en constructor para aplicar la clase en arranque y en cada cambio.
+
+---
+
+## 🧭 Bloque 4, Parte 1: Detalle del Viaje (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **ViajeService** (`src/app/core/services/viaje.service.ts`):
+  - `getViajeById(id): Observable<Viaje | undefined>` → `GET /api/viajes` y filtra por `id` (el backend NO expone un GET de un único viaje; se reutiliza el listado real y se filtra en cliente).
+  - `viajeDetalle = signal<Viaje | null>(null)` expuesto y `cargarViaje(id)` que actualiza el signal.
+- [x] **ViajeDetalleComponent** (`src/app/features/viajes/detalle-viaje/`, Standalone):
+  - Lee `id`/`uuid` con `ActivatedRoute.snapshot.paramMap` y llama a `cargarViaje(id)`.
+  - Cabecera con botón "Atrás" (flecha SVG → `/dashboard`), título del viaje y fechas con `pipe date`.
+  - **Tabs Pills** desplazables (`overflow-x-auto`) con 3 opciones: Itinerario, Mapa y Checklist (icono + label, `h-11 shrink-0 rounded-full`, activa = `bg-blue-600`).
+  - Signal `tabActiva` + `@switch` en HTML mostrando textos provisionales ("Contenido del Itinerario...", etc). Tipos exportados `Tab`/`TabItem` y array `tabs` con iconos en el `.ts` (binding SVG con `[attr.d]`).
+- [x] **Rutas** (`app.routes.ts`): `/viajes/:id` con `canActivate: [authGuard]` y `loadComponent` (lazy), FUERA del `MainLayoutComponent` (pantalla completa).
+- [x] **DashboardComponent:** cada `<article>` de viaje es ahora clicable con `routerLink="/viajes/{{ viaje.id }}"` + `cursor-pointer` y `active:scale-[0.99]`.
+- [x] **Verificación:** `ng build` compila sin errores (lazy chunk `detalle-viaje` generado).
+
+### 📝 Notas técnicas (Bloque 4, Parte 1)
+- **Backend-First:** no existe `GET /api/viajes/{id}`; `getViajeById` filtra el listado ACEPTADO en cliente. Si no se encuentra, `viajeDetalle` queda `null` y la cabecera muestra "Viaje".
+- Los templates de Angular no pueden referenciar tipos TS; por eso `tabs` está tipado en el componente y la plantilla usa `tab.key` directamente.

@@ -32,6 +32,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'viajes/:id',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/viajes/detalle-viaje/detalle-viaje').then(
+        (m) => m.DetalleViaje
+      ),
+  },
+  {
     path: 'login',
     loadComponent: () =>
       import('./features/auth/login/login').then((m) => m.Login),

@@ -1,0 +1,55 @@
+<div class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 px-4 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+  <header class="mb-6 flex items-center gap-3">
+    <button
+      type="button"
+      aria-label="Volver al dashboard"
+      (click)="goBack()"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </button>
+    <div class="min-w-0">
+      <h1 class="truncate text-2xl font-bold text-gray-900 dark:text-white">{{ viaje()?.titulo ?? 'Viaje' }}</h1>
+      @if (viaje()) {
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          {{ viaje()!.fechaInicio | date: 'd MMM yyyy' }} — {{ viaje()!.fechaFin | date: 'd MMM yyyy' }}
+        </p>
+      }
+    </div>
+  </header>
+
+  <nav class="mb-6 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+    @for (tab of tabs; track tab.key) {
+      <button
+        type="button"
+        (click)="setTab(tab.key)"
+        [class]="
+          tabActiva() === tab.key
+            ? 'flex h-11 shrink-0 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-95'
+            : 'flex h-11 shrink-0 items-center gap-2 rounded-full bg-white dark:bg-gray-800 px-5 text-sm font-semibold text-gray-600 dark:text-gray-300 active:scale-95'
+        "
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+          <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="tab.icon" />
+        </svg>
+        {{ tab.label }}
+      </button>
+    }
+  </nav>
+
+  <section>
+    @switch (tabActiva()) {
+      @case ('itinerario') {
+        <p class="text-sm text-gray-500 dark:text-gray-400">Contenido del itinerario...</p>
+      }
+      @case ('mapa') {
+        <p class="text-sm text-gray-500 dark:text-gray-400">Contenido del mapa...</p>
+      }
+      @case ('checklist') {
+        <p class="text-sm text-gray-500 dark:text-gray-400">Contenido de la checklist...</p>
+      }
+    }
+  </section>
+</div>
