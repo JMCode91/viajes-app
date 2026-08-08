@@ -45,8 +45,22 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 ## 📊 Estado Actual del Proyecto
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
-- **Última actualización:** 05/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5 finalizadas). Preparando integración con frontend Angular.
+- **Última actualización:** 08/08/2026
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist)** COMPLETADO.
+- **Completado en esta sesión (Checklist v2 + HOTFIX eliminación de viaje):**
+  - **HOTFIX `DELETE /api/viajes/{id}`:** `ViajeController` expone `DELETE /api/viajes/{id}` (204 No Content). `ViajeService.eliminarViaje(id)` verifica que el usuario autenticado sea **PROPIETARIO** del viaje y realiza un **borrado en cascada manual** (las entidades hijas mapean `@ManyToOne → Viaje` sin colecciones `@OneToMany`, no hay `OrphanRemoval`): elimina `tareas_checklist`, `gastos`, `actividades` y `usuarios_viajes` (vía `deleteByViajeId` en cada repositorio) antes de borrar el viaje, evitando violaciones de Foreign Key. Se añadieron `deleteByViajeId` a `ActividadRepository`, `GastoRepository`, `UsuarioViajeRepository` y `TareaChecklistRepository`.
+  - **Checklist v2 — `TareaChecklist` (sustituye a `ItemChecklist`):**
+    - **Entidad `TareaChecklist`** (tabla `tareas_checklist`): `id` Long auto-incremental (`IDENTITY`), `viaje` (ManyToOne), `creador` (ManyToOne Usuario, no nulo), `asignado` (ManyToOne Usuario, nullable), `contenido` (String 200), `completada` (Boolean), `esPrivada` (Boolean). Modela las listas **común** (`esPrivada=false`) y **privada** (`esPrivada=true`) del frontend, con creador y asignado.
+    - **DTOs:** `TareaChecklistRequestDTO` (`contenido`, `esPrivada`, `asignadoId`) y `TareaChecklistResponseDTO` (`id`, `contenido`, `completada`, `esPrivada`, `nombreCreador`, `nombreAsignado`). El `creador` nunca viaja en el request: se obtiene del JWT.
+    - **`TareaChecklistRepository`:** query personalizada `findVisiblesPorViajeYUsuario(viajeId, usuarioId)` → devuelve tareas públicas **o** creadas por el usuario autenticado (protege las listas privadas de otros) + `deleteByViajeId`.
+    - **`TareaChecklistService`/`TareaChecklistServiceImpl`:** `obtenerTareas` (filtro visibilidad), `crearTarea`, `cambiarEstado(completada)`, `asignarUsuario` (valida que el asignado pertenezca al viaje) y `eliminarTarea`. Todas verifican pertenencia del usuario autenticado.
+    - **`TareaChecklistController`** en `/api/viajes/{viajeId}/checklist` (JWT): `POST` (201), `GET`, `PUT /{tareaId}/estado?completada=`, `PUT /{tareaId}/asignar?asignadoId=` y `DELETE /{tareaId}` (204).
+    - **ELIMINADO el módulo previo `ItemChecklist`** (`ItemChecklist`, `ItemChecklistRepository`, DTOs `ItemChecklist*`, `ChecklistService`/`ChecklistServiceImpl`, `ChecklistController`) por colisión de ruta y por no soportar esPrivada/asignado/creador. Confirmado por el usuario.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
+- **Pendiente (fuera del backend):**
+  - Conectar el checklist del frontend Angular a estos nuevos endpoints (sustituir el `localStorage` por llamadas a la API).
+  - Rate Limiting en proxy inverso Nginx (previsión DoS a nivel de infraestructura).
+  - Revisar el cifrado/entorno de claves JWT y DeepL en producción.
 - **Completado en esta sesión (Fase 5: Módulos Secundarios, Archivos Seguros y multi-idioma):**
   - **Checklist (Items):** Entidad `ItemChecklist` (id, viaje, nombre, completado), `ItemChecklistRepository`, `ChecklistService`/`ChecklistServiceImpl` (verificación de pertenencia), `ChecklistController` en `/api/viajes/{viajeId}/checklist`.
   - **Gastos (Presupuesto):** Entidad `Gasto` (id, viaje, concepto, cantidad BigDecimal, pagadorId), `GastoRepository`, `GastoService`/`GastoServiceImpl`, `GastoController` en `/api/viajes/{viajeId}/gastos`.
@@ -82,14 +96,16 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | GET | `/api/viajes` | Listar los viajes del usuario autenticado (ACEPTADOS) | JWT |
 | POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |
 | PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente | JWT |
+| DELETE | `/api/viajes/{id}` | Eliminar un viaje (solo PROPIETARIO, borrado en cascada manual) | JWT |
 | POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
-| POST | `/api/viajes/{viajeId}/checklist` | Crear un item de la checklist | JWT |
-| GET | `/api/viajes/{viajeId}/checklist` | Listar items de la checklist | JWT |
-| PATCH | `/api/viajes/{viajeId}/checklist/{itemId}?completado=true` | Marcar/desmarcar un item como completado | JWT |
-| DELETE | `/api/viajes/{viajeId}/checklist/{itemId}` | Eliminar un item de la checklist | JWT |
+| POST | `/api/viajes/{viajeId}/checklist` | Crear una tarea de la checklist | JWT |
+| GET | `/api/viajes/{viajeId}/checklist` | Listar tareas visibles (públicas o del usuario) | JWT |
+| PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/estado?completada=true` | Marcar/desmarcar tarea como completada | JWT |
+| PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/asignar?asignadoId=` | Asignar/desasignar usuario a una tarea | JWT |
+| DELETE | `/api/viajes/{viajeId}/checklist/{tareaId}` | Eliminar una tarea de la checklist | JWT |
 | POST | `/api/viajes/{viajeId}/gastos` | Registrar un gasto del viaje | JWT |
 | GET | `/api/viajes/{viajeId}/gastos` | Listar gastos del viaje | JWT |
 | DELETE | `/api/viajes/{viajeId}/gastos/{gastoId}` | Eliminar un gasto | JWT |

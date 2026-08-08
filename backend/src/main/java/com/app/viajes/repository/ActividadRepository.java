@@ -24,4 +24,6 @@ public interface ActividadRepository extends JpaRepository<Actividad, UUID> {
             @Param("viajeId") UUID viajeId,
             @Param("inicio") LocalDateTime inicio,
             @Param("fin") LocalDateTime fin);
+
+    void deleteByViajeId(UUID viajeId);
 }

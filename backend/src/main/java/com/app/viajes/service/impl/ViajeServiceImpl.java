@@ -10,6 +10,9 @@ import com.app.viajes.model.Usuario;
 import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.model.enums.EstadoInvitacion;
+import com.app.viajes.repository.ActividadRepository;
+import com.app.viajes.repository.GastoRepository;
+import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
@@ -36,13 +39,22 @@ public class ViajeServiceImpl implements ViajeService {
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final ActividadRepository actividadRepository;
+    private final GastoRepository gastoRepository;
+    private final TareaChecklistRepository tareaChecklistRepository;
 
     public ViajeServiceImpl(ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
-                            UsuarioViajeRepository usuarioViajeRepository) {
+                            UsuarioViajeRepository usuarioViajeRepository,
+                            ActividadRepository actividadRepository,
+                            GastoRepository gastoRepository,
+                            TareaChecklistRepository tareaChecklistRepository) {
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.actividadRepository = actividadRepository;
+        this.gastoRepository = gastoRepository;
+        this.tareaChecklistRepository = tareaChecklistRepository;
     }
 
     @Override
@@ -138,6 +150,31 @@ public class ViajeServiceImpl implements ViajeService {
                 ? EstadoInvitacion.ACEPTADA
                 : EstadoInvitacion.RECHAZADA);
         usuarioViajeRepository.save(pertenencia);
+    }
+
+    @Override
+    @Transactional
+    public void eliminarViaje(UUID viajeId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        // Solo el PROPIETARIO puede eliminar el viaje.
+        UsuarioViaje pertenencia = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "No tiene acceso a este viaje"));
+        if (!ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
+            throw new AccesoDenegadoException(
+                    "Solo el propietario del viaje puede eliminarlo");
+        }
+
+        // Borrado en cascada manual: los hijos mapean @ManyToOne -> Viaje
+        // sin colecciones @OneToMany (no hay OrphanRemoval), por lo que se
+        // eliminan explicitamente para evitar violacion de Clave Foranea.
+        tareaChecklistRepository.deleteByViajeId(viajeId);
+        gastoRepository.deleteByViajeId(viajeId);
+        actividadRepository.deleteByViajeId(viajeId);
+        usuarioViajeRepository.deleteByViajeId(viajeId);
+        viajeRepository.deleteById(viajeId);
     }
 
     private Usuario obtenerUsuarioAutenticado() {

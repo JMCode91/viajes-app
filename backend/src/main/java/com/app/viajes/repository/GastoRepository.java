@@ -12,4 +12,6 @@ import java.util.UUID;
 public interface GastoRepository extends JpaRepository<Gasto, UUID> {
 
     List<Gasto> findByViajeIdOrderByCantidadDesc(UUID viajeId);
+
+    void deleteByViajeId(UUID viajeId);
 }

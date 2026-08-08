@@ -21,4 +21,6 @@ public interface ViajeService {
     void invitarUsuario(UUID viajeId, InvitacionRequestDTO request);
 
     void responderInvitacion(UUID viajeId, boolean aceptar);
+
+    void eliminarViaje(UUID viajeId);
 }

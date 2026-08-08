@@ -22,4 +22,6 @@ public interface UsuarioViajeRepository extends JpaRepository<UsuarioViaje, UUID
     List<UsuarioViaje> findByViajeId(UUID viajeId);
 
     List<UsuarioViaje> findByUsuarioIdAndEstadoInvitacion(UUID usuarioId, EstadoInvitacion estadoInvitacion);
+
+    void deleteByViajeId(UUID viajeId);
 }
