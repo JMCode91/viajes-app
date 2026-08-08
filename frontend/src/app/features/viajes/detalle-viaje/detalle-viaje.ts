@@ -6,9 +6,14 @@ import { FormsModule } from '@angular/forms';
 
 import { ViajeService } from '../../../core/services/viaje.service';
 import { ActividadService } from '../../../core/services/actividad.service';
-import { AuthService } from '../../../core/services/auth.service';
+import { TareaChecklistService } from '../../../core/services/tarea-checklist.service';
 import { CustomTimePicker } from '../../../shared/components/custom-time-picker/custom-time-picker';
-import { Actividad, ActividadRequest, UUID } from '../../../shared/types';
+import {
+  Actividad,
+  ActividadRequest,
+  TareaChecklistResponse,
+  UUID,
+} from '../../../shared/types';
 
 export type Tab = 'itinerario' | 'mapa' | 'checklist';
 
@@ -22,13 +27,6 @@ export interface Dia {
   valor: string;
   numero: number;
   etiqueta: string;
-}
-
-export interface ChecklistItem {
-  id: number;
-  texto: string;
-  hecha: boolean;
-  asignado: string | null;
 }
 
 export type ListaChecklist = 'comun' | 'privada';
@@ -45,25 +43,19 @@ export class DetalleViaje {
   private readonly fb = inject(FormBuilder);
   private readonly viajeService = inject(ViajeService);
   private readonly actividadService = inject(ActividadService);
-  private readonly authService = inject(AuthService);
+  private readonly tareaChecklistService = inject(TareaChecklistService);
 
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
+  protected readonly tareas = this.tareaChecklistService.tareas;
   protected readonly tabActiva = signal<Tab>('itinerario');
   protected readonly diaSeleccionado = signal<string | null>(null);
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
 
-protected readonly listaChecklist = signal<ListaChecklist>('comun');
-  protected readonly listaComun = signal<ChecklistItem[]>([]);
-  protected readonly listaPrivada = signal<ChecklistItem[]>([]);
+  protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly nuevaTarea = signal('');
-  protected readonly asignadoTarea = signal('');
-  protected readonly participantes = computed<string[]>(() => {
-    const nombre = this.authService.usuario()?.nombre;
-    return nombre ? [nombre] : ['Yo'];
-  });
   protected readonly archivo = signal<{ nombre: string; url: string } | null>(
     null
   );
@@ -106,7 +98,15 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
     );
   });
 
-  protected readonly listaActiva = computed<ChecklistItem[]>(() =>
+  protected readonly listaComun = computed<TareaChecklistResponse[]>(() =>
+    this.tareas().filter((t) => !t.esPrivada)
+  );
+
+  protected readonly listaPrivada = computed<TareaChecklistResponse[]>(() =>
+    this.tareas().filter((t) => t.esPrivada)
+  );
+
+  protected readonly listaActiva = computed<TareaChecklistResponse[]>(() =>
     this.listaChecklist() === 'comun'
       ? this.listaComun()
       : this.listaPrivada()
@@ -143,7 +143,7 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
     if (this.viajeId) {
       this.viajeService.cargarViaje(this.viajeId);
       this.actividadService.cargarActividades(this.viajeId);
-      this.cargarChecklist();
+      this.tareaChecklistService.cargarTareas(this.viajeId);
     }
 
     effect(() => {
@@ -151,13 +151,6 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
       if (primerDia && !this.diaSeleccionado()) {
         this.diaSeleccionado.set(primerDia);
       }
-    });
-
-    effect(() => {
-      if (!this.viajeId) {
-        return;
-      }
-      this.guardarChecklist();
     });
   }
 
@@ -238,8 +231,6 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
         this.viajeService.viajes.update((viajes) =>
           viajes.filter((viaje) => viaje.id !== this.viajeId)
         );
-        localStorage.removeItem(`checklist_comun_viaje_${this.viajeId}`);
-        localStorage.removeItem(`checklist_privada_viaje_${this.viajeId}`);
         void this.router.navigate(['/dashboard']);
       },
       error: () => {
@@ -320,31 +311,45 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
   }
 
   protected anadirTarea(): void {
-    const texto = this.nuevaTarea().trim();
-    if (!texto) {
+    if (!this.viajeId) {
       return;
     }
-    const asignado = this.listaChecklist() === 'comun'
-      ? this.asignadoTarea() || this.participantes()[0]
-      : null;
-    const item: ChecklistItem = { id: Date.now(), texto, hecha: false, asignado };
-    if (this.listaChecklist() === 'comun') {
-      this.listaComun.update((l) => [...l, item]);
-    } else {
-      this.listaPrivada.update((l) => [...l, item]);
+    const contenido = this.nuevaTarea().trim();
+    if (!contenido) {
+      return;
     }
-    this.nuevaTarea.set('');
-    this.asignadoTarea.set('');
+
+    this.tareaChecklistService
+      .crearTarea(this.viajeId, {
+        contenido,
+        esPrivada: this.listaChecklist() === 'privada',
+      })
+      .subscribe({
+        next: () => {
+          this.nuevaTarea.set('');
+          this.tareaChecklistService.cargarTareas(this.viajeId!);
+        },
+      });
   }
 
-  protected toggleTarea(id: number): void {
-    const alternar = (item: ChecklistItem): ChecklistItem =>
-      item.id === id ? { ...item, hecha: !item.hecha } : item;
-    if (this.listaChecklist() === 'comun') {
-      this.listaComun.update((l) => l.map(alternar));
-    } else {
-      this.listaPrivada.update((l) => l.map(alternar));
+  protected toggleTarea(tarea: TareaChecklistResponse): void {
+    if (!this.viajeId) {
+      return;
     }
+    this.tareaChecklistService
+      .cambiarEstado(this.viajeId, tarea.id, !tarea.completada)
+      .subscribe({
+        next: () => this.tareaChecklistService.cargarTareas(this.viajeId!),
+      });
+  }
+
+  protected eliminarTarea(tareaId: number): void {
+    if (!this.viajeId) {
+      return;
+    }
+    this.tareaChecklistService.eliminarTarea(this.viajeId, tareaId).subscribe({
+      next: () => this.tareaChecklistService.cargarTareas(this.viajeId!),
+    });
   }
 
   private generarDias(inicio: string, fin: string): Dia[] {
@@ -385,39 +390,5 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
     const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getUTCDate()).padStart(2, '0');
     return `${fecha.getUTCFullYear()}-${mes}-${dia}`;
-  }
-
-  private cargarChecklist(): void {
-    if (!this.viajeId) {
-      return;
-    }
-    this.listaComun.set(this.leerLista('comun'));
-    this.listaPrivada.set(this.leerLista('privada'));
-  }
-
-  private guardarChecklist(): void {
-    if (!this.viajeId) {
-      return;
-    }
-    localStorage.setItem(
-      `checklist_comun_viaje_${this.viajeId}`,
-      JSON.stringify(this.listaComun())
-    );
-    localStorage.setItem(
-      `checklist_privada_viaje_${this.viajeId}`,
-      JSON.stringify(this.listaPrivada())
-    );
-  }
-
-  private leerLista(tipo: ListaChecklist): ChecklistItem[] {
-    const raw = localStorage.getItem(`checklist_${tipo}_viaje_${this.viajeId}`);
-    if (!raw) {
-      return [];
-    }
-    try {
-      return JSON.parse(raw) as ChecklistItem[];
-    } catch {
-      return [];
-    }
   }
 }

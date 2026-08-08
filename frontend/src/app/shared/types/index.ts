@@ -79,6 +79,21 @@ export interface GastoRequest {
   pagadorId: UUID;
 }
 
+export interface TareaChecklistRequest {
+  contenido: string;
+  esPrivada: boolean;
+  asignadoId?: UUID | null;
+}
+
+export interface TareaChecklistResponse {
+  id: number;
+  contenido: string;
+  completada: boolean;
+  esPrivada: boolean;
+  nombreCreador: string;
+  nombreAsignado: string | null;
+}
+
 export interface Diccionario {
   id: UUID;
   fraseEspanol: string;
