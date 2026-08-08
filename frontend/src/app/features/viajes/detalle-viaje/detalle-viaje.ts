@@ -71,6 +71,10 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly modalCompartirAbierto = signal(false);
   protected readonly modalDetalleAbierto = signal(false);
   protected readonly actividadSeleccionada = signal<Actividad | null>(null);
+  protected readonly copiado = signal(false);
+  protected readonly modalEliminarAbierto = signal(false);
+  protected readonly eliminando = signal(false);
+  protected readonly errorEliminar = signal<string | null>(null);
 
   protected readonly uuidInvitacion = computed<UUID | null>(
     () => this.viaje()?.id ?? null
@@ -139,6 +143,7 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
     if (this.viajeId) {
       this.viajeService.cargarViaje(this.viajeId);
       this.actividadService.cargarActividades(this.viajeId);
+      this.cargarChecklist();
     }
 
     effect(() => {
@@ -146,6 +151,13 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
       if (primerDia && !this.diaSeleccionado()) {
         this.diaSeleccionado.set(primerDia);
       }
+    });
+
+    effect(() => {
+      if (!this.viajeId) {
+        return;
+      }
+      this.guardarChecklist();
     });
   }
 
@@ -192,6 +204,51 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
 
   protected cerrarModalCompartir(): void {
     this.modalCompartirAbierto.set(false);
+  }
+
+  protected copiarUuid(): void {
+    const uuid = this.uuidInvitacion();
+    if (!uuid) {
+      return;
+    }
+    navigator.clipboard.writeText(uuid).then(() => {
+      this.copiado.set(true);
+      setTimeout(() => this.copiado.set(false), 2000);
+    });
+  }
+
+  protected abrirModalEliminar(): void {
+    this.errorEliminar.set(null);
+    this.modalEliminarAbierto.set(true);
+  }
+
+  protected cerrarModalEliminar(): void {
+    this.modalEliminarAbierto.set(false);
+  }
+
+  protected eliminarViaje(): void {
+    if (!this.viajeId || this.eliminando()) {
+      return;
+    }
+    this.eliminando.set(true);
+    this.errorEliminar.set(null);
+
+    this.viajeService.eliminarViaje(this.viajeId).subscribe({
+      next: () => {
+        this.viajeService.viajes.update((viajes) =>
+          viajes.filter((viaje) => viaje.id !== this.viajeId)
+        );
+        localStorage.removeItem(`checklist_comun_viaje_${this.viajeId}`);
+        localStorage.removeItem(`checklist_privada_viaje_${this.viajeId}`);
+        void this.router.navigate(['/dashboard']);
+      },
+      error: () => {
+        this.eliminando.set(false);
+        this.errorEliminar.set(
+          'No se pudo eliminar el viaje. Inténtalo de nuevo.'
+        );
+      },
+    });
   }
 
   protected hasError(field: 'dia' | 'titulo' | 'hora' | 'ubicacion'): boolean {
@@ -328,5 +385,39 @@ protected readonly listaChecklist = signal<ListaChecklist>('comun');
     const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getUTCDate()).padStart(2, '0');
     return `${fecha.getUTCFullYear()}-${mes}-${dia}`;
+  }
+
+  private cargarChecklist(): void {
+    if (!this.viajeId) {
+      return;
+    }
+    this.listaComun.set(this.leerLista('comun'));
+    this.listaPrivada.set(this.leerLista('privada'));
+  }
+
+  private guardarChecklist(): void {
+    if (!this.viajeId) {
+      return;
+    }
+    localStorage.setItem(
+      `checklist_comun_viaje_${this.viajeId}`,
+      JSON.stringify(this.listaComun())
+    );
+    localStorage.setItem(
+      `checklist_privada_viaje_${this.viajeId}`,
+      JSON.stringify(this.listaPrivada())
+    );
+  }
+
+  private leerLista(tipo: ListaChecklist): ChecklistItem[] {
+    const raw = localStorage.getItem(`checklist_${tipo}_viaje_${this.viajeId}`);
+    if (!raw) {
+      return [];
+    }
+    try {
+      return JSON.parse(raw) as ChecklistItem[];
+    } catch {
+      return [];
+    }
   }
 }

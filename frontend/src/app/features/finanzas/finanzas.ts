@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ViajeService } from '../../core/services/viaje.service';
 import { GastoService } from '../../core/services/gasto.service';
 import { AuthService } from '../../core/services/auth.service';
+import { ThemeService } from '../../core/services/theme.service';
 import { UUID, Viaje } from '../../shared/types';
 
 @Component({
@@ -18,10 +19,12 @@ export class Finanzas {
   private readonly viajeService = inject(ViajeService);
   private readonly gastoService = inject(GastoService);
   private readonly authService = inject(AuthService);
+  private readonly themeService = inject(ThemeService);
 
   protected readonly viajes = this.viajeService.viajes;
   protected readonly gastos = this.gastoService.gastos;
   protected readonly usuario = this.authService.usuario;
+  protected readonly theme = this.themeService.theme;
 
   protected readonly viajeSeleccionado = signal<UUID | null>(null);
   protected readonly modalAbierto = signal(false);
@@ -88,6 +91,10 @@ export class Finanzas {
   protected seleccionarViaje(id: string): void {
     this.viajeSeleccionado.set(id);
     this.gastoService.cargarGastos(id);
+  }
+
+  protected toggleTheme(): void {
+    this.themeService.toggle();
   }
 
   protected abrirModal(): void {

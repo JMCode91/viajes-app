@@ -43,4 +43,8 @@ export class ViajeService {
       params: { aceptar: 'true' },
     });
   }
+
+  eliminarViaje(id: string): Observable<void> {
+    return this.http.delete<void>(`/api/viajes/${id}`);
+  }
 }

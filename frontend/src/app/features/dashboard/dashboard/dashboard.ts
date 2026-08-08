@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { ViajeService } from '../../../core/services/viaje.service';
+import { ThemeService } from '../../../core/services/theme.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -14,8 +15,10 @@ import { ViajeService } from '../../../core/services/viaje.service';
 export class Dashboard implements OnInit {
   private readonly viajeService = inject(ViajeService);
   private readonly fb = inject(FormBuilder);
+  private readonly themeService = inject(ThemeService);
 
   protected readonly viajes = this.viajeService.viajes;
+  protected readonly theme = this.themeService.theme;
 
   protected modalUnirse = false;
   protected errorUnirse = '';
@@ -26,6 +29,10 @@ export class Dashboard implements OnInit {
 
   ngOnInit(): void {
     this.viajeService.cargarMisViajes();
+  }
+
+  protected toggleTheme(): void {
+    this.themeService.toggle();
   }
 
   protected abrirModalUnirse(): void {

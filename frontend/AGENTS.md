@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + **HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil** COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil + **USABILIDAD UI/UX: Cabecera sin solapamiento, copiar UUID, eliminar viaje, checklist persistente** COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -275,3 +275,26 @@ src/app/
 - La intercepción 401/403 se aplica SOLO a requests `/api/**` (protege `diccionario`, `gasto`, etc.); APIs externas (ej. files) no se ve afectadas.
 - El re-lanzamiento del error con `throwError` permite que los componentes (Finanzas, Dashboard, etc.) sigan mostrando su propio mensaje inline tras el logout.
 - `ddl-auto=update` es el valor correcto para desarrollo local; en producción se recomienda `validate` con migraciones.
+
+---
+
+## 🧰 Usabilidad UI/UX: Cabecera sin solapamiento, copiar UUID, eliminar viaje y checklist persistente (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **Fix Solapamiento (Dashboard):** la cabecera de `Dashboard` ahora es `flex justify-between items-center gap-4`. Título + subtítulo a la izquierda (`min-w-0`) y, a la derecha, un contenedor `flex shrink-0 items-center gap-2` con el **toggle de Modo Noche** (botón 11x11 redondeado con icono Sol/Luna) y el botón **"Unirse"**, perfectamente alineados y sin pisarse.
+  - **Refactor del toggle de tema:** se eliminó el botón flotante `fixed right-4 top-4` del `MainLayout` (que solapaba cualquier cabecera con botones a la derecha) y ahora cada pantalla con cabecera lo muestra inline: `Dashboard`, `Finanzas` y `Perfil` (todos `ThemeService.theme` + `toggleTheme()`).
+- [x] **Copiar UUID (Modal "Añadir personas"):** bajo el `<code>` del UUID hay un botón "Copiar Código" con icono de portapapeles. Usa `navigator.clipboard.writeText(uuid)`. Al pulsar, cambia a "¡Copiado!" con icono de check y `setTimeout(2000)` para volver al estado normal. El feedback es visual (texto + icono), no requiere toast.
+- [x] **Eliminar Viaje con Confirmación:**
+  - `ViajeService.eliminarViaje(id)` → `DELETE /api/viajes/{id}`.
+  - Botón papelera rojo en la cabecera de `ViajeDetalle` (junto al de compartir) → abre **modal de confirmación** (`modalEliminarAbierto`): icono papelera en chip rojo, título "Eliminar viaje", mensaje "¿Estás seguro de que quieres eliminar este viaje? Esta acción no se puede deshacer.", botón rojo "Eliminar viaje" + botón "Cancelar".
+  - Si acepta: `eliminarViaje(viajeId)` → actualiza `viajes` del servicio, limpia el localStorage del checklist de ese viaje y `router.navigate(['/dashboard'])`. Estado `eliminando` deshabilita el botón; errores se muestran inline (`errorEliminar`).
+- [x] **Checklist Persistente (localStorage por viaje):**
+  - Claves con el ID del viaje: `checklist_comun_viaje_{id}` y `checklist_privada_viaje_{id}`. Así los items de Japón no se mezclan con los de Madrid.
+  - `cargarChecklist()` en el constructor lee ambas listas (`JSON.parse` con try/catch → `[]` si corrupto). Un `effect()` escribe ambas listas en `localStorage` cada vez que cambian (añadir/marcar), activo solo si hay `viajeId`.
+- [x] **Verificación:** `ng build` compila sin errores (chunks `detalle-viaje`, `dashboard`, `finanzas`, `perfil` regenerados).
+
+### 📝 Notas técnicas (Usabilidad UI/UX)
+- **Backend sin endpoint de borrado:** el `ViajeController` NO expone aún `DELETE /api/viajes/{id}` (solo tienen `@DeleteMapping` los controladores de Actividad, Gasto y Checklist). El frontend ya lo consume; el backend debe añadir `@DeleteMapping("/{id}")` en `ViajeController` (vía `ViajeService` + repositorio) para que el flujo funcione. Actualmente `eliminarViaje` devolverá 404/405.
+- El toggle de tema ya no está fijo/flotante: vive en la cabecera de cada pantalla logueada para evitar solapamientos con botones de acción.
+- `navigator.clipboard` requiere contexto seguro (HTTPS o localhost); en despliegues no seguros convendría un fallback con `document.execCommand('copy')`.
+- La persistencia del checklist es puramente local (sin backend); si más adelante se conecta `ItemChecklist` del backend, se migrará de localStorage a Signals + API.

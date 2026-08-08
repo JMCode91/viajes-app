@@ -1,20 +1,38 @@
 <div class="min-h-screen bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
-  <header class="mb-6 flex items-center justify-between gap-3">
-    <div>
+  <header class="mb-6 flex items-center justify-between gap-4">
+    <div class="min-w-0">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Mis viajes</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400">Tus planes, en un solo lugar.</p>
     </div>
-    <button
-      type="button"
-      aria-label="Unirse a un viaje con código"
-      (click)="abrirModalUnirse()"
-      class="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm font-semibold text-blue-600 dark:text-blue-400 shadow-md active:scale-95"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-      </svg>
-      Unirse
-    </button>
+    <div class="flex shrink-0 items-center gap-2">
+      <button
+        type="button"
+        aria-label="Cambiar tema"
+        (click)="toggleTheme()"
+        class="flex h-11 w-11 items-center justify-center rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-200 shadow-md active:scale-95"
+      >
+        @if (theme() === 'light') {
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-5 w-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+          </svg>
+        } @else {
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-5 w-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
+          </svg>
+        }
+      </button>
+      <button
+        type="button"
+        aria-label="Unirse a un viaje con código"
+        (click)="abrirModalUnirse()"
+        class="flex h-11 shrink-0 items-center gap-2 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 text-sm font-semibold text-blue-600 dark:text-blue-400 shadow-md active:scale-95"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+        </svg>
+        Unirse
+      </button>
+    </div>
   </header>
 
   <section class="flex flex-col gap-4">
