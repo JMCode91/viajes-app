@@ -48,6 +48,12 @@ export interface ViajeRequest {
   presupuestoBase: number;
 }
 
+export interface Documento {
+  id: UUID;
+  nombreOriginal: string;
+  urlArchivo: string;
+}
+
 export interface Actividad {
   id: UUID;
   viajeId: UUID;
@@ -58,7 +64,7 @@ export interface Actividad {
   fechaHoraFin: string;
   latitud: number;
   longitud: number;
-  urlDocumento: string;
+  documentos: Documento[];
 }
 
 export interface ActividadRequest {
@@ -69,7 +75,6 @@ export interface ActividadRequest {
   fechaHoraFin: string;
   latitud?: number;
   longitud?: number;
-  urlDocumento?: string;
 }
 
 export interface Gasto {

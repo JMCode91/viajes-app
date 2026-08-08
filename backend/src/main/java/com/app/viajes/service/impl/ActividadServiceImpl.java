@@ -116,6 +116,12 @@ public class ActividadServiceImpl implements ActividadService {
             throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
         }
 
+        // Borrado inteligente en cascada: se borran fisicamente de Cloudflare R2
+        // todos los documentos de la actividad antes de eliminar el registro.
+        for (Documento documento : actividad.getDocumentos()) {
+            storageService.eliminarDocumento(documento.getUrlArchivo());
+        }
+
         actividadRepository.delete(actividad);
     }
 

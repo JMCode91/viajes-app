@@ -7,6 +7,7 @@ import com.app.viajes.dto.ViajeResponseDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
+import com.app.viajes.model.Documento;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
@@ -18,6 +19,7 @@ import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.service.StorageService;
 import com.app.viajes.service.ViajeService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -46,6 +48,7 @@ public class ViajeServiceImpl implements ViajeService {
     private final GastoRepository gastoRepository;
     private final TareaChecklistRepository tareaChecklistRepository;
     private final DocumentoRepository documentoRepository;
+    private final StorageService storageService;
 
     public ViajeServiceImpl(ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
@@ -53,7 +56,8 @@ public class ViajeServiceImpl implements ViajeService {
                             ActividadRepository actividadRepository,
                             GastoRepository gastoRepository,
                             TareaChecklistRepository tareaChecklistRepository,
-                            DocumentoRepository documentoRepository) {
+                            DocumentoRepository documentoRepository,
+                            StorageService storageService) {
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
@@ -61,6 +65,7 @@ public class ViajeServiceImpl implements ViajeService {
         this.gastoRepository = gastoRepository;
         this.tareaChecklistRepository = tareaChecklistRepository;
         this.documentoRepository = documentoRepository;
+        this.storageService = storageService;
     }
 
     @Override
@@ -198,8 +203,16 @@ public class ViajeServiceImpl implements ViajeService {
         // Borrado en cascada manual: los hijos mapean @ManyToOne -> Viaje
         // sin colecciones @OneToMany (no hay OrphanRemoval), por lo que se
         // eliminan explicitamente para evitar violacion de Clave Foranea.
+        //
+        // Borrado inteligente: primero se purgan fisicamente de Cloudflare R2
+        // todos los documentos asociados al viaje y luego se eliminan las filas.
         tareaChecklistRepository.deleteByViajeId(viajeId);
         gastoRepository.deleteByViajeId(viajeId);
+
+        List<Documento> documentos = documentoRepository.findByActividadIdViajeId(viajeId);
+        for (Documento documento : documentos) {
+            storageService.eliminarDocumento(documento.getUrlArchivo());
+        }
         documentoRepository.deleteByViajeId(viajeId);
         actividadRepository.deleteByViajeId(viajeId);
         usuarioViajeRepository.deleteByViajeId(viajeId);

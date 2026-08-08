@@ -38,8 +38,18 @@ export class ActividadService {
     const formData = new FormData();
     formData.append('file', file);
     return this.http.post<Actividad>(
-      `/api/viajes/${viajeId}/actividades/${actividadId}/documento`,
+      `/api/viajes/${viajeId}/actividades/${actividadId}/documentos`,
       formData
+    );
+  }
+
+  eliminarDocumento(
+    viajeId: UUID,
+    actividadId: UUID,
+    documentoId: UUID
+  ): Observable<void> {
+    return this.http.delete<void>(
+      `/api/viajes/${viajeId}/actividades/${actividadId}/documentos/${documentoId}`
     );
   }
 }

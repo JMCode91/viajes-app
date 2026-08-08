@@ -46,7 +46,11 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA** COMPLETADOS.
+- **Completado en esta sesión (Borrado físico en cascada — purga de R2 al borrar Actividad/Viaje):**
+  - **`ActividadServiceImpl.eliminarActividad`:** antes de borrar la actividad de la BD, itera sobre `actividad.getDocumentos()` y llama a `StorageService.eliminarDocumento(url)` por cada uno (purga física en Cloudflare R2). El borrado en cascada JPA (`cascade=ALL` + `orphanRemoval`) elimina después las filas de `documentos`.
+  - **`ViajeServiceImpl.eliminarViaje`:** ahora inyecta `StorageService`. Antes del borrado de filas, obtiene todos los documentos del viaje con el nuevo método del repositorio `DocumentoRepository.findByActividadIdViajeId(viajeId)` y llama a `eliminarDocumento(url)` por cada uno (purga física). Después sigue con el borrado en cascada manual (`documentos` → `actividades` → `usuarios_viajes` → viaje).
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Refactor multi-documento 1:N — borrado inteligente en R2):**
   - **Nueva entidad `Documento`** (tabla `documentos`): `id` (UUID auto), `nombreOriginal`, `urlArchivo` y `@ManyToOne(fetch = LAZY)` hacia `Actividad`. Nuevo `DocumentoRepository`.
   - **`Actividad` refactorizada:** eliminado el campo `urlDocumento` (era 1:1); ahora tiene `@OneToMany(mappedBy="actividad", cascade=ALL, orphanRemoval=true) List<Documento> documentos`.
@@ -102,7 +106,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
+- **Últimos commits:** `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 

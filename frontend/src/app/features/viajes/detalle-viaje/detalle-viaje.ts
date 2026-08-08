@@ -11,6 +11,7 @@ import { CustomTimePicker } from '../../../shared/components/custom-time-picker/
 import {
   Actividad,
   ActividadRequest,
+  Documento,
   TareaChecklistResponse,
   UUID,
 } from '../../../shared/types';
@@ -58,6 +59,7 @@ export class DetalleViaje {
   protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly nuevaTarea = signal('');
   protected readonly subiendoArchivo = signal(false);
+  protected readonly borrandoDocumento = signal<UUID | null>(null);
   protected readonly modalCompartirAbierto = signal(false);
   protected readonly modalDetalleAbierto = signal(false);
   protected readonly actividadSeleccionada = signal<Actividad | null>(null);
@@ -303,6 +305,37 @@ export class DetalleViaje {
         },
       });
     input.value = '';
+  }
+
+  protected eliminarDocumentoDeActividad(documentoId: UUID): void {
+    const actividad = this.actividadSeleccionada();
+    if (!this.viajeId || !actividad || this.borrandoDocumento()) {
+      return;
+    }
+
+    this.borrandoDocumento.set(documentoId);
+    this.actividadService
+      .eliminarDocumento(this.viajeId, actividad.id, documentoId)
+      .subscribe({
+        next: () => {
+          this.borrandoDocumento.set(null);
+          const sinDocumento = (lista: Documento[]) =>
+            lista.filter((d) => d.id !== documentoId);
+          this.actividadSeleccionada.update((act) =>
+            act ? { ...act, documentos: sinDocumento(act.documentos) } : act
+          );
+          this.actividadService.actividades.update((lista) =>
+            lista.map((a) =>
+              a.id === actividad.id
+                ? { ...a, documentos: sinDocumento(a.documentos) }
+                : a
+            )
+          );
+        },
+        error: () => {
+          this.borrandoDocumento.set(null);
+        },
+      });
   }
 
   protected setListaChecklist(lista: ListaChecklist): void {
