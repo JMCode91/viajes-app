@@ -15,4 +15,13 @@ public interface StorageService {
      * @return URL publica concatenando {@code cloudflare.r2.public-url} + nombre generado
      */
     String subirDocumento(MultipartFile archivo);
+
+    /**
+     * Elimina fisicamente un documento del bucket R2.
+     *
+     * @param urlArchivo URL publica completa del documento
+     *                   ({@code public-url} + nombre generado). La clave exacta
+     *                   del objeto se extrae cortando por el ultimo "/".
+     */
+    void eliminarDocumento(String urlArchivo);
 }

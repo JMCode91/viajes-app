@@ -2,17 +2,21 @@ package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.ActividadRequestDTO;
 import com.app.viajes.dto.ActividadResponseDTO;
+import com.app.viajes.dto.DocumentoDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Actividad;
+import com.app.viajes.model.Documento;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.repository.ActividadRepository;
+import com.app.viajes.repository.DocumentoRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
 import com.app.viajes.service.ActividadService;
+import com.app.viajes.service.StorageService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,15 +39,21 @@ public class ActividadServiceImpl implements ActividadService {
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final DocumentoRepository documentoRepository;
+    private final StorageService storageService;
 
     public ActividadServiceImpl(ActividadRepository actividadRepository,
                                 ViajeRepository viajeRepository,
                                 UsuarioRepository usuarioRepository,
-                                UsuarioViajeRepository usuarioViajeRepository) {
+                                UsuarioViajeRepository usuarioViajeRepository,
+                                DocumentoRepository documentoRepository,
+                                StorageService storageService) {
         this.actividadRepository = actividadRepository;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.documentoRepository = documentoRepository;
+        this.storageService = storageService;
     }
 
     @Override
@@ -63,7 +73,6 @@ public class ActividadServiceImpl implements ActividadService {
         actividad.setFechaHoraFin(dto.fechaHoraFin());
         actividad.setLatitud(dto.latitud());
         actividad.setLongitud(dto.longitud());
-        actividad.setUrlDocumento(dto.urlDocumento());
         actividadRepository.save(actividad);
 
         return toResponseDTO(actividad);
@@ -112,7 +121,8 @@ public class ActividadServiceImpl implements ActividadService {
 
     @Override
     @Transactional
-    public ActividadResponseDTO guardarUrlDocumento(UUID viajeId, UUID actividadId, String urlDocumento) {
+    public ActividadResponseDTO guardarDocumento(UUID viajeId, UUID actividadId,
+                                                 String nombreOriginal, String urlArchivo) {
         verificarPertenencia(viajeId);
 
         Actividad actividad = actividadRepository.findById(actividadId)
@@ -122,10 +132,33 @@ public class ActividadServiceImpl implements ActividadService {
             throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
         }
 
-        actividad.setUrlDocumento(urlDocumento);
+        Documento documento = new Documento();
+        documento.setActividad(actividad);
+        documento.setNombreOriginal(nombreOriginal);
+        documento.setUrlArchivo(urlArchivo);
+        actividad.getDocumentos().add(documento);
         actividadRepository.save(actividad);
 
         return toResponseDTO(actividad);
+    }
+
+    @Override
+    @Transactional
+    public void eliminarDocumento(UUID viajeId, UUID actividadId, UUID documentoId) {
+        verificarPertenencia(viajeId);
+
+        Documento documento = documentoRepository.findById(documentoId)
+                .orElseThrow(() -> new AccesoDenegadoException("Documento no encontrado"));
+
+        if (!documento.getActividad().getId().equals(actividadId)
+                || !documento.getActividad().getViaje().getId().equals(viajeId)) {
+            throw new AccesoDenegadoException("El documento no pertenece a esta actividad");
+        }
+
+        // Borrado inteligente: primero se elimina el archivo de Cloudflare R2
+        // y, solo despues, el registro de la base de datos.
+        storageService.eliminarDocumento(documento.getUrlArchivo());
+        documentoRepository.delete(documento);
     }
 
     /**
@@ -158,6 +191,11 @@ public class ActividadServiceImpl implements ActividadService {
                 actividad.getFechaHoraFin(),
                 actividad.getLatitud(),
                 actividad.getLongitud(),
-                actividad.getUrlDocumento());
+                actividad.getDocumentos().stream()
+                        .map(documento -> new DocumentoDTO(
+                                documento.getId(),
+                                documento.getNombreOriginal(),
+                                documento.getUrlArchivo()))
+                        .toList());
     }
 }

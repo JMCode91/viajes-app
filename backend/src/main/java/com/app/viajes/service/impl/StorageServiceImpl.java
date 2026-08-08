@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
@@ -70,6 +71,30 @@ public class StorageServiceImpl implements StorageService {
         }
 
         return publicUrlPrefix + "/" + nombreGenerado;
+    }
+
+    @Override
+    public void eliminarDocumento(String urlArchivo) {
+        if (!StringUtils.hasText(urlArchivo)) {
+            return;
+        }
+
+        // La clave del objeto R2 es el nombre generado (idioma UUID.ext),
+        // que es el ultimo segmento de la URL publica.
+        String clave = urlArchivo.substring(urlArchivo.lastIndexOf('/') + 1);
+        if (clave.isEmpty()) {
+            throw new StorageException("No se pudo determinar el archivo a eliminar de Cloudflare R2");
+        }
+
+        try {
+            DeleteObjectRequest request = DeleteObjectRequest.builder()
+                    .bucket(bucket)
+                    .key(clave)
+                    .build();
+            s3Client.deleteObject(request);
+        } catch (Exception ex) {
+            throw new StorageException("No se pudo eliminar el documento de Cloudflare R2");
+        }
     }
 
     private String obtenerExtension(String nombreOriginal) {

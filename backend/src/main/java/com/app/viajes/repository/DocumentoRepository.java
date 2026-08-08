@@ -1,0 +1,23 @@
+package com.app.viajes.repository;
+
+import com.app.viajes.model.Documento;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
+import java.util.UUID;
+
+/**
+ * Repositorio JPA para la entidad {@link Documento}.
+ */
+public interface DocumentoRepository extends JpaRepository<Documento, UUID> {
+
+    /**
+     * Elimina todos los documentos de las actividades de un viaje.
+     * Usado en el borrado en cascada manual de {@code ViajeService}.
+     */
+    @Modifying
+    @Query("DELETE FROM Documento d WHERE d.actividad.viaje.id = :viajeId")
+    void deleteByViajeId(@Param("viajeId") UUID viajeId);
+}

@@ -61,14 +61,24 @@ public class ActividadController {
         return ResponseEntity.ok(actividadService.obtenerTimelinePorFecha(viajeId, fecha));
     }
 
-    @PostMapping(value = "/{actividadId}/documento", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{actividadId}/documentos", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<ActividadResponseDTO> subirDocumento(
             @PathVariable UUID viajeId,
             @PathVariable UUID actividadId,
             @RequestParam("file") MultipartFile file) {
-        String urlDocumento = storageService.subirDocumento(file);
-        ActividadResponseDTO response = actividadService.guardarUrlDocumento(viajeId, actividadId, urlDocumento);
+        String urlArchivo = storageService.subirDocumento(file);
+        ActividadResponseDTO response = actividadService.guardarDocumento(
+                viajeId, actividadId, file.getOriginalFilename(), urlArchivo);
         return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{actividadId}/documentos/{documentoId}")
+    public ResponseEntity<Void> eliminarDocumento(
+            @PathVariable UUID viajeId,
+            @PathVariable UUID actividadId,
+            @PathVariable UUID documentoId) {
+        actividadService.eliminarDocumento(viajeId, actividadId, documentoId);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{actividadId}")

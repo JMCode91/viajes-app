@@ -46,7 +46,17 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE** COMPLETADOS.
+- **Completado en esta sesión (Refactor multi-documento 1:N — borrado inteligente en R2):**
+  - **Nueva entidad `Documento`** (tabla `documentos`): `id` (UUID auto), `nombreOriginal`, `urlArchivo` y `@ManyToOne(fetch = LAZY)` hacia `Actividad`. Nuevo `DocumentoRepository`.
+  - **`Actividad` refactorizada:** eliminado el campo `urlDocumento` (era 1:1); ahora tiene `@OneToMany(mappedBy="actividad", cascade=ALL, orphanRemoval=true) List<Documento> documentos`.
+  - **DTOs:** nuevo `DocumentoDTO` (`id`, `nombreOriginal`, `urlArchivo`). `ActividadRequestDTO` pierde `urlDocumento`. `ActividadResponseDTO` ahora devuelve `List<DocumentoDTO> documentos`. El `DocumentoDTO` se construye dentro de la transacción (colección LAZY).
+  - **`StorageService.eliminarDocumento(String urlArchivo)`: extrae la clave del objeto cortando por el último "/" de la URL pública y ejecuta `DeleteObjectRequest` con el `S3Client` de Cloudflare R2 (borrado físico). URL vacía → no-op; fallos → `StorageException` (500).** Reemplaza al intento 1:1 anterior.
+  - **Endpoints de actividad (documentos):**
+    - `POST /api/viajes/{viajeId}/actividades/{actividadId}/documentos` (multipart `file`) → sube a R2, crea el registro `Documento` (nombre original + URL R2) asociado a la Actividad y devuelve el `ActividadResponseDTO` actualizado.
+    - `DELETE /api/viajes/{viajeId}/actividades/{actividadId}/documentos/{documentoId}` (204) → borrado inteligente: busca el `Documento`, valida pertenencia al viaje/actividad, llama a `StorageService.eliminarDocumento(raw)` para borrar de R2 y finalmente elimina la entidad de la BD.
+  - **`ViajeService.eliminarViaje`:** el borrado en cascada manual ahora elimina `documentos` (vía `DocumentoRepository.deleteByViajeId`) **antes** que `actividades` para no violar la FK.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Fix 403 invitados + participantes):**
   - **Fix 403 "unirse por UUID":** el 403 NO venía de `SecurityConfig` (solo exige JWT salvo `/api/auth/**`) sino de `ViajeServiceImpl.responderInvitacion`, que exigía un registro `UsuarioViaje` PENDIENTE previo. Ahora, si el usuario autenticado no tiene pertenencia y `aceptar=true` (el flujo del frontend `unirseViaje(uuid)` → `PUT /api/viajes/{id}/responder-invitacion?aceptar=true`), se le crea automáticamente la pertenencia como **INVITADO/ACEPTADA** usando el UUID del viaje como código de invitación. También se hace idempotente: si ya es miembro ACEPTADA, retorna 200 sin error.
   - **Endpoint `GET /api/viajes/{id}/participantes`:** devuelve `List<ParticipanteResponseDTO>` (`id`, `nombre`, `email`, `rolEnViaje`) de los usuarios con pertenencia **ACEPTADA**. Nuevo DTO `ParticipanteResponseDTO`. Verifica la pertenencia del usuario autenticado antes de listar. Lo consume el frontend para el selector de asignación de la checklist.
@@ -92,7 +102,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
+- **Últimos commits:** `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 
@@ -113,7 +123,8 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
-| POST | `/api/viajes/{viajeId}/actividades/{actividadId}/documento` | Subir documento de una actividad a Cloudflare R2 (multipart, `file`, máx 5MB) | JWT |
+| POST | `/api/viajes/{viajeId}/actividades/{actividadId}/documentos` | Subir documento de una actividad a Cloudflare R2 (multipart, `file`, máx 5MB). Crea el registro `Documento` y lo asocia a la actividad | JWT |
+| DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}/documentos/{documentoId}` | Borrar documento (204). Borra físicamente de R2 (`StorageService.eliminarDocumento`) y elimina el registro de la BD | JWT |
 | POST | `/api/viajes/{viajeId}/checklist` | Crear una tarea de la checklist | JWT |
 | GET | `/api/viajes/{viajeId}/checklist` | Listar tareas visibles (públicas o del usuario) | JWT |
 | PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/estado?completada=true` | Marcar/desmarcar tarea como completada | JWT |

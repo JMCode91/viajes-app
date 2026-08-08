@@ -12,6 +12,7 @@ import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.model.enums.EstadoInvitacion;
 import com.app.viajes.repository.ActividadRepository;
+import com.app.viajes.repository.DocumentoRepository;
 import com.app.viajes.repository.GastoRepository;
 import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
@@ -44,19 +45,22 @@ public class ViajeServiceImpl implements ViajeService {
     private final ActividadRepository actividadRepository;
     private final GastoRepository gastoRepository;
     private final TareaChecklistRepository tareaChecklistRepository;
+    private final DocumentoRepository documentoRepository;
 
     public ViajeServiceImpl(ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
                             UsuarioViajeRepository usuarioViajeRepository,
                             ActividadRepository actividadRepository,
                             GastoRepository gastoRepository,
-                            TareaChecklistRepository tareaChecklistRepository) {
+                            TareaChecklistRepository tareaChecklistRepository,
+                            DocumentoRepository documentoRepository) {
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
         this.actividadRepository = actividadRepository;
         this.gastoRepository = gastoRepository;
         this.tareaChecklistRepository = tareaChecklistRepository;
+        this.documentoRepository = documentoRepository;
     }
 
     @Override
@@ -196,6 +200,7 @@ public class ViajeServiceImpl implements ViajeService {
         // eliminan explicitamente para evitar violacion de Clave Foranea.
         tareaChecklistRepository.deleteByViajeId(viajeId);
         gastoRepository.deleteByViajeId(viajeId);
+        documentoRepository.deleteByViajeId(viajeId);
         actividadRepository.deleteByViajeId(viajeId);
         usuarioViajeRepository.deleteByViajeId(viajeId);
         viajeRepository.deleteById(viajeId);

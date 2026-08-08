@@ -21,5 +21,7 @@ public interface ActividadService {
 
     void eliminarActividad(UUID viajeId, UUID actividadId);
 
-    ActividadResponseDTO guardarUrlDocumento(UUID viajeId, UUID actividadId, String urlDocumento);
+    ActividadResponseDTO guardarDocumento(UUID viajeId, UUID actividadId, String nombreOriginal, String urlArchivo);
+
+    void eliminarDocumento(UUID viajeId, UUID actividadId, UUID documentoId);
 }

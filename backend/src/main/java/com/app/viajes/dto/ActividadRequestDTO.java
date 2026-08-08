@@ -28,9 +28,6 @@ public record ActividadRequestDTO(
 
         Double latitud,
 
-        Double longitud,
-
-        @Size(max = 500, message = "La URL del documento no puede superar los 500 caracteres")
-        String urlDocumento
+        Double longitud
 ) {
 }
