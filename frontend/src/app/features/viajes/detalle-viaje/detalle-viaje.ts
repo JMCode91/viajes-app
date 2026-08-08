@@ -6,7 +6,9 @@ import { FormsModule } from '@angular/forms';
 
 import { ViajeService } from '../../../core/services/viaje.service';
 import { ActividadService } from '../../../core/services/actividad.service';
-import { ActividadRequest, UUID } from '../../../shared/types';
+import { AuthService } from '../../../core/services/auth.service';
+import { CustomTimePicker } from '../../../shared/components/custom-time-picker/custom-time-picker';
+import { Actividad, ActividadRequest, UUID } from '../../../shared/types';
 
 export type Tab = 'itinerario' | 'mapa' | 'checklist';
 
@@ -33,7 +35,7 @@ export type ListaChecklist = 'comun' | 'privada';
 
 @Component({
   selector: 'app-detalle-viaje',
-  imports: [DatePipe, ReactiveFormsModule, FormsModule],
+  imports: [DatePipe, ReactiveFormsModule, FormsModule, CustomTimePicker],
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
 })
@@ -43,6 +45,7 @@ export class DetalleViaje {
   private readonly fb = inject(FormBuilder);
   private readonly viajeService = inject(ViajeService);
   private readonly actividadService = inject(ActividadService);
+  private readonly authService = inject(AuthService);
 
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
@@ -52,21 +55,22 @@ export class DetalleViaje {
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
 
-  protected readonly listaChecklist = signal<ListaChecklist>('comun');
+protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly listaComun = signal<ChecklistItem[]>([]);
   protected readonly listaPrivada = signal<ChecklistItem[]>([]);
   protected readonly nuevaTarea = signal('');
-  protected readonly asignadoTarea = signal<string>('');
-  protected readonly participantes = signal<string[]>([
-    'Yo',
-    'Lucía',
-    'Marco',
-  ]);
+  protected readonly asignadoTarea = signal('');
+  protected readonly participantes = computed<string[]>(() => {
+    const nombre = this.authService.usuario()?.nombre;
+    return nombre ? [nombre] : ['Yo'];
+  });
   protected readonly archivo = signal<{ nombre: string; url: string } | null>(
     null
   );
   protected readonly subiendoArchivo = signal(false);
   protected readonly modalCompartirAbierto = signal(false);
+  protected readonly modalDetalleAbierto = signal(false);
+  protected readonly actividadSeleccionada = signal<Actividad | null>(null);
 
   protected readonly uuidInvitacion = computed<UUID | null>(
     () => this.viaje()?.id ?? null
@@ -169,6 +173,19 @@ export class DetalleViaje {
     this.modalAbierto.set(false);
   }
 
+  protected abrirDetalleActividad(actividad: Actividad): void {
+    this.actividadSeleccionada.set(actividad);
+    this.modalDetalleAbierto.set(true);
+  }
+
+  protected cerrarDetalleActividad(): void {
+    this.modalDetalleAbierto.set(false);
+  }
+
+  protected abrirDocumento(url: string): void {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   protected abrirModalCompartir(): void {
     this.modalCompartirAbierto.set(true);
   }
@@ -251,7 +268,7 @@ export class DetalleViaje {
       return;
     }
     const asignado = this.listaChecklist() === 'comun'
-      ? this.asignadoTarea() || 'Yo'
+      ? this.asignadoTarea() || this.participantes()[0]
       : null;
     const item: ChecklistItem = { id: Date.now(), texto, hecha: false, asignado };
     if (this.listaChecklist() === 'comun') {

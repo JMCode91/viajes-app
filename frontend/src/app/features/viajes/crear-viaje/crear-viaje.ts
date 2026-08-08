@@ -3,10 +3,11 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { ViajeService } from '../../../core/services/viaje.service';
+import { CustomDatePicker } from '../../../shared/components/custom-date-picker/custom-date-picker';
 
 @Component({
   selector: 'app-crear-viaje',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, CustomDatePicker],
   templateUrl: './crear-viaje.html',
   styleUrl: './crear-viaje.css',
 })

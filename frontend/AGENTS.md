@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + **BUGFIX Y PULIDO (Fechas itinerario, gastos con usuario real, checklist asignado, UUID visible)** COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + **ITERACIÓN UI/UX: Picker custom fecha/hora, modal detalle de actividad y botón unirse global** COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -238,3 +238,21 @@ src/app/
 - **UUID de invitación:** el backend no expone un campo `uuidInvitacion`; el código de invitación que se comparte es el propio `id` del viaje (el que usa `PUT /api/viajes/{uuid}/responder-invitacion`). Se muestra `viajeDetalle.id` en el modal.
 - El `pagadorId` de gastos sigue siendo un UUID determinista generado en cliente a partir del email real del usuario; el backend solo lo persiste como columna UUID (sin FK), por lo que el nombre se reconstruye desde el mapa `finanzas_pagadores`.
 - `resolverPagador(nombre)` (libre) se eliminó en favor de `pagadorAutenticado(email, nombre)`.
+
+---
+
+## 🎨 Iteración UI/UX: Picker custom fecha/hora, modal detalle de actividad y botón de unirse global (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **Modal "Detalle del Plan" (Itinerario):** las tarjetas del timeline son clicables (`cursor-pointer` + `active:scale-[0.98]`). Al pulsar se abre un bottom-sheet `z-50 backdrop-blur-sm` que muestra en grande: hora (chip azul `HH:mm`), título y ubicación (`.descripcion`). Si `actividad.urlDocumento` es válido, botón destacado "Ver documento adjunto" con icono de clip que abre la URL en pestaña nueva (`window.open(url, '_blank', 'noopener')`). Botón "Cerrar" + cierre por backdrop.
+- [x] **CustomTimePicker** (`src/app/shared/components/custom-time-picker/`, ControlValueAccessor standalone): botón estilizado que muestra la hora y al pulsarlo abre un bottom-sheet con un **reloj digital** (`font-mono text-5xl` sobre fondo oscuro) y dos columnas desplegables (horas 00-23 / minutos 00-55 en pasos de 5). Scroll con `scrollbar-hide` (CSS propio). Confirma con "Confirmar hora". Valor `HH:MM`.
+- [x] **CustomDatePicker** (`src/app/shared/components/custom-date-picker/`, ControlValueAccessor standalone): botón que muestra la fecha formateada (`d mes año`) y al pulsarlo abre un popover de **calendario** construido con Tailwind: cabecera con navegación mes `‹ ›`, días de la semana L-X, cuadrícula `grid-cols-7`, día de hoy con anillo y día seleccionado resaltado en `bg-blue-600`. Botón "Ir a hoy". Valor `YYYY-MM-DD`.
+- [x] **Integración de pickers:** en `Añadir plan` el `input type="time"` se sustituyó por `<app-custom-time-picker formControlName="hora" />`; en `Crear Viaje` los dos `input type="date"` se sustituyeron por `<app-custom-date-picker formControlName="fechaInicio" />` / `fechaFin`. Se mantienen las validaciones `hasError` en los padres.
+- [x] **Botón permanente "Unirse" (Dashboard):** cabecera "Mis viajes" ahora es `flex justify-between` con botón permanente de "Unirse" (icono de candado/eslabón + texto) en la esquina superior derecha, que abre el mismo modal de UUID ya existente (`abrirModalUnirse()`). También sigue disponible en el empty state.
+- [x] **Limpieza de mocks (Checklist):** eliminados los nombres fake "Lucía"/"Marco" del array `participantes`. Ahora `participantes` es un `computed` que usa `AuthService.usuario().nombre` (fallback `'Yo'`). La lista de asignados solo contiene al usuario autenticado.
+- [x] **Verificación:** `ng build` compila sin errores (chunks `detalle-viaje`, `crear-viaje` y `dashboard` regenerados).
+
+### 📝 Notas técnicas (Iteración UI/UX)
+- Los pickers son `ControlValueAccessor` (`NG_VALUE_ACCESSOR` + `forwardRef`) y por tanto funcionan con `ReactiveFormsModule` y `formControlName` sin librerías externas.
+- `scrollbar-hide` (ocultar scrollbar de las columnas) vive ahora también en `custom-time-picker.css`; el existente en `detalle-viaje.css` sigue usándose para el mini-calendario.
+- Los formatos de valor son compatibles con el backend: `YYYY-MM-DD` para fechas (`LocalDate`) y `HH:MM` para horas (concatenado como `${dia}T${hora}`).

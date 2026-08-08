@@ -1,0 +1,107 @@
+<div>
+  <button
+    type="button"
+    (click)="abrir()"
+    aria-label="Elegir hora"
+    class="flex h-14 w-full items-center justify-between rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+  >
+    <span class="flex items-center gap-3">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.7" stroke="currentColor" class="h-5 w-5 shrink-0 text-blue-600 dark:text-blue-400">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+      </svg>
+      <span [class.text-gray-400]="!valor()" class="font-semibold tracking-wide">
+        {{ valor() || 'HH:MM' }}
+      </span>
+    </span>
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-4 w-4 text-gray-400">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+    </svg>
+  </button>
+
+  @if (abierto()) {
+    <div
+      class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+      (click)="cerrar()"
+    >
+      <div
+        class="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-lg font-bold text-gray-900 dark:text-white">Elige una hora</h2>
+            <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Ajusta el reloj del plan.</p>
+          </div>
+          <button
+            type="button"
+            aria-label="Cerrar"
+            (click)="cerrar()"
+            class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 active:scale-95"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="mt-4 flex items-center justify-center rounded-2xl bg-gray-900 dark:bg-black px-4 py-5">
+          <span class="font-mono text-5xl font-bold tabular-nums text-white">
+            {{ horaDisplay().slice(0, 2) }}:{{ horaDisplay().slice(3, 5) }}
+          </span>
+        </div>
+
+        <div class="mt-5 grid grid-cols-2 gap-3">
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Hora</span>
+            <div class="scrollbar-hide max-h-52 overflow-y-auto rounded-2xl bg-gray-50 dark:bg-gray-800 p-2">
+              <div class="flex flex-col gap-1">
+                @for (hora of horas; track hora) {
+                  <button
+                    type="button"
+                    (click)="elegirHora(hora)"
+                    [class]="
+                      horaSel() === hora
+                        ? 'h-11 rounded-xl bg-blue-600 text-sm font-bold text-white active:scale-95'
+                        : 'h-11 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 active:bg-white dark:active:bg-gray-700'
+                    "
+                  >
+                    {{ hora }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="flex flex-col gap-2">
+            <span class="text-xs font-bold uppercase tracking-wide text-gray-400">Minutos</span>
+            <div class="scrollbar-hide max-h-52 overflow-y-auto rounded-2xl bg-gray-100 dark:bg-gray-800 p-2">
+              <div class="flex flex-col gap-1">
+                @for (minuto of minutos; track minuto) {
+                  <button
+                    type="button"
+                    (click)="elegirMinuto(minuto)"
+                    [class]="
+                      minutoSel() === minuto
+                        ? 'h-11 rounded-xl bg-blue-600 text-sm font-bold text-white active:scale-95'
+                        : 'h-11 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 active:scale-95 active:bg-white dark:active:bg-gray-700'
+                    "
+                  >
+                    {{ minuto }}
+                  </button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          (click)="confirmar()"
+          class="mt-6 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+        >
+          Confirmar hora
+        </button>
+      </div>
+    </div>
+  }
+</div>
