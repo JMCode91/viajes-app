@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
-import { Viaje, ViajeRequest } from '../../shared/types';
+import { Participante, UUID, Viaje, ViajeRequest } from '../../shared/types';
 
 @Injectable({ providedIn: 'root' })
 export class ViajeService {
@@ -11,6 +11,8 @@ export class ViajeService {
   readonly viajes = signal<Viaje[]>([]);
 
   readonly viajeDetalle = signal<Viaje | null>(null);
+
+  readonly participantes = signal<Participante[]>([]);
 
   getMisViajes(): Observable<Viaje[]> {
     return this.http.get<Viaje[]>(`/api/viajes`);
@@ -46,5 +48,17 @@ export class ViajeService {
 
   eliminarViaje(id: string): Observable<void> {
     return this.http.delete<void>(`/api/viajes/${id}`);
+  }
+
+  getParticipantes(viajeId: UUID): Observable<Participante[]> {
+    return this.http.get<Participante[]>(
+      `/api/viajes/${viajeId}/participantes`
+    );
+  }
+
+  cargarParticipantes(viajeId: UUID): void {
+    this.getParticipantes(viajeId).subscribe({
+      next: (participantes) => this.participantes.set(participantes),
+    });
   }
 }

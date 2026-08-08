@@ -48,6 +48,7 @@ export class DetalleViaje {
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
   protected readonly tareas = this.tareaChecklistService.tareas;
+  protected readonly participantes = this.viajeService.participantes;
   protected readonly tabActiva = signal<Tab>('itinerario');
   protected readonly diaSeleccionado = signal<string | null>(null);
   protected readonly modalAbierto = signal(false);
@@ -56,9 +57,6 @@ export class DetalleViaje {
 
   protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly nuevaTarea = signal('');
-  protected readonly archivo = signal<{ nombre: string; url: string } | null>(
-    null
-  );
   protected readonly subiendoArchivo = signal(false);
   protected readonly modalCompartirAbierto = signal(false);
   protected readonly modalDetalleAbierto = signal(false);
@@ -112,8 +110,6 @@ export class DetalleViaje {
       : this.listaPrivada()
   );
 
-  protected readonly urlDocumento = computed(() => this.archivo()?.url);
-
   protected readonly formActividad = this.fb.nonNullable.group({
     dia: ['', Validators.required],
     titulo: ['', [Validators.required, Validators.maxLength(200)]],
@@ -144,6 +140,7 @@ export class DetalleViaje {
       this.viajeService.cargarViaje(this.viajeId);
       this.actividadService.cargarActividades(this.viajeId);
       this.tareaChecklistService.cargarTareas(this.viajeId);
+      this.viajeService.cargarParticipantes(this.viajeId);
     }
 
     effect(() => {
@@ -168,7 +165,6 @@ export class DetalleViaje {
 
   protected abrirModal(): void {
     this.errorForm.set(null);
-    this.archivo.set(null);
     this.formActividad.reset();
     this.formActividad.patchValue({ dia: this.diaActivo() ?? '' });
     this.modalAbierto.set(true);
@@ -262,7 +258,6 @@ export class DetalleViaje {
       fechaHoraInicio,
       fechaHoraFin: fechaHoraInicio,
       descripcion: ubicacion || undefined,
-      urlDocumento: this.urlDocumento() ?? undefined,
     };
 
     this.guardando.set(true);
@@ -286,24 +281,28 @@ export class DetalleViaje {
   protected onArchivoSeleccionado(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (!file) {
+    const actividad = this.actividadSeleccionada();
+    if (!file || !actividad || !this.viajeId) {
+      input.value = '';
       return;
     }
-    this.subiendoArchivo.set(true);
-    this.actividadService.subirDocumento(file).subscribe({
-      next: (url) => {
-        this.archivo.set({ nombre: file.name, url });
-        this.subiendoArchivo.set(false);
-      },
-      error: () => {
-        this.subiendoArchivo.set(false);
-      },
-    });
-    input.value = '';
-  }
 
-  protected quitarArchivo(): void {
-    this.archivo.set(null);
+    this.subiendoArchivo.set(true);
+    this.actividadService
+      .subirDocumento(this.viajeId, actividad.id, file)
+      .subscribe({
+        next: (actualizada) => {
+          this.subiendoArchivo.set(false);
+          this.actividadSeleccionada.set(actualizada);
+          this.actividadService.actividades.update((lista) =>
+            lista.map((a) => (a.id === actualizada.id ? actualizada : a))
+          );
+        },
+        error: () => {
+          this.subiendoArchivo.set(false);
+        },
+      });
+    input.value = '';
   }
 
   protected setListaChecklist(lista: ListaChecklist): void {
@@ -350,6 +349,29 @@ export class DetalleViaje {
     this.tareaChecklistService.eliminarTarea(this.viajeId, tareaId).subscribe({
       next: () => this.tareaChecklistService.cargarTareas(this.viajeId!),
     });
+  }
+
+  protected idAsignadoDe(tarea: TareaChecklistResponse): string {
+    if (!tarea.nombreAsignado) {
+      return '';
+    }
+    return (
+      this.participantes().find((p) => p.nombre === tarea.nombreAsignado)
+        ?.id ?? ''
+    );
+  }
+
+  protected asignarTarea(tarea: TareaChecklistResponse, evento: Event): void {
+    if (!this.viajeId) {
+      return;
+    }
+    const valor = (evento.target as HTMLSelectElement).value;
+    const usuarioId = valor ? (valor as UUID) : null;
+    this.tareaChecklistService
+      .asignarUsuario(this.viajeId, tarea.id, usuarioId)
+      .subscribe({
+        next: () => this.tareaChecklistService.cargarTareas(this.viajeId!),
+      });
   }
 
   private generarDias(inicio: string, fin: string): Dia[] {

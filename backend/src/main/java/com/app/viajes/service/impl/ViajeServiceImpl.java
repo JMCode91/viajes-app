@@ -1,6 +1,7 @@
 package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.InvitacionRequestDTO;
+import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
@@ -23,6 +24,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -136,10 +138,32 @@ public class ViajeServiceImpl implements ViajeService {
     public void responderInvitacion(UUID viajeId, boolean aceptar) {
         Usuario usuario = obtenerUsuarioAutenticado();
 
-        UsuarioViaje pertenencia = usuarioViajeRepository
-                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+        Optional<UsuarioViaje> pertenenciaOpt = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId);
+
+        // Flujo "unirse a un viaje con el UUID de invitacion": cualquier
+        // usuario autenticado puede unirse utilizando el codigo (id del viaje)
+        // compartido por el propietario, aun sin haber sido invitado antes.
+        if (pertenenciaOpt.isEmpty() && aceptar) {
+            Viaje viaje = viajeRepository.findById(viajeId)
+                    .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+
+            UsuarioViaje nuevaPertenencia = new UsuarioViaje();
+            nuevaPertenencia.setUsuario(usuario);
+            nuevaPertenencia.setViaje(viaje);
+            nuevaPertenencia.setEstadoInvitacion(EstadoInvitacion.ACEPTADA);
+            nuevaPertenencia.setRolEnViaje(ROL_INVITADO);
+            usuarioViajeRepository.save(nuevaPertenencia);
+            return;
+        }
+
+        UsuarioViaje pertenencia = pertenenciaOpt
                 .orElseThrow(() -> new AccesoDenegadoException(
                         "No tiene una invitacion pendiente para este viaje"));
+
+        if (pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA) {
+            return;
+        }
 
         if (pertenencia.getEstadoInvitacion() != EstadoInvitacion.PENDIENTE) {
             throw new AccesoDenegadoException(
@@ -175,6 +199,26 @@ public class ViajeServiceImpl implements ViajeService {
         actividadRepository.deleteByViajeId(viajeId);
         usuarioViajeRepository.deleteByViajeId(viajeId);
         viajeRepository.deleteById(viajeId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ParticipanteResponseDTO> obtenerParticipantes(UUID viajeId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
+            throw new AccesoDenegadoException("No tiene acceso a este viaje");
+        }
+
+        return usuarioViajeRepository.findByViajeId(viajeId).stream()
+                .filter(pertenencia ->
+                        pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
+                .map(pertenencia -> new ParticipanteResponseDTO(
+                        pertenencia.getUsuario().getId(),
+                        pertenencia.getUsuario().getNombre(),
+                        pertenencia.getUsuario().getEmail(),
+                        pertenencia.getRolEnViaje()))
+                .toList();
     }
 
     private Usuario obtenerUsuarioAutenticado() {

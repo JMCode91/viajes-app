@@ -44,7 +44,15 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil + USABILIDAD UI/UX + **INTEGRACIÓN CHECKLIST CON BACKEND (TareaChecklistService + refactor sin localStorage)** COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + BUGFIX Y PULIDO + ITERACIÓN UI/UX + HOTFIX ddl-auto + Interceptor 401/403 + Módulo Perfil + USABILIDAD UI/UX + INTEGRACIÓN CHECKLIST CON BACKEND + **SUBI DA DE DOCUMENTOS REAL (R2) + SELECTOR DE ASIGNACIÓN CHECKLIST** COMPLETADOS.
+
+### ✅ Completado en esta sesión (Subida de documentos real + asignación de checklist)
+- [x] **ActividadService.subirDocumento(viajeId, actividadId, file):** ya NO es un mock. Hace `POST multipart/form-data` a `/api/viajes/{viajeId}/actividades/{actividadId}/documento` con el campo `file` y devuelve el `Actividad` actualizado (con `urlDocumento` real de Cloudflare R2).
+- [x] **Adjuntar archivo en el modal de detalle de actividad:** el botón "Adjuntar archivo (PDF/Imagen)" (con input `type="file"` oculto) vive ahora en el bottom-sheet de detalle del plan (donde ya existe `actividadId`). Al seleccionar un archivo llama a `subirDocumento`, muestra estado `subiendoArchivo` ("Subiendo documento...") y al terminar actualiza `actividadSeleccionada` + la señal `actividades` para mostrar el botón "Ver documento adjunto" con la `urlDocumento` devuelta.
+  - **Eliminado el adjunto del modal "Añadir plan":** el backend necesita un `actividadId` existente para subir el documento, así que ya no se adjunta en la creación; se hace tras crear la actividad (se retiró el bloque `archivo`/`archivoInput`/`quitarArchivo` del modal de crear y el campo `urlDocumento` del request).
+- [x] **Checklist — selector de asignación restaurado:** junto a cada tarea hay un `<select>` "Sin asignar + participantes del viaje". Los participantes llegan de `ViajeService.getParticipantes(viajeId)` → `GET /api/viajes/{id}/participantes` (señal `participantes` + `cargarParticipantes`). Al cambiar el valor se llama a `TareaChecklistService.asignarUsuario(viajeId, tareaId, usuarioId)` (PUT `.../asignar?asignadoId=`) y se recargan las tareas. El badge con `nombreAsignado` se conserva; el select preselecciona la asignación actual vía `idAsignadoDe(tarea)` (match por nombre).
+- [x] **Tipo `Participante`** en `shared/types/index.ts` (`id`, `nombre`, `email`, `rolEnViaje`).
+- [x] **Verificación:** `ng build` compila sin errores (chunk `detalle-viaje` regenerado).
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).

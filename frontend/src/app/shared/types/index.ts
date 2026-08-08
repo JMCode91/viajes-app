@@ -34,6 +34,13 @@ export interface Viaje {
   rolEnViaje: string;
 }
 
+export interface Participante {
+  id: UUID;
+  nombre: string;
+  email: string;
+  rolEnViaje: string;
+}
+
 export interface ViajeRequest {
   titulo: string;
   fechaInicio: string;

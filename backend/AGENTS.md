@@ -47,6 +47,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 
 - **Última actualización:** 08/08/2026
 - **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3)** COMPLETADOS.
+- **Completado en esta sesión (Fix 403 invitados + participantes):**
+  - **Fix 403 "unirse por UUID":** el 403 NO venía de `SecurityConfig` (solo exige JWT salvo `/api/auth/**`) sino de `ViajeServiceImpl.responderInvitacion`, que exigía un registro `UsuarioViaje` PENDIENTE previo. Ahora, si el usuario autenticado no tiene pertenencia y `aceptar=true` (el flujo del frontend `unirseViaje(uuid)` → `PUT /api/viajes/{id}/responder-invitacion?aceptar=true`), se le crea automáticamente la pertenencia como **INVITADO/ACEPTADA** usando el UUID del viaje como código de invitación. También se hace idempotente: si ya es miembro ACEPTADA, retorna 200 sin error.
+  - **Endpoint `GET /api/viajes/{id}/participantes`:** devuelve `List<ParticipanteResponseDTO>` (`id`, `nombre`, `email`, `rolEnViaje`) de los usuarios con pertenencia **ACEPTADA**. Nuevo DTO `ParticipanteResponseDTO`. Verifica la pertenencia del usuario autenticado antes de listar. Lo consume el frontend para el selector de asignación de la checklist.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Integración Cloudflare R2 — subida de documentos de actividades):**
   - **Dependencias:** AWS SDK for Java v2 (`software.amazon.awssdk:bom:2.51.3` importado en `dependencyManagement` + módulo `software.amazon.awssdk:s3`).
   - **Propiedades (`application.properties`):** `cloudflare.r2.access-key`, `cloudflare.r2.secret-key`, `cloudflare.r2.endpoint`, `cloudflare.r2.bucket`, `cloudflare.r2.public-url` con placeholders (`TU_CLAVE`, etc.) que el usuario debe rellenar.
@@ -102,7 +106,8 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | POST | `/api/viajes` | Crear un viaje (creador queda como PROPIETARIO) | JWT |
 | GET | `/api/viajes` | Listar los viajes del usuario autenticado (ACEPTADOS) | JWT |
 | POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |
-| PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente | JWT |
+| PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente (o unirse por UUID) | JWT |
+| GET | `/api/viajes/{id}/participantes` | Listar participantes con pertenencia ACEPTADA | JWT |
 | DELETE | `/api/viajes/{id}` | Eliminar un viaje (solo PROPIETARIO, borrado en cascada manual) | JWT |
 | POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |

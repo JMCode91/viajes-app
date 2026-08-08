@@ -1,6 +1,7 @@
 package com.app.viajes.service;
 
 import com.app.viajes.dto.InvitacionRequestDTO;
+import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
 
@@ -23,4 +24,6 @@ public interface ViajeService {
     void responderInvitacion(UUID viajeId, boolean aceptar);
 
     void eliminarViaje(UUID viajeId);
+
+    List<ParticipanteResponseDTO> obtenerParticipantes(UUID viajeId);
 }

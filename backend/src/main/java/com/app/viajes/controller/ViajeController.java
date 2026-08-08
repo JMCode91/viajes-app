@@ -1,6 +1,7 @@
 package com.app.viajes.controller;
 
 import com.app.viajes.dto.InvitacionRequestDTO;
+import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
 import com.app.viajes.service.ViajeService;
@@ -56,6 +57,11 @@ public class ViajeController {
                                                     @RequestParam boolean aceptar) {
         viajeService.responderInvitacion(id, aceptar);
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/{id}/participantes")
+    public ResponseEntity<List<ParticipanteResponseDTO>> obtenerParticipantes(@PathVariable UUID id) {
+        return ResponseEntity.ok(viajeService.obtenerParticipantes(id));
     }
 
     @DeleteMapping("/{id}")
