@@ -4,7 +4,8 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { ViajeService } from '../../core/services/viaje.service';
 import { GastoService } from '../../core/services/gasto.service';
-import { UUID } from '../../shared/types';
+import { AuthService } from '../../core/services/auth.service';
+import { UUID, Viaje } from '../../shared/types';
 
 @Component({
   selector: 'app-finanzas',
@@ -16,23 +17,50 @@ export class Finanzas {
   private readonly fb = inject(FormBuilder);
   private readonly viajeService = inject(ViajeService);
   private readonly gastoService = inject(GastoService);
+  private readonly authService = inject(AuthService);
 
   protected readonly viajes = this.viajeService.viajes;
   protected readonly gastos = this.gastoService.gastos;
+  protected readonly usuario = this.authService.usuario;
 
   protected readonly viajeSeleccionado = signal<UUID | null>(null);
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
 
+  protected readonly viajeActual = computed<Viaje | null>(() => {
+    const viajes = this.viajes();
+    const seleccion = this.viajeSeleccionado();
+    return (
+      viajes.find((viaje) => viaje.id === seleccion) ?? viajes[0] ?? null
+    );
+  });
+
+  protected readonly presupuestoBase = computed<number>(
+    () => this.viajeActual()?.presupuestoBase ?? 0
+  );
+
   protected readonly totalGastado = computed(() =>
     this.gastos().reduce((sum, gasto) => sum + (gasto.cantidad ?? 0), 0)
   );
 
+  protected readonly porcentajePresupuesto = computed(() => {
+    const base = this.presupuestoBase();
+    if (base <= 0) {
+      return 0;
+    }
+    return Math.min(100, Math.round((this.totalGastado() / base) * 100));
+  });
+
+  protected readonly pagadorActual = computed(() => {
+    const usuario = this.usuario();
+    return usuario ? `${usuario.nombre}` : 'Yo';
+  });
+
   protected readonly formGasto = this.fb.nonNullable.group({
     concepto: ['', [Validators.required, Validators.maxLength(200)]],
     cantidad: [0, [Validators.required, Validators.min(0)]],
-    pagadoPor: ['Yo', Validators.required],
+    pagadorId: ['', Validators.required],
   });
 
   constructor() {
@@ -63,8 +91,13 @@ export class Finanzas {
   }
 
   protected abrirModal(): void {
+    const usuario = this.usuario();
     this.errorForm.set(null);
-    this.formGasto.reset({ concepto: '', cantidad: 0, pagadoPor: 'Yo' });
+    this.formGasto.reset({
+      concepto: '',
+      cantidad: 0,
+      pagadorId: usuario?.email ?? '',
+    });
     this.modalAbierto.set(true);
   }
 
@@ -72,7 +105,7 @@ export class Finanzas {
     this.modalAbierto.set(false);
   }
 
-  protected hasError(field: 'concepto' | 'cantidad' | 'pagadoPor'): boolean {
+  protected hasError(field: 'concepto' | 'cantidad' | 'pagadorId'): boolean {
     const control = this.formGasto.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
   }
@@ -84,7 +117,8 @@ export class Finanzas {
       return;
     }
 
-    const { concepto, cantidad, pagadoPor } = this.formGasto.getRawValue();
+    const { concepto, cantidad, pagadorId } = this.formGasto.getRawValue();
+    const usuario = this.usuario();
     this.guardando.set(true);
     this.errorForm.set(null);
 
@@ -92,7 +126,12 @@ export class Finanzas {
       .crearGasto(viajeId, {
         concepto,
         cantidad,
-        pagadorId: this.gastoService.resolverPagador(pagadoPor),
+        pagadorId: usuario?.email
+          ? this.gastoService.pagadorAutenticado(
+              usuario.email,
+              usuario.nombre
+            )
+          : pagadorId,
       })
       .subscribe({
         next: () => {

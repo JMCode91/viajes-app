@@ -37,18 +37,14 @@ export class GastoService {
    * Este helper genera un UUID determinista por nombre y lo recuerda en
    * localStorage para poder pintar las iniciales del avatar tras recargar.
    */
-  resolverPagador(nombre: string): UUID {
-    const nombreNormalizado = nombre.trim() || 'Yo';
-
-    const existente = [...this.pagadores].find(
-      ([, n]) => n === nombreNormalizado
-    );
-    if (existente) {
-      return existente[0];
-    }
-
-    const id = this.uuidDesdeTexto(nombreNormalizado);
-    this.pagadores.set(id, nombreNormalizado);
+  /**
+   * Resuelve el `pagadorId` de un gasto desde el usuario autenticado.
+   * Genera un UUID determinista a partir de su email (identificador real)
+   * y guarda su nombre para pintar el avatar/etiqueta del pagador.
+   */
+  pagadorAutenticado(email: string, nombre: string): UUID {
+    const id = this.uuidDesdeTexto(email.trim().toLowerCase());
+    this.pagadores.set(id, nombre.trim() || 'Yo');
     this.persistir();
     return id;
   }
@@ -77,12 +73,9 @@ export class GastoService {
     );
   }
 
-  private uuidDesdeTexto(texto: string): UUID {
-    const hex = this.hash(texto).toString(16).padStart(32, '0');
-    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(
-      12,
-      15
-    )}-8${hex.slice(15, 18)}-${hex.slice(18, 32)}`;
+  private uuidDesdeTexto(idUsuario: string): UUID {
+    const hex = this.hash(idUsuario).toString(16).padStart(32, '0');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
   }
 
   private hash(texto: string): number {

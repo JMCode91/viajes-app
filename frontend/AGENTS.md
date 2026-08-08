@@ -44,7 +44,7 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 COMPLETADOS.
+- **Hito actual:** FASE 1 + B1-P2 + B2-P1 + B2-P2 + B3-P1 (Dashboard) + B3-P2 (Crear Viaje + Invitaciones) + B4-P1 (Detalle Viaje) + B4-P2 (Itinerario + Mini-Calendario) + B5-P1 (Finanzas) + Dark Mode + Proxy + HOTFIX Tailwind v3 + **BUGFIX Y PULIDO (Fechas itinerario, gastos con usuario real, checklist asignado, UUID visible)** COMPLETADOS.
 
 ### ⚠️ HOTFIX DE EMERGENCIA: Tailwind v4 → v3 (COMPLETADO)
 - **Problema:** El compilador de Angular ignoraba Tailwind al prohibir `tailwind.config.js` (necesario en la config CSS-first).
@@ -217,3 +217,24 @@ src/app/
 - El selector de día usa el mismo `dias()` del mini-calendario; `Día N — 12 sep`. Si no hay viaje cargado (`dias()` vacío), el `<select>` queda sin opciones y la validación `dia` bloquea el guardado.
 - `subirDocumento` es un mock deliberado: preparado para incrustar la lógica de presign de Cloudflare R2 (subida directa a bucket y persistencia de la URL en `Actividad.urlDocumento`).
 - Las listas de checklist son provisionales (Signals locales); en futuras fases se conectarán a `ItemChecklist` del backend.
+
+---
+
+## 🐛 Bugfix y Pulido: Fechas itinerario, gastos con usuario real, checklist asignado y UUID visible (COMPLETADO)
+
+### ✅ Completado en esta sesión
+- [x] **Fix Selector de Días (Itinerario):** reescrito `generarDias()` en `detalle-viaje.ts` para calcular el rango de fechas de forma **timezone-safe** a partir de `fechaInicio`/`fechaFin` del `viajeDetalle`. Se parsea con `Date.UTC`, se genera el `valor` ISO-8601 local (`isoLocal()`) y la etiqueta `Día N — etiqueta` con `timeZone: 'UTC'`. Evita el desfase de un día que provocaba el `<select>` vacío al abrir el modal "Añadir plan".
+- [x] **Finanzas — Presupuesto base:** la tarjeta azul ahora muestra comparativa "Gastado: X€" + "de Y€ (Presupuesto)", porcentaje usado con badge y barra de progreso (`computed`: `viajeActual`, `presupuestoBase`, `porcentajePresupuesto`).
+- [x] **Fix POST Gasto (`pagadorId`):** 
+  - Corregido `uuidDesdeTexto()` en `gasto.service.ts` (generaba un UUID mal formado de 38 caracteres → rechazo de PostgreSQL). Ahora devuelve un UUID canónico 8-4-4-4-12.
+  - **AuthService** ahora persiste la sesión (`auth_usuario` en localStorage) y expone `usuario = computed<UsuarioSesion|null>` con `email`/`nombre`.
+  - `GastoService.pagadorAutenticado(email, nombre)` resuelve el `pagadorId` real desde el email del usuario logueado.
+  - En `Finanzas`, el campo libre "Pagado por" se sustituyó por un `<select>` cuya única opción es el usuario autenticado (form `pagadorId`).
+- [x] **Checklist — Asignado (Lista Común):** `<select>` junto al input para asignar tarea a un participante (mock `['Yo','Lucía','Marco']`). La tarjeta de la tarea muestra un mini badge azul con el nombre del asignado. `ChecklistItem.asignado: string | null`.
+- [x] **Compartir UUID (Invitaciones):** botón de "Compartir" (icono) en la cabecera de `ViajeDetalle` → modal "Añadir personas" que muestra en grande `viaje.id` (el UUID de invitación usado por `unirseViaje`) con el texto "Comparte este código con tus amigos para que se unan al viaje".
+- [x] **Verificación:** `ng build` compila sin errores (lazy chunks `detalle-viaje` y `finanzas` regenerados).
+
+### 📝 Notas técnicas (Bugfix y Pulido)
+- **UUID de invitación:** el backend no expone un campo `uuidInvitacion`; el código de invitación que se comparte es el propio `id` del viaje (el que usa `PUT /api/viajes/{uuid}/responder-invitacion`). Se muestra `viajeDetalle.id` en el modal.
+- El `pagadorId` de gastos sigue siendo un UUID determinista generado en cliente a partir del email real del usuario; el backend solo lo persiste como columna UUID (sin FK), por lo que el nombre se reconstruye desde el mapa `finanzas_pagadores`.
+- `resolverPagador(nombre)` (libre) se eliminó en favor de `pagadorAutenticado(email, nombre)`.

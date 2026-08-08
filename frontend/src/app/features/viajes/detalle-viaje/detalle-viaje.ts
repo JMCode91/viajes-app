@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormsModule } from '@angular/forms';
 
 import { ViajeService } from '../../../core/services/viaje.service';
 import { ActividadService } from '../../../core/services/actividad.service';
@@ -25,13 +26,14 @@ export interface ChecklistItem {
   id: number;
   texto: string;
   hecha: boolean;
+  asignado: string | null;
 }
 
 export type ListaChecklist = 'comun' | 'privada';
 
 @Component({
   selector: 'app-detalle-viaje',
-  imports: [DatePipe, ReactiveFormsModule],
+  imports: [DatePipe, ReactiveFormsModule, FormsModule],
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
 })
@@ -54,10 +56,21 @@ export class DetalleViaje {
   protected readonly listaComun = signal<ChecklistItem[]>([]);
   protected readonly listaPrivada = signal<ChecklistItem[]>([]);
   protected readonly nuevaTarea = signal('');
+  protected readonly asignadoTarea = signal<string>('');
+  protected readonly participantes = signal<string[]>([
+    'Yo',
+    'Lucía',
+    'Marco',
+  ]);
   protected readonly archivo = signal<{ nombre: string; url: string } | null>(
     null
   );
   protected readonly subiendoArchivo = signal(false);
+  protected readonly modalCompartirAbierto = signal(false);
+
+  protected readonly uuidInvitacion = computed<UUID | null>(
+    () => this.viaje()?.id ?? null
+  );
 
   private readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
     'id'
@@ -156,6 +169,14 @@ export class DetalleViaje {
     this.modalAbierto.set(false);
   }
 
+  protected abrirModalCompartir(): void {
+    this.modalCompartirAbierto.set(true);
+  }
+
+  protected cerrarModalCompartir(): void {
+    this.modalCompartirAbierto.set(false);
+  }
+
   protected hasError(field: 'dia' | 'titulo' | 'hora' | 'ubicacion'): boolean {
     const control = this.formActividad.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
@@ -229,13 +250,17 @@ export class DetalleViaje {
     if (!texto) {
       return;
     }
-    const item: ChecklistItem = { id: Date.now(), texto, hecha: false };
+    const asignado = this.listaChecklist() === 'comun'
+      ? this.asignadoTarea() || 'Yo'
+      : null;
+    const item: ChecklistItem = { id: Date.now(), texto, hecha: false, asignado };
     if (this.listaChecklist() === 'comun') {
       this.listaComun.update((l) => [...l, item]);
     } else {
       this.listaPrivada.update((l) => [...l, item]);
     }
     this.nuevaTarea.set('');
+    this.asignadoTarea.set('');
   }
 
   protected toggleTarea(id: number): void {
@@ -249,26 +274,42 @@ export class DetalleViaje {
   }
 
   private generarDias(inicio: string, fin: string): Dia[] {
-    const start = new Date(`${inicio}T00:00:00`);
-    const end = new Date(`${fin}T00:00:00`);
+    const start = this.fechaLocal(inicio);
+    const end = this.fechaLocal(fin);
+
+    if (!start || !end || start.getTime() > end.getTime()) {
+      return [];
+    }
+
     const dias: Dia[] = [];
     let numero = 1;
 
-    for (
-      let d = new Date(start.getTime());
-      d <= end;
-      d.setDate(d.getDate() + 1)
-    ) {
+    for (let d = new Date(start.getTime()); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
       dias.push({
-        valor: d.toISOString().slice(0, 10),
+        valor: this.isoLocal(d),
         numero,
         etiqueta: d.toLocaleDateString('es-ES', {
           day: 'numeric',
           month: 'short',
+          timeZone: 'UTC',
         }),
       });
       numero++;
     }
     return dias;
+  }
+
+  private fechaLocal(fecha: string): Date | null {
+    const [anio, mes, dia] = fecha.split('-').map(Number);
+    if (!anio || !mes || !dia) {
+      return null;
+    }
+    return new Date(Date.UTC(anio, mes - 1, dia));
+  }
+
+  private isoLocal(fecha: Date): string {
+    const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
+    const dia = String(fecha.getUTCDate()).padStart(2, '0');
+    return `${fecha.getUTCFullYear()}-${mes}-${dia}`;
   }
 }
