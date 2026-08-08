@@ -1,17 +1,27 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  OnDestroy,
+  signal,
+} from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
+import * as L from 'leaflet';
 
-import { ViajeService } from '../../../core/services/viaje.service';
+import { CustomTimePicker } from '../../../shared/components/custom-time-picker/custom-time-picker';
 import { ActividadService } from '../../../core/services/actividad.service';
 import { TareaChecklistService } from '../../../core/services/tarea-checklist.service';
-import { CustomTimePicker } from '../../../shared/components/custom-time-picker/custom-time-picker';
+import { ViajeService } from '../../../core/services/viaje.service';
 import {
   Actividad,
   ActividadRequest,
   Documento,
+  NominatimResult,
   TareaChecklistResponse,
   UUID,
 } from '../../../shared/types';
@@ -38,10 +48,11 @@ export type ListaChecklist = 'comun' | 'privada';
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
 })
-export class DetalleViaje {
+export class DetalleViaje implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
+  private readonly http = inject(HttpClient);
   private readonly viajeService = inject(ViajeService);
   private readonly actividadService = inject(ActividadService);
   private readonly tareaChecklistService = inject(TareaChecklistService);
@@ -67,6 +78,18 @@ export class DetalleViaje {
   protected readonly modalEliminarAbierto = signal(false);
   protected readonly eliminando = signal(false);
   protected readonly errorEliminar = signal<string | null>(null);
+
+  protected readonly buscandoLugar = signal(false);
+  protected readonly resultadosBusqueda = signal<NominatimResult[]>([]);
+  protected readonly errorBusqueda = signal<string | null>(null);
+
+  protected readonly actividadesConCoordenadas = computed(() =>
+    this.actividades().filter(
+      (a) => a.latitud != null && a.longitud != null
+    )
+  );
+
+  private mapa: L.Map | null = null;
 
   protected readonly uuidInvitacion = computed<UUID | null>(
     () => this.viaje()?.id ?? null
@@ -112,11 +135,14 @@ export class DetalleViaje {
       : this.listaPrivada()
   );
 
-  protected readonly formActividad = this.fb.nonNullable.group({
+  protected readonly formActividad = this.fb.group({
     dia: ['', Validators.required],
     titulo: ['', [Validators.required, Validators.maxLength(200)]],
     hora: ['', Validators.required],
     ubicacion: [''],
+    direccion: [''],
+    latitud: [null as number | null],
+    longitud: [null as number | null],
   });
 
   protected readonly tabs: TabItem[] = [
@@ -159,6 +185,16 @@ export class DetalleViaje {
 
   protected setTab(tab: Tab): void {
     this.tabActiva.set(tab);
+    if (tab === 'mapa') {
+      // Al entrar en la pestana del mapa se (re)construye el mapa Leaflet
+      // sobre el contenedor recien renderizado por el @switch.
+      this.destruirMapa();
+      setTimeout(() => this.montarMapa(), 0);
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.destruirMapa();
   }
 
   protected seleccionarDia(valor: string): void {
@@ -167,13 +203,59 @@ export class DetalleViaje {
 
   protected abrirModal(): void {
     this.errorForm.set(null);
+    this.errorBusqueda.set(null);
+    this.resultadosBusqueda.set([]);
     this.formActividad.reset();
     this.formActividad.patchValue({ dia: this.diaActivo() ?? '' });
     this.modalAbierto.set(true);
   }
 
   protected cerrarModal(): void {
+    this.errorBusqueda.set(null);
+    this.resultadosBusqueda.set([]);
     this.modalAbierto.set(false);
+  }
+
+  protected buscarLugar(): void {
+    const consulta = this.formActividad.get('direccion')?.value?.trim();
+    if (!consulta || this.buscandoLugar()) {
+      return;
+    }
+
+    this.buscandoLugar.set(true);
+    this.errorBusqueda.set(null);
+
+    const url =
+      `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=` +
+      encodeURIComponent(consulta);
+
+    this.http.get<NominatimResult[]>(url).subscribe({
+      next: (resultados) => {
+        this.resultadosBusqueda.set(resultados);
+        this.buscandoLugar.set(false);
+      },
+      error: () => {
+        this.resultadosBusqueda.set([]);
+        this.buscandoLugar.set(false);
+        this.errorBusqueda.set(
+          'No se pudieron buscar lugares. Inténtalo de nuevo.'
+        );
+      },
+    });
+  }
+
+  protected seleccionarLugar(resultado: NominatimResult): void {
+    const direccion =
+      resultado.display_name.length > 250
+        ? `${resultado.display_name.slice(0, 249)}…`
+        : resultado.display_name;
+
+    this.formActividad.patchValue({
+      direccion,
+      latitud: Number(resultado.lat),
+      longitud: Number(resultado.lon),
+    });
+    this.resultadosBusqueda.set([]);
   }
 
   protected abrirDetalleActividad(actividad: Actividad): void {
@@ -251,15 +333,19 @@ export class DetalleViaje {
       return;
     }
 
-    const { dia, titulo, hora, ubicacion } = this.formActividad.getRawValue();
-    const fechaHoraInicio = `${dia}T${hora}`;
+    const { dia, titulo, hora, ubicacion, direccion, latitud, longitud } =
+      this.formActividad.getRawValue();
+    const fechaHoraInicio = `${dia ?? ''}T${hora ?? ''}`;
 
     const request: Partial<ActividadRequest> = {
-      titulo,
+      titulo: titulo ?? '',
       tipoActividad: 'OTRO',
       fechaHoraInicio,
       fechaHoraFin: fechaHoraInicio,
       descripcion: ubicacion || undefined,
+      direccion: direccion || undefined,
+      latitud: latitud ?? undefined,
+      longitud: longitud ?? undefined,
     };
 
     this.guardando.set(true);
@@ -445,5 +531,80 @@ export class DetalleViaje {
     const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getUTCDate()).padStart(2, '0');
     return `${fecha.getUTCFullYear()}-${mes}-${dia}`;
+  }
+
+  private destruirMapa(): void {
+    if (this.mapa) {
+      this.mapa.remove();
+      this.mapa = null;
+    }
+  }
+
+  private montarMapa(): void {
+    const contenedor = document.getElementById('map-itinerario');
+    if (!contenedor || this.mapa) {
+      return;
+    }
+
+    // Fix del icono por defecto de Leaflet: los assets no se resuelven
+    // con el bundler de Angular, se apuntan a copias locales en /public.
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'markers/marker-icon-2x.png',
+      iconUrl: 'markers/marker-icon.png',
+      shadowUrl: 'markers/marker-shadow.png',
+    });
+
+    const puntos = this.actividadesConCoordenadas();
+
+    const centro: [number, number] =
+      puntos.length > 0
+        ? [puntos[0].latitud ?? 0, puntos[0].longitud ?? 0]
+        : [40.4168, -3.7038];
+    const zoom = puntos.length > 0 ? 12 : 6;
+
+    this.mapa = L.map(contenedor, { scrollWheelZoom: false }).setView(
+      centro,
+      zoom
+    );
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(this.mapa);
+
+    const marcadores = puntos.map((actividad) =>
+      L.marker([actividad.latitud ?? 0, actividad.longitud ?? 0])
+        .addTo(this.mapa!)
+        .bindPopup(
+          `<strong>${this.escapeHtml(actividad.titulo)}</strong><br/>` +
+            `${this.horaCorta(actividad.fechaHoraInicio)}`
+        )
+    );
+
+    if (marcadores.length > 0) {
+      this.mapa.fitBounds(
+        L.featureGroup(marcadores).getBounds().pad(0.25)
+      );
+    }
+
+    // El contenedor se monta dentro de un @switch: se recalcula el tamaño
+    // para que los tiles no queden desalineados.
+    setTimeout(() => this.mapa?.invalidateSize(), 0);
+  }
+
+  private horaCorta(iso: string): string {
+    return new Date(iso).toLocaleTimeString('es-ES', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  }
+
+  private escapeHtml(texto: string): string {
+    return texto
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 }

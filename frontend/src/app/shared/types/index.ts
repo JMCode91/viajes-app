@@ -62,8 +62,9 @@ export interface Actividad {
   tipoActividad: TipoActividad;
   fechaHoraInicio: string;
   fechaHoraFin: string;
-  latitud: number;
-  longitud: number;
+  latitud: number | null;
+  longitud: number | null;
+  direccion: string | null;
   documentos: Documento[];
 }
 
@@ -75,6 +76,14 @@ export interface ActividadRequest {
   fechaHoraFin: string;
   latitud?: number;
   longitud?: number;
+  direccion?: string;
+}
+
+export interface NominatimResult {
+  place_id: number;
+  display_name: string;
+  lat: string;
+  lon: string;
 }
 
 export interface Gasto {
