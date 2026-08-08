@@ -19,7 +19,7 @@ public interface DocumentoRepository extends JpaRepository<Documento, UUID> {
      * Usado para purgar fisicamente los archivos de Cloudflare R2 antes
      * del borrado en cadena del viaje.
      */
-    List<Documento> findByActividadIdViajeId(UUID viajeId);
+    List<Documento> findByActividadViajeId(UUID viajeId);
 
     /**
      * Elimina todos los documentos de las actividades de un viaje.

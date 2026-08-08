@@ -209,7 +209,7 @@ public class ViajeServiceImpl implements ViajeService {
         tareaChecklistRepository.deleteByViajeId(viajeId);
         gastoRepository.deleteByViajeId(viajeId);
 
-        List<Documento> documentos = documentoRepository.findByActividadIdViajeId(viajeId);
+        List<Documento> documentos = documentoRepository.findByActividadViajeId(viajeId);
         for (Documento documento : documentos) {
             storageService.eliminarDocumento(documento.getUrlArchivo());
         }
