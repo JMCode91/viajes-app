@@ -110,6 +110,24 @@ public class ActividadServiceImpl implements ActividadService {
         actividadRepository.delete(actividad);
     }
 
+    @Override
+    @Transactional
+    public ActividadResponseDTO guardarUrlDocumento(UUID viajeId, UUID actividadId, String urlDocumento) {
+        verificarPertenencia(viajeId);
+
+        Actividad actividad = actividadRepository.findById(actividadId)
+                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
+
+        if (!actividad.getViaje().getId().equals(viajeId)) {
+            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
+        }
+
+        actividad.setUrlDocumento(urlDocumento);
+        actividadRepository.save(actividad);
+
+        return toResponseDTO(actividad);
+    }
+
     /**
      * Valida que el usuario autenticado pertenece al viaje indicado.
      */

@@ -46,7 +46,14 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 08/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist)** COMPLETADO.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3)** COMPLETADOS.
+- **Completado en esta sesión (Integración Cloudflare R2 — subida de documentos de actividades):**
+  - **Dependencias:** AWS SDK for Java v2 (`software.amazon.awssdk:bom:2.51.3` importado en `dependencyManagement` + módulo `software.amazon.awssdk:s3`).
+  - **Propiedades (`application.properties`):** `cloudflare.r2.access-key`, `cloudflare.r2.secret-key`, `cloudflare.r2.endpoint`, `cloudflare.r2.bucket`, `cloudflare.r2.public-url` con placeholders (`TU_CLAVE`, etc.) que el usuario debe rellenar.
+  - **`CloudflareR2Config`** (nuevo paquete `config`): bean `S3Client` con `endpointOverride` apuntando al endpoint personalizado de la cuenta R2, región `auto` y credenciales estáticas inyectadas desde propiedades.
+  - **`StorageService`/`StorageServiceImpl`:** `subirDocumento(MultipartFile)` genera un UUID como nombre preservando la extensión, valida whitelist de extensiones (pdf, jpg, png, docx...), sube al bucket con `PutObjectRequest` y devuelve `public-url + "/" + nombreGenerado`. Fallos de subida → `StorageException` (500).
+  - **Endpoint `POST /api/viajes/{viajeId}/actividades/{actividadId}/documento`:** consume `multipart/form-data` con `@RequestParam("file")`, llama a `StorageService`, persiste la URL en `Actividad.urlDocumento` (via `ActividadService.guardarUrlDocumento`, que valida pertenencia) y devuelve el `ActividadResponseDTO` actualizado.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Checklist v2 + HOTFIX eliminación de viaje):**
   - **HOTFIX `DELETE /api/viajes/{id}`:** `ViajeController` expone `DELETE /api/viajes/{id}` (204 No Content). `ViajeService.eliminarViaje(id)` verifica que el usuario autenticado sea **PROPIETARIO** del viaje y realiza un **borrado en cascada manual** (las entidades hijas mapean `@ManyToOne → Viaje` sin colecciones `@OneToMany`, no hay `OrphanRemoval`): elimina `tareas_checklist`, `gastos`, `actividades` y `usuarios_viajes` (vía `deleteByViajeId` en cada repositorio) antes de borrar el viaje, evitando violaciones de Foreign Key. Se añadieron `deleteByViajeId` a `ActividadRepository`, `GastoRepository`, `UsuarioViajeRepository` y `TareaChecklistRepository`.
   - **Checklist v2 — `TareaChecklist` (sustituye a `ItemChecklist`):**
@@ -81,7 +88,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `feat(backend): actividades de viaje Fase 4 - CRUD, timeline por fecha y coordenadas geograficas`.
+- **Últimos commits:** `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 
@@ -101,6 +108,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
+| POST | `/api/viajes/{viajeId}/actividades/{actividadId}/documento` | Subir documento de una actividad a Cloudflare R2 (multipart, `file`, máx 5MB) | JWT |
 | POST | `/api/viajes/{viajeId}/checklist` | Crear una tarea de la checklist | JWT |
 | GET | `/api/viajes/{viajeId}/checklist` | Listar tareas visibles (públicas o del usuario) | JWT |
 | PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/estado?completada=true` | Marcar/desmarcar tarea como completada | JWT |

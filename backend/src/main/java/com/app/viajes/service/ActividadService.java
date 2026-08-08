@@ -20,4 +20,6 @@ public interface ActividadService {
     List<ActividadResponseDTO> obtenerTimelinePorFecha(UUID viajeId, LocalDate fecha);
 
     void eliminarActividad(UUID viajeId, UUID actividadId);
+
+    ActividadResponseDTO guardarUrlDocumento(UUID viajeId, UUID actividadId, String urlDocumento);
 }
