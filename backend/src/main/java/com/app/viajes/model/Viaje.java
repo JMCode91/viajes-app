@@ -42,4 +42,11 @@ public class Viaje {
 
     @Column(name = "presupuesto_base", nullable = false, precision = 12, scale = 2)
     private BigDecimal presupuestoBase;
+
+    /**
+     * URL publica (Cloudflare R2) de la foto de portada del viaje.
+     * Es opcional y se gestiona desde el Panel de Ajustes del Viaje.
+     */
+    @Column(name = "foto_portada", length = 500)
+    private String fotoPortada;
 }

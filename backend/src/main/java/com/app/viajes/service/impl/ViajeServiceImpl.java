@@ -4,6 +4,7 @@ import com.app.viajes.dto.InvitacionRequestDTO;
 import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.ViajeUpdateDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
@@ -28,6 +29,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Optional;
@@ -102,7 +104,9 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getFechaInicio(),
                 viaje.getFechaFin(),
                 viaje.getPresupuestoBase(),
-                ROL_PROPIETARIO);
+                ROL_PROPIETARIO,
+                viaje.getFotoPortada(),
+                obtenerParticipantesDTO(viaje));
     }
 
     @Override
@@ -287,12 +291,93 @@ public class ViajeServiceImpl implements ViajeService {
                 .toList();
     }
 
+    @Override
+    @Transactional
+    public ViajeResponseDTO actualizarViaje(UUID viajeId, ViajeUpdateDTO request) {
+        verificarOrganizador(viajeId);
+
+        Viaje viaje = viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+
+        viaje.setTitulo(request.titulo());
+        viaje.setFechaInicio(request.fechaInicio());
+        viaje.setFechaFin(request.fechaFin());
+        viajeRepository.save(viaje);
+
+        return toResponseDTO(viaje, ROL_PROPIETARIO);
+    }
+
+    @Override
+    @Transactional
+    public ViajeResponseDTO actualizarFotoPortada(UUID viajeId, MultipartFile archivo) {
+        verificarOrganizador(viajeId);
+
+        Viaje viaje = viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+
+        // Borrado inteligente: si ya habia portada, se purga fisicamente de
+        // Cloudflare R2 antes de subir la nueva (evita archivos huerfanos).
+        storageService.eliminarDocumento(viaje.getFotoPortada());
+
+        String url = storageService.subirDocumento(archivo);
+        viaje.setFotoPortada(url);
+        viajeRepository.save(viaje);
+
+        return toResponseDTO(viaje, ROL_PROPIETARIO);
+    }
+
+    @Override
+    @Transactional
+    public void expulsarParticipante(UUID viajeId, UUID usuarioId) {
+        verificarOrganizador(viajeId);
+
+        // Un organizador no puede expulsarse a si mismo por esta via.
+        Usuario autenticado = obtenerUsuarioAutenticado();
+        if (autenticado.getId().equals(usuarioId)) {
+            throw new AccesoDenegadoException(
+                    "El organizador no puede expulsarse a si mismo");
+        }
+
+        // Abandono forzado: se elimina el vinculo usuario-viaje.
+        UsuarioViaje pertenencia = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuarioId, viajeId)
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "El usuario no pertenece a este viaje"));
+
+        usuarioViajeRepository.delete(pertenencia);
+    }
+
     private Usuario obtenerUsuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
         return usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new UsuarioNoEncontradoException(
                         "Usuario autenticado no encontrado"));
+    }
+
+    private UsuarioViaje verificarOrganizador(UUID viajeId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+        UsuarioViaje pertenencia = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "No tiene acceso a este viaje"));
+        if (!ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
+            throw new AccesoDenegadoException(
+                    "Solo el organizador del viaje puede realizar esta accion");
+        }
+        return pertenencia;
+    }
+
+    private List<ParticipanteResponseDTO> obtenerParticipantesDTO(Viaje viaje) {
+        return usuarioViajeRepository.findByViajeId(viaje.getId()).stream()
+                .filter(pertenencia ->
+                        pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
+                .map(pertenencia -> new ParticipanteResponseDTO(
+                        pertenencia.getUsuario().getId(),
+                        pertenencia.getUsuario().getNombre(),
+                        pertenencia.getUsuario().getEmail(),
+                        pertenencia.getRolEnViaje()))
+                .toList();
     }
 
     private ViajeResponseDTO toResponseDTO(UsuarioViaje pertenencia) {
@@ -303,6 +388,20 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getFechaInicio(),
                 viaje.getFechaFin(),
                 viaje.getPresupuestoBase(),
-                pertenencia.getRolEnViaje());
+                pertenencia.getRolEnViaje(),
+                viaje.getFotoPortada(),
+                obtenerParticipantesDTO(viaje));
+    }
+
+    private ViajeResponseDTO toResponseDTO(Viaje viaje, String rolEnViaje) {
+        return new ViajeResponseDTO(
+                viaje.getId(),
+                viaje.getTitulo(),
+                viaje.getFechaInicio(),
+                viaje.getFechaFin(),
+                viaje.getPresupuestoBase(),
+                rolEnViaje,
+                viaje.getFotoPortada(),
+                obtenerParticipantesDTO(viaje));
     }
 }

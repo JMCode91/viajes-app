@@ -46,7 +46,16 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE)** COMPLETADOS.
+- **Completado en esta sesión (Panel de Ajustes del Viaje — portada, edición de datos y expulsar participante):**
+  - **`Viaje.fotoPortada` (String, `length=500`, nullable):** nueva columna `foto_portada` para guardar la URL pública (Cloudflare R2) de la foto de portada del viaje.
+  - **`ViajeResponseDTO` ampliado:** ahora devuelve `fotoPortada` y **`participantes` (`List<ParticipanteResponseDTO>` con id, nombre, email, rolEnViaje)**. Se añadió el helper `obtenerParticipantesDTO(Viaje)` (filtra ACEPTADAS) y un segundo `toResponseDTO(viaje, rolEnViaje)`; `crearViaje` y el `toResponseDTO` de pertenencia se actualizaron a la nueva firma.
+  - **`ViajeUpdateDTO`** (nuevo): `titulo` (@NotBlank, máx 200), `fechaInicio` y `fechaFin` (@NotNull) para editar los datos base (el nombre del viaje se modela como `titulo`, igual que en `ViajeRequestDTO`).
+  - **`PUT /api/viajes/{id}`** en `ViajeController` → `actualizarViaje(viajeId, ViajeUpdateDTO)`: valida ORGANIZADOR (`verificarOrganizador`, helper nuevo que exige `ROL_PROPIETARIO`), actualiza titulo/fechas y devuelve el `ViajeResponseDTO` actualizado.
+  - **`POST /api/viajes/{id}/portada`** (multipart `file`) → `actualizarFotoPortada`: valida ORGANIZADOR, hace **borrado inteligente** (purga la portada anterior de R2 vía `storageService.eliminarDocumento`, no-op si es null), sube la nueva con `StorageService.subirDocumento` (whitelist incluye jpg/jpeg/png/gif/webp), persiste la URL y devuelve el viaje actualizado.
+  - **`DELETE /api/viajes/{viajeId}/participantes/{usuarioId}`** → `expulsarParticipante`: **solo ORGANIZADOR**, rechaza auto-expulsión ("El organizador no puede expulsarse a si mismo"), localiza la pertenencia usuario-viaje y **elimina físicamente el registro** (abandono forzado). El usuario expulsado puede re-unirse luego vía UUID (`responderInvitacion` recrea la pertenencia) o volver a ser invitado.
+  - **Nota de enrutado:** la ruta literal `DELETE /api/viajes/{id}/participantes/me` (abandonar) coexiste con `/{usuarioId}`; Spring resuelve la literal `/me` con mayor prioridad, sin conflicto.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Módulo Galería Multimedia — Álbumes y Fotos con autor):**
   - **Nueva entidad `Album`** (tabla `albumes`): `id` UUID auto, `nombre` (String 200), `fechaCreacion` (LocalDateTime) y `@ManyToOne` hacia `Viaje`. Nuevo `AlbumRepository` con `findByViajeIdOrderByFechaCreacionDesc` + `deleteByViajeId`.
   - **Nueva entidad `Foto`** (tabla `fotos`): `id` UUID auto, `url` (String 500, ruta Cloudflare R2), `fechaSubida` (LocalDateTime), y `@ManyToOne` hacia `Viaje` (no nulo), `Album` (nullable: fotos sin álbum) y `Usuario` como **autor** (no nulo, el que subió la foto para futuros filtros en el frontend). Nuevo `FotoRepository` con `findByViajeIdOrderByFechaSubidaDesc`, `findByViajeIdAndAlbumIdOrderByFechaSubidaDesc`, `findByAlbumId(OrderByFechaSubidaDesc)` + `deleteByViajeId`.
@@ -132,7 +141,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `feat(backend): Create Album and Foto entities, S3 integration and endpoints for Gallery`, `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
+- **Últimos commits:** `feat(backend): Add trip settings endpoints (cover photo, update details, kick participant)`, `feat(backend): Create Album and Foto entities, S3 integration and endpoints for Gallery`, `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 
@@ -149,7 +158,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | PUT | `/api/viajes/{id}/responder-invitacion` | Aceptar/Rechazar invitación pendiente (o unirse por UUID) | JWT |
 | GET | `/api/viajes/{id}/participantes` | Listar participantes con pertenencia ACEPTADA | JWT |
 | DELETE | `/api/viajes/{id}/participantes/me` | Abandonar el viaje en el que eres invitado (borrado lógico: `activo=false`) | JWT |
+| DELETE | `/api/viajes/{id}/participantes/{usuarioId}` | Expulsar participante (abandono forzado: elimina el vínculo usuario-viaje). Solo ORGANIZADOR, no puede expulsarse a sí mismo | JWT (ORGANIZADOR) |
 | DELETE | `/api/viajes/{id}` | Eliminar un viaje (solo PROPIETARIO, borrado en cascada manual) | JWT |
+| PUT | `/api/viajes/{id}` | Actualizar datos base del viaje (`titulo`, `fechaInicio`, `fechaFin`). Devuelve `ViajeResponseDTO` con portada y participantes. Solo ORGANIZADOR | JWT (ORGANIZADOR) |
+| POST | `/api/viajes/{id}/portada` | Subir foto de portada a Cloudflare R2 (multipart `file`, máx 5MB). Purga la anterior de R2. Solo ORGANIZADOR | JWT (ORGANIZADOR) |
 | POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |

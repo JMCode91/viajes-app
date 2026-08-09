@@ -4,9 +4,11 @@ import com.app.viajes.dto.InvitacionRequestDTO;
 import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.ViajeUpdateDTO;
 import com.app.viajes.service.ViajeService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -73,6 +76,28 @@ public class ViajeController {
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> eliminarViaje(@PathVariable UUID id) {
         viajeService.eliminarViaje(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ViajeResponseDTO> actualizarViaje(
+            @PathVariable UUID id,
+            @Valid @RequestBody ViajeUpdateDTO request) {
+        return ResponseEntity.ok(viajeService.actualizarViaje(id, request));
+    }
+
+    @PostMapping(value = "/{id}/portada", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ViajeResponseDTO> subirFotoPortada(
+            @PathVariable UUID id,
+            @RequestParam("file") MultipartFile file) {
+        return ResponseEntity.ok(viajeService.actualizarFotoPortada(id, file));
+    }
+
+    @DeleteMapping("/{id}/participantes/{usuarioId}")
+    public ResponseEntity<Void> expulsarParticipante(
+            @PathVariable UUID id,
+            @PathVariable UUID usuarioId) {
+        viajeService.expulsarParticipante(id, usuarioId);
         return ResponseEntity.noContent().build();
     }
 }
