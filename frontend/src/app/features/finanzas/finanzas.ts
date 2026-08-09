@@ -6,7 +6,13 @@ import { ViajeService } from '../../core/services/viaje.service';
 import { GastoService } from '../../core/services/gasto.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
-import { UUID, Viaje } from '../../shared/types';
+import {
+  DetalleDivision,
+  TipoGasto,
+  TipoDivision,
+  UUID,
+  Viaje,
+} from '../../shared/types';
 
 @Component({
   selector: 'app-finanzas',
@@ -24,6 +30,7 @@ export class Finanzas {
   protected readonly viajes = this.viajeService.viajes;
   protected readonly gastos = this.gastoService.gastos;
   protected readonly balance = this.gastoService.balance;
+  protected readonly participantes = this.viajeService.participantes;
   protected readonly usuario = this.authService.usuario;
   protected readonly theme = this.themeService.theme;
 
@@ -32,6 +39,8 @@ export class Finanzas {
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
+  protected readonly porcentajes = signal<Partial<Record<UUID, number>>>({});
+  protected readonly deudorSeleccionado = signal<UUID | null>(null);
 
   protected readonly viajeActual = computed<Viaje | null>(() => {
     const viajes = this.viajes();
@@ -78,15 +87,43 @@ export class Finanzas {
     return Math.min(100, Math.round((this.totalGastadoVista() / base) * 100));
   });
 
-  protected readonly pagadorActual = computed(() => {
-    const usuario = this.usuario();
-    return usuario ? `${usuario.nombre}` : 'Yo';
+  protected readonly sumaPorcentajes = computed(() =>
+    Object.values(this.porcentajes()).reduce<number>(
+      (sum, valor) => sum + (valor ?? 0),
+      0
+    )
+  );
+
+  protected readonly porcentajesValidos = computed(() =>
+    Math.abs(this.sumaPorcentajes() - 100) < 0.001
+  );
+
+  protected readonly puedeGuardar = computed(() => {
+    if (this.formGasto.invalid || this.guardando()) {
+      return false;
+    }
+    const { tipoGasto, tipoDivision } = this.formGasto.getRawValue();
+    if (tipoGasto !== 'COMPARTIDO') {
+      return true;
+    }
+    if (tipoDivision === 'PORCENTAJE') {
+      return this.porcentajesValidos();
+    }
+    if (
+      tipoDivision === 'DEUDA_PAGADOR' ||
+      tipoDivision === 'DEUDA_TERCERO'
+    ) {
+      return !!this.deudorSeleccionado();
+    }
+    return true;
   });
 
   protected readonly formGasto = this.fb.nonNullable.group({
     concepto: ['', [Validators.required, Validators.maxLength(200)]],
-    cantidad: [0, [Validators.required, Validators.min(0)]],
-    pagadorId: ['', Validators.required],
+    importe: [0, [Validators.required, Validators.min(0)]],
+    tipoGasto: ['COMPARTIDO' as TipoGasto, Validators.required],
+    tipoDivision: ['PARTES_IGUALES' as TipoDivision],
+    pagadorId: ['' as string, Validators.required],
   });
 
   constructor() {
@@ -100,6 +137,7 @@ export class Finanzas {
         this.viajeSeleccionado.set(viajes[0].id);
         this.gastoService.cargarGastos(viajes[0].id);
         this.gastoService.cargarBalance(viajes[0].id);
+        this.viajeService.cargarParticipantes(viajes[0].id);
       }
     });
   }
@@ -120,6 +158,7 @@ export class Finanzas {
     this.viajeSeleccionado.set(id);
     this.gastoService.cargarGastos(id);
     this.gastoService.cargarBalance(id);
+    this.viajeService.cargarParticipantes(id);
   }
 
   protected toggleTheme(): void {
@@ -128,12 +167,22 @@ export class Finanzas {
 
   protected abrirModal(): void {
     const usuario = this.usuario();
+    const participantes = this.participantes();
+    const pagadorInicial =
+      participantes.find((p) => p.email === usuario?.email)?.id ??
+      participantes[0]?.id ??
+      '';
+
     this.errorForm.set(null);
+    this.deudorSeleccionado.set(null);
     this.formGasto.reset({
       concepto: '',
-      cantidad: 0,
-      pagadorId: usuario?.email ?? '',
+      importe: 0,
+      tipoGasto: this.vistaActiva() === 'PERSONAL' ? 'PERSONAL' : 'COMPARTIDO',
+      tipoDivision: 'PARTES_IGUALES',
+      pagadorId: pagadorInicial,
     });
+    this.repartirPorcentajesPorDefecto();
     this.modalAbierto.set(true);
   }
 
@@ -141,35 +190,81 @@ export class Finanzas {
     this.modalAbierto.set(false);
   }
 
-  protected hasError(field: 'concepto' | 'cantidad' | 'pagadorId'): boolean {
+  protected cambiarTipoGasto(tipo: TipoGasto): void {
+    this.formGasto.patchValue({ tipoGasto: tipo });
+    if (tipo === 'PERSONAL') {
+      this.formGasto.patchValue({ tipoDivision: 'PARTES_IGUALES' });
+      this.deudorSeleccionado.set(null);
+    }
+  }
+
+  protected cambiarTipoDivision(division: TipoDivision): void {
+    this.formGasto.patchValue({ tipoDivision: division });
+    this.deudorSeleccionado.set(null);
+  }
+
+  protected cambiarPorcentaje(id: UUID, valor: number): void {
+    const numero = Number(valor);
+    const cantidad = Math.min(
+      100,
+      Math.max(0, Number.isFinite(numero) ? numero : 0)
+    );
+    this.porcentajes.update((map) => ({ ...map, [id]: cantidad }));
+  }
+
+  protected seleccionarDeudor(id: UUID): void {
+    this.deudorSeleccionado.set(id);
+  }
+
+  protected repartirPorcentajesPorDefecto(): void {
+    const participantes = this.participantes();
+    if (participantes.length === 0) {
+      this.porcentajes.set({});
+      return;
+    }
+    const base = Math.floor((100 / participantes.length) * 100) / 100;
+    const resto = Math.round((100 - base * participantes.length) * 100) / 100;
+    const mapa: Record<UUID, number> = {};
+    participantes.forEach((p, i) => {
+      mapa[p.id] = i === participantes.length - 1
+        ? Math.round((base + resto) * 100) / 100
+        : base;
+    });
+    this.porcentajes.set(mapa);
+  }
+
+  protected hasError(
+    field: 'concepto' | 'importe' | 'tipoGasto' | 'tipoDivision' | 'pagadorId'
+  ): boolean {
     const control = this.formGasto.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
   }
 
   protected guardarGasto(): void {
     const viajeId = this.viajeSeleccionado();
-    if (!viajeId || this.formGasto.invalid) {
+    if (!viajeId || !this.puedeGuardar()) {
       this.formGasto.markAllAsTouched();
       return;
     }
 
-    const { concepto, cantidad, pagadorId } = this.formGasto.getRawValue();
-    const usuario = this.usuario();
+    const { concepto, importe, tipoGasto, tipoDivision, pagadorId } =
+      this.formGasto.getRawValue();
     this.guardando.set(true);
     this.errorForm.set(null);
+
+    const detalles: DetalleDivision[] | undefined = this.construirDetalles(
+      tipoGasto,
+      tipoDivision
+    );
 
     this.gastoService
       .crearGasto(viajeId, {
         concepto,
-        importe: cantidad,
-        pagadorId: usuario?.email
-          ? this.gastoService.pagadorAutenticado(
-              usuario.email,
-              usuario.nombre
-            )
-          : pagadorId,
-        tipoGasto: 'COMPARTIDO',
-        tipoDivision: 'PARTES_IGUALES',
+        importe,
+        pagadorId,
+        tipoGasto,
+        tipoDivision: tipoGasto === 'PERSONAL' ? undefined : tipoDivision,
+        detalles,
       })
       .subscribe({
         next: () => {
@@ -185,5 +280,30 @@ export class Finanzas {
           );
         },
       });
+  }
+
+  private construirDetalles(
+    tipoGasto: TipoGasto,
+    tipoDivision: TipoDivision
+  ): DetalleDivision[] | undefined {
+    if (tipoGasto !== 'COMPARTIDO') {
+      return undefined;
+    }
+    if (tipoDivision === 'PORCENTAJE') {
+      return this.participantes()
+        .filter((p) => (this.porcentajes()[p.id] ?? 0) > 0)
+        .map((p) => ({
+          usuarioId: p.id,
+          valorAsignado: this.porcentajes()[p.id] ?? 0,
+        }));
+    }
+    if (
+      tipoDivision === 'DEUDA_PAGADOR' ||
+      tipoDivision === 'DEUDA_TERCERO'
+    ) {
+      const deudorId = this.deudorSeleccionado();
+      return deudorId ? [{ usuarioId: deudorId, valorAsignado: 100 }] : undefined;
+    }
+    return undefined;
   }
 }

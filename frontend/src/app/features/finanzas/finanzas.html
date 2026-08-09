@@ -141,7 +141,7 @@
     (click)="cerrarModal()"
   >
     <div
-      class="w-full rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
+      class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
       (click)="$event.stopPropagation()"
     >
       <h2 class="text-lg font-bold text-gray-900 dark:text-white">Nuevo gasto</h2>
@@ -164,19 +164,45 @@
         </div>
 
         <div class="flex flex-col gap-2">
-          <label for="cantidad" class="text-sm font-medium text-gray-700 dark:text-gray-300">Monto (€)</label>
+          <label for="importe" class="text-sm font-medium text-gray-700 dark:text-gray-300">Importe (€)</label>
           <input
-            id="cantidad"
+            id="importe"
             type="number"
             min="0"
             step="0.01"
-            formControlName="cantidad"
+            formControlName="importe"
             placeholder="25.00"
             class="h-14 rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white placeholder-gray-400 outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
           />
-          @if (hasError('cantidad')) {
-            <span class="text-xs text-red-600">Introduce un monto válido.</span>
+          @if (hasError('importe')) {
+            <span class="text-xs text-red-600">Introduce un importe válido.</span>
           }
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de gasto</label>
+          <div class="flex rounded-2xl bg-gray-100 p-1 dark:bg-gray-800">
+            <button
+              type="button"
+              (click)="cambiarTipoGasto('COMPARTIDO')"
+              class="flex-1 rounded-xl py-3 text-sm font-semibold transition-colors"
+              [class]="formGasto.getRawValue().tipoGasto === 'COMPARTIDO'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            >
+              Compartido
+            </button>
+            <button
+              type="button"
+              (click)="cambiarTipoGasto('PERSONAL')"
+              class="flex-1 rounded-xl py-3 text-sm font-semibold transition-colors"
+              [class]="formGasto.getRawValue().tipoGasto === 'PERSONAL'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+            >
+              Personal
+            </button>
+          </div>
         </div>
 
         <div class="flex flex-col gap-2">
@@ -186,12 +212,110 @@
             formControlName="pagadorId"
             class="h-14 w-full appearance-none rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
           >
-            <option [value]="usuario()?.email ?? ''">{{ pagadorActual() }}</option>
+            @for (participante of participantes(); track participante.id) {
+              <option [value]="participante.id">{{ participante.nombre }}</option>
+            }
           </select>
           @if (hasError('pagadorId')) {
             <span class="text-xs text-red-600">Indica quién pagó.</span>
           }
         </div>
+
+        @if (formGasto.getRawValue().tipoGasto === 'COMPARTIDO') {
+          <div class="flex flex-col gap-2">
+            <label for="tipoDivision" class="text-sm font-medium text-gray-700 dark:text-gray-300">Tipo de división</label>
+            <select
+              id="tipoDivision"
+              formControlName="tipoDivision"
+              (change)="cambiarTipoDivision($any($event.target).value)"
+              class="h-14 w-full appearance-none rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="PARTES_IGUALES">A partes iguales</option>
+              <option value="PORCENTAJE">Porcentajes</option>
+              <option value="DEUDA_TERCERO">Deuda a un tercero</option>
+              <option value="DEUDA_PAGADOR">Deuda al pagador</option>
+            </select>
+          </div>
+        }
+
+        @if (
+          formGasto.getRawValue().tipoGasto === 'COMPARTIDO' &&
+          formGasto.getRawValue().tipoDivision === 'PORCENTAJE'
+        ) {
+          <div class="flex flex-col gap-3">
+            <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Reparto por porcentajes</p>
+            @for (participante of participantes(); track participante.id) {
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 dark:bg-blue-500/10 text-sm font-bold text-blue-600 dark:text-blue-400">
+                  @if (participante.avatarUrl) {
+                    <img [src]="participante.avatarUrl" [alt]="'Foto de ' + participante.nombre" class="h-full w-full object-cover" />
+                  } @else {
+                    {{ participante.nombre.charAt(0).toUpperCase() }}
+                  }
+                </div>
+                <span class="min-w-0 flex-1 truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ participante.nombre }}
+                </span>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    [value]="porcentajes()[participante.id] ?? 0"
+                    (input)="cambiarPorcentaje(participante.id, $any($event.target).value)"
+                    class="h-12 w-24 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 text-right text-sm font-semibold text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span class="text-sm font-bold text-gray-500 dark:text-gray-400">%</span>
+                </div>
+              </div>
+            }
+            <div class="mt-1 flex items-center justify-between text-sm">
+              <span class="font-semibold text-gray-700 dark:text-gray-300">Suma</span>
+              <span
+                class="font-bold"
+                [class]="porcentajesValidos()
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-red-600 dark:text-red-400'"
+              >
+                {{ sumaPorcentajes().toFixed(2) }} / 100
+              </span>
+            </div>
+            @if (!porcentajesValidos()) {
+              <span class="text-xs text-red-600">
+                Los porcentajes deben sumar exactamente 100.
+              </span>
+            }
+          </div>
+        }
+
+        @if (
+          formGasto.getRawValue().tipoGasto === 'COMPARTIDO' &&
+          (formGasto.getRawValue().tipoDivision === 'DEUDA_TERCERO' ||
+            formGasto.getRawValue().tipoDivision === 'DEUDA_PAGADOR')
+        ) {
+          <div class="flex flex-col gap-2">
+            <label for="deudor" class="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {{ formGasto.getRawValue().tipoDivision === 'DEUDA_PAGADOR'
+                ? 'Quién debe al pagador'
+                : 'Quién asume el 100% de la deuda' }}
+            </label>
+            <select
+              id="deudor"
+              [value]="deudorSeleccionado() ?? ''"
+              (change)="seleccionarDeudor($any($event.target).value)"
+              class="h-14 w-full appearance-none rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="" disabled>Selecciona un participante</option>
+              @for (participante of participantes(); track participante.id) {
+                <option [value]="participante.id">{{ participante.nombre }}</option>
+              }
+            </select>
+            @if (!deudorSeleccionado()) {
+              <span class="text-xs text-red-600">Selecciona quién asume la deuda.</span>
+            }
+          </div>
+        }
 
         @if (errorForm()) {
           <span class="text-xs text-red-600">{{ errorForm() }}</span>
@@ -199,7 +323,7 @@
 
         <button
           type="submit"
-          [disabled]="guardando()"
+          [disabled]="!puedeGuardar()"
           class="mt-1 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700 disabled:opacity-60"
         >
           {{ guardando() ? 'Guardando...' : 'Guardar gasto' }}
