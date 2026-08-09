@@ -7,6 +7,7 @@ import { GastoService } from '../../core/services/gasto.service';
 import { AuthService } from '../../core/services/auth.service';
 import { ThemeService } from '../../core/services/theme.service';
 import {
+  DeudaResumen,
   DetalleDivision,
   TipoGasto,
   TipoDivision,
@@ -87,6 +88,13 @@ export class Finanzas {
     return Math.min(100, Math.round((this.totalGastadoVista() / base) * 100));
   });
 
+  protected readonly deudasVisibles = computed<DeudaResumen[]>(() => {
+    if (this.vistaActiva() !== 'GRUPO') {
+      return [];
+    }
+    return this.balance()?.deudas ?? [];
+  });
+
   protected readonly sumaPorcentajes = computed(() =>
     Object.values(this.porcentajes()).reduce<number>(
       (sum, valor) => sum + (valor ?? 0),
@@ -98,8 +106,20 @@ export class Finanzas {
     Math.abs(this.sumaPorcentajes() - 100) < 0.001
   );
 
+  protected readonly formGasto = this.fb.nonNullable.group({
+    concepto: ['', [Validators.required, Validators.maxLength(200)]],
+    importe: [0, [Validators.required, Validators.min(0)]],
+    tipoGasto: ['COMPARTIDO' as TipoGasto, Validators.required],
+    tipoDivision: ['PARTES_IGUALES' as TipoDivision],
+    pagadorId: ['' as string, Validators.required],
+  });
+
   protected readonly puedeGuardar = computed(() => {
-    if (this.formGasto.invalid || this.guardando()) {
+    if (this.guardando()) {
+      return false;
+    }
+    const importe = this.formGasto.controls.importe.value;
+    if (this.formGasto.invalid || !(importe > 0)) {
       return false;
     }
     const { tipoGasto, tipoDivision } = this.formGasto.getRawValue();
@@ -116,14 +136,6 @@ export class Finanzas {
       return !!this.deudorSeleccionado();
     }
     return true;
-  });
-
-  protected readonly formGasto = this.fb.nonNullable.group({
-    concepto: ['', [Validators.required, Validators.maxLength(200)]],
-    importe: [0, [Validators.required, Validators.min(0)]],
-    tipoGasto: ['COMPARTIDO' as TipoGasto, Validators.required],
-    tipoDivision: ['PARTES_IGUALES' as TipoDivision],
-    pagadorId: ['' as string, Validators.required],
   });
 
   constructor() {
@@ -169,8 +181,8 @@ export class Finanzas {
     const usuario = this.usuario();
     const participantes = this.participantes();
     const pagadorInicial =
-      participantes.find((p) => p.email === usuario?.email)?.id ??
-      participantes[0]?.id ??
+      participantes.find((p) => p.email === usuario?.email)?.usuarioId ??
+      participantes[0]?.usuarioId ??
       '';
 
     this.errorForm.set(null);
@@ -226,7 +238,7 @@ export class Finanzas {
     const resto = Math.round((100 - base * participantes.length) * 100) / 100;
     const mapa: Record<UUID, number> = {};
     participantes.forEach((p, i) => {
-      mapa[p.id] = i === participantes.length - 1
+      mapa[p.usuarioId] = i === participantes.length - 1
         ? Math.round((base + resto) * 100) / 100
         : base;
     });
@@ -291,10 +303,10 @@ export class Finanzas {
     }
     if (tipoDivision === 'PORCENTAJE') {
       return this.participantes()
-        .filter((p) => (this.porcentajes()[p.id] ?? 0) > 0)
+        .filter((p) => (this.porcentajes()[p.usuarioId] ?? 0) > 0)
         .map((p) => ({
-          usuarioId: p.id,
-          valorAsignado: this.porcentajes()[p.id] ?? 0,
+          usuarioId: p.usuarioId,
+          valorAsignado: this.porcentajes()[p.usuarioId] ?? 0,
         }));
     }
     if (

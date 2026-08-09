@@ -44,10 +44,16 @@ export interface ViajeUpdateRequest {
 
 export interface Participante {
   id: UUID;
+  usuarioId: UUID;
   nombre: string;
   email: string;
   rolEnViaje: string;
   avatarUrl?: string;
+  presupuestoIndividual: number;
+}
+
+export interface ActualizarPresupuestoIndividualRequest {
+  presupuesto: number;
 }
 
 export interface ViajeRequest {

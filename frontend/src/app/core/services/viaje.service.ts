@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
 import {
+  ActualizarPresupuestoIndividualRequest,
   Participante,
   UUID,
   Viaje,
@@ -78,8 +79,28 @@ export class ViajeService {
 
   cargarParticipantes(viajeId: UUID): void {
     this.getParticipantes(viajeId).subscribe({
-      next: (participantes) => this.participantes.set(participantes),
+      next: (participantes) =>
+        this.participantes.set(
+          participantes.map((p) => ({
+            ...p,
+            usuarioId: p.usuarioId ?? p.id,
+          }))
+        ),
     });
+  }
+
+  actualizarPresupuestoIndividual(
+    viajeId: UUID,
+    request: ActualizarPresupuestoIndividualRequest
+  ): Observable<Participante> {
+    return this.http
+      .put<Participante>(`/api/viajes/${viajeId}/presupuesto-individual`, request)
+      .pipe(
+        map((p) => ({
+          ...p,
+          usuarioId: p.usuarioId ?? p.id,
+        }))
+      );
   }
 
   kickParticipante(viajeId: UUID, usuarioId: UUID): Observable<void> {

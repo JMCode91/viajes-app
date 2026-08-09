@@ -229,7 +229,7 @@ export class DetalleViaje implements OnDestroy {
     return (
       miId != null &&
       this.participantes().some(
-        (p) => p.id === miId && p.rolEnViaje === 'PROPIETARIO'
+        (p) => p.usuarioId === miId && p.rolEnViaje === 'PROPIETARIO'
       )
     );
   });
@@ -240,8 +240,16 @@ export class DetalleViaje implements OnDestroy {
       return null;
     }
     return (
-      this.participantes().find((p) => p.email === email)?.id ?? null
+      this.participantes().find((p) => p.email === email)?.usuarioId ?? null
     );
+  });
+
+  protected readonly miParticipante = computed<Participante | null>(() => {
+    const miId = this.usuarioIdPropio();
+    if (!miId) {
+      return null;
+    }
+    return this.participantes().find((p) => p.usuarioId === miId) ?? null;
   });
 
   private mapaGoogle: google.maps.Map | null = null;
@@ -268,6 +276,11 @@ export class DetalleViaje implements OnDestroy {
   protected readonly copiadoInvitacion = signal(false);
   protected readonly abandonandoAjustes = signal(false);
   protected readonly errorAbandonar = signal<string | null>(null);
+
+  protected readonly presupuestoIndividual = signal<number>(0);
+  protected readonly guardandoPresupuesto = signal(false);
+  protected readonly errorPresupuesto = signal<string | null>(null);
+  protected readonly presupuestoOk = signal(false);
 
   private readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
     'id'
@@ -380,6 +393,13 @@ export class DetalleViaje implements OnDestroy {
           fechaInicio: viaje.fechaInicio,
           fechaFin: viaje.fechaFin,
         });
+      }
+    });
+
+    effect(() => {
+      const participante = this.miParticipante();
+      if (participante && !this.guardandoPresupuesto()) {
+        this.presupuestoIndividual.set(participante.presupuestoIndividual ?? 0);
       }
     });
 
@@ -604,6 +624,51 @@ export class DetalleViaje implements OnDestroy {
         this.errorAjustes.set('No se pudieron guardar los cambios.');
       },
     });
+  }
+
+  protected onPresupuestoInput(event: Event): void {
+    const valor = (event.target as HTMLInputElement).value;
+    this.presupuestoIndividual.set(valor === '' ? 0 : Number(valor));
+  }
+
+  protected actualizarPresupuesto(): void {
+    if (!this.viajeId || this.guardandoPresupuesto()) {
+      return;
+    }
+    const presupuesto = this.presupuestoIndividual();
+    if (!Number.isFinite(presupuesto) || presupuesto < 0) {
+      this.errorPresupuesto.set('Introduce un presupuesto válido.');
+      return;
+    }
+    this.guardandoPresupuesto.set(true);
+    this.errorPresupuesto.set(null);
+    this.presupuestoOk.set(false);
+    this.viajeService
+      .actualizarPresupuestoIndividual(this.viajeId, { presupuesto })
+      .subscribe({
+        next: (participante) => {
+          this.guardandoPresupuesto.set(false);
+          this.viajeService.participantes.update((lista) =>
+            lista.map((p) =>
+              p.usuarioId === participante.usuarioId ? participante : p
+            )
+          );
+          const actualizado = this.viajeService.participantes().find(
+            (p) => p.usuarioId === this.usuarioIdPropio()
+          );
+          if (actualizado) {
+            this.presupuestoIndividual.set(actualizado.presupuestoIndividual ?? 0);
+          }
+          this.presupuestoOk.set(true);
+          setTimeout(() => this.presupuestoOk.set(false), 2500);
+        },
+        error: () => {
+          this.guardandoPresupuesto.set(false);
+          this.errorPresupuesto.set(
+            'No se pudo actualizar tu presupuesto. Inténtalo de nuevo.'
+          );
+        },
+      });
   }
 
   protected onPortadaSeleccionada(event: Event): void {

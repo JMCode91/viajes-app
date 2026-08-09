@@ -92,6 +92,32 @@
     </button>
   </div>
 
+  @if (deudasVisibles().length > 0) {
+    <section class="mb-6 rounded-3xl bg-white p-5 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700 dark:bg-gray-800">
+      <h2 class="mb-3 text-sm font-bold uppercase tracking-wide text-gray-700 dark:text-gray-300">
+        Resumen de Deudas
+      </h2>
+      <div class="flex flex-col gap-2">
+        @for (deuda of deudasVisibles(); track deuda.deudorId + '|' + deuda.acreedorId) {
+          <div class="flex items-center gap-3 rounded-2xl bg-gray-50 px-4 py-3 dark:bg-gray-900">
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:text-indigo-400">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.6" stroke="currentColor" class="h-5 w-5">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+              </svg>
+            </span>
+            <p class="min-w-0 flex-1 text-sm leading-relaxed text-gray-600 dark:text-gray-300">
+              <span class="font-semibold text-gray-900 dark:text-white">{{ deuda.deudorNombre }}</span>
+              debe
+              <span class="font-bold text-rose-600 dark:text-rose-400">{{ deuda.importe | currency: 'EUR' }}</span>
+              a
+              <span class="font-semibold text-gray-900 dark:text-white">{{ deuda.acreedorNombre }}</span>
+            </p>
+          </div>
+        }
+      </div>
+    </section>
+  }
+
   <section class="flex flex-col gap-3">
     @for (gasto of gastosVisibles(); track gasto.id) {
       <article class="flex items-center gap-4 rounded-3xl bg-white dark:bg-gray-800 p-4 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
@@ -212,8 +238,8 @@
             formControlName="pagadorId"
             class="h-14 w-full appearance-none rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
           >
-            @for (participante of participantes(); track participante.id) {
-              <option [value]="participante.id">{{ participante.nombre }}</option>
+            @for (participante of participantes(); track participante.usuarioId) {
+              <option [value]="participante.usuarioId">{{ participante.nombre }}</option>
             }
           </select>
           @if (hasError('pagadorId')) {
@@ -244,7 +270,7 @@
         ) {
           <div class="flex flex-col gap-3">
             <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Reparto por porcentajes</p>
-            @for (participante of participantes(); track participante.id) {
+            @for (participante of participantes(); track participante.usuarioId) {
               <div class="flex items-center gap-3">
                 <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-100 dark:bg-blue-500/10 text-sm font-bold text-blue-600 dark:text-blue-400">
                   @if (participante.avatarUrl) {
@@ -262,8 +288,8 @@
                     min="0"
                     max="100"
                     step="0.01"
-                    [value]="porcentajes()[participante.id] ?? 0"
-                    (input)="cambiarPorcentaje(participante.id, $any($event.target).value)"
+                    [value]="porcentajes()[participante.usuarioId] ?? 0"
+                    (input)="cambiarPorcentaje(participante.usuarioId, $any($event.target).value)"
                     class="h-12 w-24 rounded-xl bg-gray-50 dark:bg-gray-800 px-3 text-right text-sm font-semibold text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
                   />
                   <span class="text-sm font-bold text-gray-500 dark:text-gray-400">%</span>
@@ -307,8 +333,8 @@
               class="h-14 w-full appearance-none rounded-2xl bg-gray-50 dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
             >
               <option value="" disabled>Selecciona un participante</option>
-              @for (participante of participantes(); track participante.id) {
-                <option [value]="participante.id">{{ participante.nombre }}</option>
+              @for (participante of participantes(); track participante.usuarioId) {
+                <option [value]="participante.usuarioId">{{ participante.nombre }}</option>
               }
             </select>
             @if (!deudorSeleccionado()) {
@@ -323,7 +349,7 @@
 
         <button
           type="submit"
-          [disabled]="!puedeGuardar()"
+          [disabled]="formGasto.invalid || formGasto.controls.importe.value <= 0"
           class="mt-1 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700 disabled:opacity-60"
         >
           {{ guardando() ? 'Guardando...' : 'Guardar gasto' }}
