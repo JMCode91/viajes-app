@@ -15,6 +15,7 @@ public record FotoResponseDTO(
         String url,
         LocalDateTime fechaSubida,
         UUID usuarioId,
-        String usuarioNombre
+        String usuarioNombre,
+        String usuarioAvatarUrl
 ) {
 }

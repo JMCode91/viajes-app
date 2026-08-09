@@ -287,7 +287,8 @@ public class ViajeServiceImpl implements ViajeService {
                         pertenencia.getUsuario().getId(),
                         pertenencia.getUsuario().getNombre(),
                         pertenencia.getUsuario().getEmail(),
-                        pertenencia.getRolEnViaje()))
+                        pertenencia.getRolEnViaje(),
+                        pertenencia.getUsuario().getAvatarUrl()))
                 .toList();
     }
 
@@ -376,7 +377,8 @@ public class ViajeServiceImpl implements ViajeService {
                         pertenencia.getUsuario().getId(),
                         pertenencia.getUsuario().getNombre(),
                         pertenencia.getUsuario().getEmail(),
-                        pertenencia.getRolEnViaje()))
+                        pertenencia.getRolEnViaje(),
+                        pertenencia.getUsuario().getAvatarUrl()))
                 .toList();
     }
 

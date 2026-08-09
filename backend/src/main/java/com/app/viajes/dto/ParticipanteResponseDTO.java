@@ -10,6 +10,7 @@ public record ParticipanteResponseDTO(
         UUID id,
         String nombre,
         String email,
-        String rolEnViaje
+        String rolEnViaje,
+        String avatarUrl
 ) {
 }

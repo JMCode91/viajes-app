@@ -151,6 +151,7 @@ public class FotoServiceImpl implements FotoService {
                 foto.getUrl(),
                 foto.getFechaSubida(),
                 foto.getAutor().getId(),
-                foto.getAutor().getNombre());
+                foto.getAutor().getNombre(),
+                foto.getAutor().getAvatarUrl());
     }
 }

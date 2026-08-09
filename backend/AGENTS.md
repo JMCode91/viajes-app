@@ -46,7 +46,13 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE) + AVATAR DE USUARIO (SUBIDA DE PERFIL A R2)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE) + AVATAR DE USUARIO (SUBIDA DE PERFIL A R2) + PROPAGACIÓN DE AVATAR A DTOs (PARTICIPANTES Y FOTOS)** COMPLETADOS.
+- **Completado en esta sesión (Propagación de `avatarUrl` a participantes y fotos de la galería):**
+  - **`ParticipanteResponseDTO`** ampliado con el campo **`avatarUrl`** (URL R2 del perfil del usuario; `null` si aún no tiene avatar).
+  - **`ViajeServiceImpl`:** los dos mapeos de participantes (`obtenerParticipantes` y `obtenerParticipantesDTO` del `ViajeResponseDTO`) pasan ahora `pertenencia.getUsuario().getAvatarUrl()`. Así el frontend ya puede pintar la foto de perfil tanto en la lista de participantes de un viaje como dentro de cada `ViajeResponseDTO`.
+  - **`FotoResponseDTO`** ampliado con el campo **`usuarioAvatarUrl`** (avatar del autor de la foto).
+  - **`FotoServiceImpl.toResponseDTO`:** asigna `foto.getAutor().getAvatarUrl()` al nuevo campo.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Avatar de usuario — endpoint de subida con Cloudflare R2):**
   - **`Usuario.avatarUrl` (String, `length=500`, nullable):** nueva columna `avatar_url` en la entidad `Usuario` para guardar la URL pública (Cloudflare R2) de la foto de perfil.
   - **DTOs:** `AuthResponseDTO` ampliado con el campo **`avatarUrl`** (login/register devuelven la URL; `null` si aún no hay avatar). Nuevo **`UsuarioResponseDTO`** (`id`, `email`, `nombre`, `avatarUrl`) como respuesta del perfil.
