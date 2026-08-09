@@ -176,7 +176,7 @@ public class GastoServiceImpl implements GastoService {
         }
 
         return new BalanceResponseDTO(
-                viaje.getPresupuestoGlobal(),
+                viaje.getPresupuestoBase(),
                 totalGastadoGrupo,
                 presupuestoIndividual,
                 totalGastadoUsuario,
