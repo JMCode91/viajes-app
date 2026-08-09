@@ -70,6 +70,9 @@ public class Actividad {
     @Column(name = "direccion", nullable = true, length = 255)
     private String direccion;
 
+    @Column(name = "notas", columnDefinition = "TEXT")
+    private String notas;
+
     @OneToMany(mappedBy = "actividad", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Documento> documentos = new ArrayList<>();
 }

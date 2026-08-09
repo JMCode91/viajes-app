@@ -31,6 +31,8 @@ public record ActividadRequestDTO(
         Double longitud,
 
         @Size(max = 255, message = "La direccion no puede superar los 255 caracteres")
-        String direccion
+        String direccion,
+
+        String notas
 ) {
 }

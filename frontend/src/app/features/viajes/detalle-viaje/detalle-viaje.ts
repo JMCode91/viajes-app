@@ -241,6 +241,7 @@ export class DetalleViaje implements OnDestroy {
     hora: ['', Validators.required],
     ubicacion: [''],
     direccion: [''],
+    notas: [''],
     latitud: [null as number | null],
     longitud: [null as number | null],
   });
@@ -346,6 +347,7 @@ export class DetalleViaje implements OnDestroy {
       hora: actividad.fechaHoraInicio.slice(11, 16),
       ubicacion: actividad.descripcion ?? '',
       direccion: actividad.direccion ?? '',
+      notas: actividad.notas ?? '',
       latitud: actividad.latitud ?? null,
       longitud: actividad.longitud ?? null,
     });
@@ -417,6 +419,19 @@ export class DetalleViaje implements OnDestroy {
     window.open(url, '_blank', 'noopener,noreferrer');
   }
 
+  protected esImagen(documento: Documento): boolean {
+    return /\.(jpg|jpeg|png|webp)$/i.test(documento.nombreOriginal);
+  }
+
+  protected truncarNombre(nombre: string, max = 28): string {
+    const limpio = nombre.trim();
+    if (limpio.length <= max) {
+      return limpio;
+    }
+    const cortado = limpio.slice(0, Math.max(0, max - 1)).trimEnd();
+    return `${cortado}…`;
+  }
+
   protected abrirModalCompartir(): void {
     this.modalCompartirAbierto.set(true);
   }
@@ -479,7 +494,7 @@ export class DetalleViaje implements OnDestroy {
       return;
     }
 
-    const { dia, titulo, hora, ubicacion, direccion, latitud, longitud } =
+    const { dia, titulo, hora, ubicacion, direccion, latitud, longitud, notas } =
       this.formActividad.getRawValue();
     const fechaHoraInicio = `${dia ?? ''}T${hora ?? ''}`;
 
@@ -490,6 +505,7 @@ export class DetalleViaje implements OnDestroy {
       fechaHoraFin: fechaHoraInicio,
       descripcion: ubicacion || undefined,
       direccion: direccion || undefined,
+      notas: notas || undefined,
       latitud: latitud ?? undefined,
       longitud: longitud ?? undefined,
     };

@@ -65,6 +65,7 @@ export interface Actividad {
   latitud: number | null;
   longitud: number | null;
   direccion: string | null;
+  notas: string | null;
   documentos: Documento[];
 }
 
@@ -77,6 +78,7 @@ export interface ActividadRequest {
   latitud?: number;
   longitud?: number;
   direccion?: string;
+  notas?: string;
 }
 
 export interface Gasto {

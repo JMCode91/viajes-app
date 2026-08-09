@@ -21,6 +21,7 @@ public record ActividadResponseDTO(
         Double latitud,
         Double longitud,
         String direccion,
+        String notas,
         List<DocumentoDTO> documentos
 ) {
 }
