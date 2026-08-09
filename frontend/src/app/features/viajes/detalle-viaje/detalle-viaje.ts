@@ -11,11 +11,13 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import { GoogleMap, MapInfoWindow, MapMarker } from '@angular/google-maps';
+import { GoogleMap, MapAdvancedMarker, MapInfoWindow } from '@angular/google-maps';
 import {
   debounceTime,
   distinctUntilChanged,
   finalize,
+  from,
+  map,
   Observable,
   of,
   Subject,
@@ -52,6 +54,15 @@ export interface Dia {
 
 export type ListaChecklist = 'comun' | 'privada';
 
+export interface ResultadoBusqueda {
+  placeId: string;
+  descripcion: string;
+  /** Nueva API (Places API New): usada para resolver el detalle. */
+  sugerencia?: google.maps.places.AutocompleteSuggestion;
+  /** Fallback legado: predicción cruda de AutocompleteService. */
+  prediccionLegacy?: google.maps.places.AutocompletePrediction;
+}
+
 @Component({
   selector: 'app-detalle-viaje',
   imports: [
@@ -60,7 +71,7 @@ export type ListaChecklist = 'comun' | 'privada';
     FormsModule,
     CustomTimePicker,
     GoogleMap,
-    MapMarker,
+    MapAdvancedMarker,
     MapInfoWindow,
   ],
   templateUrl: './detalle-viaje.html',
@@ -98,10 +109,17 @@ export class DetalleViaje implements OnDestroy {
   protected readonly errorEliminar = signal<string | null>(null);
 
   protected readonly buscandoLugar = signal(false);
-  protected readonly resultadosBusqueda = signal<
-    google.maps.places.AutocompletePrediction[]
-  >([]);
+  protected readonly resultadosBusqueda = signal<ResultadoBusqueda[]>([]);
   protected readonly errorBusqueda = signal<string | null>(null);
+
+  protected readonly mapId = 'DEMO_MAP_ID';
+
+  protected readonly userLocation = signal<google.maps.LatLngLiteral | null>(
+    null
+  );
+  protected readonly localizando = signal(false);
+  protected readonly errorGeo = signal<string | null>(null);
+  protected readonly userMarkerContent = signal<HTMLElement | null>(null);
 
   protected readonly actividadesConCoordenadas = computed(() =>
     this.actividades().filter(
@@ -297,35 +315,38 @@ export class DetalleViaje implements OnDestroy {
     this.busquedaLugar$.next(consulta);
   }
 
-  protected seleccionarLugar(
-    prediccion: google.maps.places.AutocompletePrediction
-  ): void {
-    const places = new google.maps.places.PlacesService(
-      document.createElement('div')
-    );
+  protected seleccionarLugar(resultado: ResultadoBusqueda): void {
+    if (resultado.prediccionLegacy) {
+      this.aplicarLugarLegacy(resultado.prediccionLegacy);
+      return;
+    }
+    const prediccion = resultado.sugerencia?.placePrediction;
+    const place = prediccion?.toPlace();
+    if (!place) {
+      this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
+      return;
+    }
 
-    places.getDetails({ placeId: prediccion.place_id }, (lugar, estado) => {
-      if (
-        estado === google.maps.places.PlacesServiceStatus.OK &&
-        lugar?.geometry?.location
-      ) {
-        const direccion =
-          lugar.formatted_address ?? prediccion.description ?? '';
-        const direccionTruncada =
-          direccion.length > 250
-            ? `${direccion.slice(0, 249)}…`
-            : direccion;
-
+    void place
+      .fetchFields({ fields: ['formattedAddress', 'location'] })
+      .then(({ place: detalle }) => {
+        const ubicacion = detalle.location;
+        if (!ubicacion) {
+          this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
+          return;
+        }
         this.formActividad.patchValue({
-          direccion: direccionTruncada,
-          latitud: lugar.geometry.location.lat(),
-          longitud: lugar.geometry.location.lng(),
+          direccion: this.truncarDireccion(
+            detalle.formattedAddress ?? resultado.descripcion
+          ),
+          latitud: ubicacion.lat(),
+          longitud: ubicacion.lng(),
         });
         this.resultadosBusqueda.set([]);
-      } else {
+      })
+      .catch(() => {
         this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
-      }
-    });
+      });
   }
 
   protected abrirDetalleActividad(actividad: Actividad): void {
@@ -565,30 +586,118 @@ export class DetalleViaje implements OnDestroy {
 
   protected onMapaInicializado(mapa: google.maps.Map): void {
     this.mapaGoogle = mapa;
-    this.ajustarBounds();
+    const ubicacion = this.userLocation();
+    if (ubicacion) {
+      this.centrarEnUbicacion(mapa, ubicacion);
+    } else {
+      this.ajustarBounds();
+    }
   }
 
-  protected abrirInfoWindow(marker: MapMarker, actividad: Actividad): void {
+  protected abrirInfoWindow(
+    marker: MapAdvancedMarker,
+    actividad: Actividad
+  ): void {
     this.actividadInfo.set(actividad);
     this.infoWindow?.open(marker);
   }
 
+  protected localizar(): void {
+    if (this.localizando()) {
+      return;
+    }
+    if (!navigator.geolocation) {
+      this.errorGeo.set('Tu navegador no soporta geolocalización.');
+      return;
+    }
+    this.localizando.set(true);
+    this.errorGeo.set(null);
+    if (!this.userMarkerContent()) {
+      this.userMarkerContent.set(this.crearPuntoAzul());
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (posicion) => {
+        const ubicacion: google.maps.LatLngLiteral = {
+          lat: posicion.coords.latitude,
+          lng: posicion.coords.longitude,
+        };
+        this.userLocation.set(ubicacion);
+        this.localizando.set(false);
+        if (this.mapaGoogle) {
+          this.centrarEnUbicacion(this.mapaGoogle, ubicacion);
+        }
+      },
+      () => {
+        this.localizando.set(false);
+        this.errorGeo.set('No se pudo obtener tu ubicación.');
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  }
+
+  private centrarEnUbicacion(
+    mapa: google.maps.Map,
+    ubicacion: google.maps.LatLngLiteral
+  ): void {
+    mapa.panTo(ubicacion);
+    mapa.setZoom(16);
+  }
+
+  private crearPuntoAzul(): HTMLElement {
+    const contenedor = document.createElement('div');
+    contenedor.innerHTML = `
+      <svg width="44" height="44" viewBox="0 0 44 44" xmlns="http://www.w3.org/2000/svg" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.25));">
+        <circle cx="22" cy="22" r="18" fill="#3b82f6" fill-opacity="0.16" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.35"/>
+        <circle cx="22" cy="22" r="11" fill="#ffffff" stroke="#3b82f6" stroke-width="3.5"/>
+        <circle cx="22" cy="22" r="5" fill="#2563eb"/>
+      </svg>`;
+    return contenedor.firstElementChild as HTMLElement;
+  }
+
   private consultarAutocomplete(
     consulta: string
-  ): Observable<google.maps.places.AutocompletePrediction[]> {
+  ): Observable<ResultadoBusqueda[]> {
     const termino = consulta.trim();
     if (!termino) {
       return of([]);
     }
+
+    // Places API (New): AutocompleteSuggestion.fetchAutocompleteSuggestions
+    // devuelve una Promise con las sugerencias (PlacePrediction). Si la nueva
+    // clase no está disponible (API no habilitada / librería antigua), se
+    // hace fallback al legado AutocompleteService.getPlacePredictions.
+    const nuevaApi = google.maps.places.AutocompleteSuggestion;
+    if (nuevaApi?.fetchAutocompleteSuggestions) {
+      return from(
+        nuevaApi.fetchAutocompleteSuggestions({ input: termino })
+      ).pipe(
+        map((respuesta) =>
+          respuesta.suggestions.map((sugerencia) => {
+            const prediccion = sugerencia.placePrediction;
+            return {
+              placeId: prediccion?.placeId ?? '',
+              descripcion: prediccion?.text?.text ?? '',
+              sugerencia,
+            };
+          })
+        )
+      );
+    }
+
     return new Observable((observer) => {
       const service = new google.maps.places.AutocompleteService();
       service.getPlacePredictions(
         { input: termino },
         (resultados, estado) => {
-          if (
-            estado === google.maps.places.PlacesServiceStatus.OK
-          ) {
-            observer.next(resultados ?? []);
+          if (estado === google.maps.places.PlacesServiceStatus.OK) {
+            observer.next(
+              (resultados ?? []).map((prediccion) => ({
+                placeId: prediccion.place_id,
+                descripcion: prediccion.description,
+                prediccionLegacy: prediccion,
+              }))
+            );
           } else {
             observer.next([]);
           }
@@ -596,6 +705,38 @@ export class DetalleViaje implements OnDestroy {
         }
       );
     });
+  }
+
+  private aplicarLugarLegacy(
+    prediccion: google.maps.places.AutocompletePrediction
+  ): void {
+    const places = new google.maps.places.PlacesService(
+      document.createElement('div')
+    );
+
+    places.getDetails({ placeId: prediccion.place_id }, (lugar, estado) => {
+      if (
+        estado === google.maps.places.PlacesServiceStatus.OK &&
+        lugar?.geometry?.location
+      ) {
+        this.formActividad.patchValue({
+          direccion: this.truncarDireccion(
+            lugar.formatted_address ?? prediccion.description ?? ''
+          ),
+          latitud: lugar.geometry.location.lat(),
+          longitud: lugar.geometry.location.lng(),
+        });
+        this.resultadosBusqueda.set([]);
+      } else {
+        this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
+      }
+    });
+  }
+
+  private truncarDireccion(direccion: string): string {
+    return direccion.length > 250
+      ? `${direccion.slice(0, 249)}…`
+      : direccion;
   }
 
   private ajustarBounds(): void {

@@ -8,8 +8,10 @@ type WindowWithGoogleMaps = Window & {
 
 /**
  * Carga dinámicamente el script de la Google Maps JavaScript API usando la
- * API Key del environment. Se incluye la librería `places` (Autocomplete).
- * La promesa se cachea para no inyectar el script más de una vez.
+ * API Key del environment. Se cargan las librerías `places` (Autocomplete)
+ * y `marker` (AdvancedMarkerElement) y se usa `loading=async` para no
+ * bloquear el arranque de la app. La promesa se cachea para no inyectar el
+ * script más de una vez.
  */
 @Injectable({ providedIn: 'root' })
 export class GoogleMapsService {
@@ -31,7 +33,7 @@ export class GoogleMapsService {
       const script = document.createElement('script');
       script.src =
         `https://maps.googleapis.com/maps/api/js?key=${environment.googleMapsApiKey}` +
-        `&libraries=places&callback=__viajesGoogleMapsCallback`;
+        `&libraries=places,marker&loading=async&callback=__viajesGoogleMapsCallback`;
       script.async = true;
       script.defer = true;
       script.onerror = () => {
