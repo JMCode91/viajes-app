@@ -54,6 +54,8 @@ export interface Dia {
 
 export type ListaChecklist = 'comun' | 'privada';
 
+export type MapFilterType = 'ALL' | 'DAY' | 'ACTIVITY';
+
 export interface ResultadoBusqueda {
   placeId: string;
   descripcion: string;
@@ -132,8 +134,37 @@ export class DetalleViaje implements OnDestroy {
     )
   );
 
+  protected readonly mapFilterType = signal<MapFilterType>('ALL');
+  protected readonly mapFilterValue = signal<string | null>(null);
+
+  protected readonly diasMapa = computed<Dia[]>(() =>
+    this.dias().filter((dia) =>
+      this.actividades().some(
+        (a) =>
+          a.latitud != null &&
+          a.longitud != null &&
+          a.fechaHoraInicio.startsWith(dia.valor)
+      )
+    )
+  );
+
+  protected readonly actividadesMapa = computed<Actividad[]>(() => {
+    const conCoordenadas = this.actividadesConCoordenadas();
+    const tipo = this.mapFilterType();
+    const valor = this.mapFilterValue();
+    if (tipo === 'DAY' && valor) {
+      return conCoordenadas.filter((a) =>
+        a.fechaHoraInicio.startsWith(valor)
+      );
+    }
+    if (tipo === 'ACTIVITY' && valor) {
+      return conCoordenadas.filter((a) => a.id === valor);
+    }
+    return conCoordenadas;
+  });
+
   protected readonly centroMapa = computed<google.maps.LatLngLiteral>(() => {
-    const puntos = this.actividadesConCoordenadas();
+    const puntos = this.actividadesMapa();
     if (puntos.length > 0) {
       return {
         lat: puntos[0].latitud ?? 40.4168,
@@ -250,8 +281,8 @@ export class DetalleViaje implements OnDestroy {
     });
 
     effect(() => {
-      this.actividadesConCoordenadas();
-      this.ajustarBounds();
+      this.actividadesMapa();
+      this.autoCentrarMapa();
     });
 
     this.suscripcionBusqueda = this.busquedaLugar$
@@ -657,8 +688,18 @@ export class DetalleViaje implements OnDestroy {
     if (ubicacion) {
       this.centrarEnUbicacion(mapa, ubicacion);
     } else {
-      this.ajustarBounds();
+      setTimeout(() => this.autoCentrarMapa(), 0);
     }
+  }
+
+  protected setFiltroMapa(tipo: MapFilterType, valor?: string | null): void {
+    this.mapFilterType.set(tipo);
+    this.mapFilterValue.set(valor ?? null);
+  }
+
+  protected irAlMapaDe(actividad: Actividad): void {
+    this.setFiltroMapa('ACTIVITY', actividad.id);
+    this.setTab('mapa');
   }
 
   protected abrirInfoWindow(
@@ -806,10 +847,18 @@ export class DetalleViaje implements OnDestroy {
       : direccion;
   }
 
-  private ajustarBounds(): void {
+  private autoCentrarMapa(): void {
     const mapa = this.mapaGoogle;
-    const puntos = this.actividadesConCoordenadas();
-    if (!mapa || puntos.length === 0) {
+    if (!mapa) {
+      return;
+    }
+    const puntos = this.actividadesMapa();
+    if (puntos.length === 0) {
+      return;
+    }
+    if (puntos.length === 1) {
+      mapa.panTo({ lat: puntos[0].latitud!, lng: puntos[0].longitud! });
+      mapa.setZoom(15);
       return;
     }
     const bounds = new google.maps.LatLngBounds();
