@@ -23,10 +23,12 @@ export class Finanzas {
 
   protected readonly viajes = this.viajeService.viajes;
   protected readonly gastos = this.gastoService.gastos;
+  protected readonly balance = this.gastoService.balance;
   protected readonly usuario = this.authService.usuario;
   protected readonly theme = this.themeService.theme;
 
   protected readonly viajeSeleccionado = signal<UUID | null>(null);
+  protected readonly vistaActiva = signal<'GRUPO' | 'PERSONAL'>('GRUPO');
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
@@ -43,16 +45,37 @@ export class Finanzas {
     () => this.viajeActual()?.presupuestoBase ?? 0
   );
 
-  protected readonly totalGastado = computed(() =>
-    this.gastos().reduce((sum, gasto) => sum + (gasto.cantidad ?? 0), 0)
+  protected readonly gastosVisibles = computed(() => {
+    const tipo = this.vistaActiva() === 'GRUPO' ? 'COMPARTIDO' : 'PERSONAL';
+    return this.gastos().filter((gasto) => gasto.tipoGasto === tipo);
+  });
+
+  protected readonly totalGastosFiltrados = computed(
+    () => this.gastosVisibles().length
   );
 
-  protected readonly porcentajePresupuesto = computed(() => {
-    const base = this.presupuestoBase();
+  protected readonly totalGastadoVista = computed(() => {
+    const balance = this.balance();
+    if (this.vistaActiva() === 'GRUPO') {
+      return balance?.totalGastadoGrupo ?? 0;
+    }
+    return balance?.totalGastadoUsuario ?? 0;
+  });
+
+  protected readonly presupuestoVista = computed(() => {
+    const balance = this.balance();
+    if (this.vistaActiva() === 'GRUPO') {
+      return balance?.presupuestoGlobal ?? this.presupuestoBase();
+    }
+    return balance?.presupuestoIndividualUsuario ?? 0;
+  });
+
+  protected readonly porcentajeVista = computed(() => {
+    const base = this.presupuestoVista();
     if (base <= 0) {
       return 0;
     }
-    return Math.min(100, Math.round((this.totalGastado() / base) * 100));
+    return Math.min(100, Math.round((this.totalGastadoVista() / base) * 100));
   });
 
   protected readonly pagadorActual = computed(() => {
@@ -76,8 +99,13 @@ export class Finanzas {
       if (viajes.length > 0 && !valido) {
         this.viajeSeleccionado.set(viajes[0].id);
         this.gastoService.cargarGastos(viajes[0].id);
+        this.gastoService.cargarBalance(viajes[0].id);
       }
     });
+  }
+
+  protected cambiarVista(vista: 'GRUPO' | 'PERSONAL'): void {
+    this.vistaActiva.set(vista);
   }
 
   protected nombrePagador(id: UUID): string {
@@ -91,6 +119,7 @@ export class Finanzas {
   protected seleccionarViaje(id: string): void {
     this.viajeSeleccionado.set(id);
     this.gastoService.cargarGastos(id);
+    this.gastoService.cargarBalance(id);
   }
 
   protected toggleTheme(): void {
@@ -132,17 +161,20 @@ export class Finanzas {
     this.gastoService
       .crearGasto(viajeId, {
         concepto,
-        cantidad,
+        importe: cantidad,
         pagadorId: usuario?.email
           ? this.gastoService.pagadorAutenticado(
               usuario.email,
               usuario.nombre
             )
           : pagadorId,
+        tipoGasto: 'COMPARTIDO',
+        tipoDivision: 'PARTES_IGUALES',
       })
       .subscribe({
         next: () => {
           this.gastoService.cargarGastos(viajeId);
+          this.gastoService.cargarBalance(viajeId);
           this.guardando.set(false);
           this.cerrarModal();
         },

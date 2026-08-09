@@ -2,7 +2,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { Gasto, GastoRequest, UUID } from '../../shared/types';
+import { BalanceResponse, Gasto, GastoRequest, UUID } from '../../shared/types';
 
 const PAGADORES_KEY = 'finanzas_pagadores';
 
@@ -11,6 +11,7 @@ export class GastoService {
   private readonly http = inject(HttpClient);
 
   readonly gastos = signal<Gasto[]>([]);
+  readonly balance = signal<BalanceResponse | null>(null);
 
   private readonly pagadores: Map<string, string> = new Map<string, string>();
 
@@ -25,6 +26,17 @@ export class GastoService {
   cargarGastos(viajeId: UUID): void {
     this.getGastosPorViaje(viajeId).subscribe({
       next: (gastos) => this.gastos.set(gastos),
+    });
+  }
+
+  getBalances(viajeId: UUID): Observable<BalanceResponse> {
+    return this.http.get<BalanceResponse>(`/api/viajes/${viajeId}/balances`);
+  }
+
+  cargarBalance(viajeId: UUID): void {
+    this.getBalances(viajeId).subscribe({
+      next: (balance) => this.balance.set(balance),
+      error: () => this.balance.set(null),
     });
   }
 

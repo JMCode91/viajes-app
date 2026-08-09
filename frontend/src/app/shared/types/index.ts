@@ -90,18 +90,54 @@ export interface ActividadRequest {
   notas?: string;
 }
 
+export type TipoGasto = 'PERSONAL' | 'COMPARTIDO';
+
+export type TipoDivision =
+  | 'PARTES_IGUALES'
+  | 'PORCENTAJE'
+  | 'DEUDA_PAGADOR'
+  | 'DEUDA_TERCERO';
+
+export interface DetalleDivision {
+  usuarioId: UUID;
+  valorAsignado: number;
+}
+
 export interface Gasto {
   id: UUID;
   viajeId: UUID;
   concepto: string;
-  cantidad: number;
+  importe: number;
+  fecha: string;
+  tipoGasto: TipoGasto;
+  tipoDivision: TipoDivision | null;
   pagadorId: UUID;
+  pagadorNombre: string;
 }
 
 export interface GastoRequest {
   concepto: string;
-  cantidad: number;
+  importe: number;
   pagadorId: UUID;
+  tipoGasto?: TipoGasto;
+  tipoDivision?: TipoDivision;
+  detalles?: DetalleDivision[];
+}
+
+export interface DeudaResumen {
+  deudorId: UUID;
+  deudorNombre: string;
+  acreedorId: UUID;
+  acreedorNombre: string;
+  importe: number;
+}
+
+export interface BalanceResponse {
+  presupuestoGlobal: number;
+  totalGastadoGrupo: number;
+  presupuestoIndividualUsuario: number;
+  totalGastadoUsuario: number;
+  deudas: DeudaResumen[];
 }
 
 export interface Album {
