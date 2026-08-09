@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -360,6 +361,31 @@ public class ViajeServiceImpl implements ViajeService {
                         "El usuario no pertenece a este viaje"));
 
         usuarioViajeRepository.delete(pertenencia);
+    }
+
+    @Override
+    @Transactional
+    public ParticipanteResponseDTO actualizarPresupuestoIndividual(
+            UUID viajeId, BigDecimal presupuesto) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        // Seguridad por propiedad de recursos: solo un participante activo
+        // de este viaje puede actualizar su propio presupuesto individual.
+        UsuarioViaje pertenencia = usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "No tiene acceso a este viaje"));
+
+        pertenencia.setPresupuestoIndividual(presupuesto);
+        usuarioViajeRepository.save(pertenencia);
+
+        return new ParticipanteResponseDTO(
+                pertenencia.getUsuario().getId(),
+                pertenencia.getUsuario().getNombre(),
+                pertenencia.getUsuario().getEmail(),
+                pertenencia.getRolEnViaje(),
+                pertenencia.getUsuario().getAvatarUrl(),
+                pertenencia.getPresupuestoIndividual());
     }
 
     private Usuario obtenerUsuarioAutenticado() {

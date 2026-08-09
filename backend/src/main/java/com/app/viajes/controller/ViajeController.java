@@ -1,5 +1,6 @@
 package com.app.viajes.controller;
 
+import com.app.viajes.dto.ActualizarPresupuestoIndividualDTO;
 import com.app.viajes.dto.InvitacionRequestDTO;
 import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
@@ -99,5 +100,13 @@ public class ViajeController {
             @PathVariable UUID usuarioId) {
         viajeService.expulsarParticipante(id, usuarioId);
         return ResponseEntity.noContent().build();
+    }
+
+    @PutMapping("/{id}/presupuesto-individual")
+    public ResponseEntity<ParticipanteResponseDTO> actualizarPresupuestoIndividual(
+            @PathVariable UUID id,
+            @Valid @RequestBody ActualizarPresupuestoIndividualDTO request) {
+        return ResponseEntity.ok(
+                viajeService.actualizarPresupuestoIndividual(id, request.presupuesto()));
     }
 }

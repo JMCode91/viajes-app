@@ -7,6 +7,7 @@ import com.app.viajes.dto.ViajeResponseDTO;
 import com.app.viajes.dto.ViajeUpdateDTO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,4 +37,6 @@ public interface ViajeService {
     ViajeResponseDTO actualizarFotoPortada(UUID viajeId, MultipartFile archivo);
 
     void expulsarParticipante(UUID viajeId, UUID usuarioId);
+
+    ParticipanteResponseDTO actualizarPresupuestoIndividual(UUID viajeId, BigDecimal presupuesto);
 }
