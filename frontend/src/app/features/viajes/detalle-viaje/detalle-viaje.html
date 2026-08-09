@@ -19,11 +19,19 @@
       }
     </div>
     <div
-      class="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-800 to-indigo-950 text-base font-bold text-white shadow-md"
+      class="ml-auto flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-800 to-indigo-950 text-base font-bold text-white shadow-md"
       [attr.aria-label]="usuarioSesion()?.nombre || 'Perfil de usuario'"
       [title]="usuarioSesion()?.nombre || ''"
     >
-      {{ inicial(usuarioSesion()?.nombre) }}
+      @if (usuarioSesion()?.avatarUrl) {
+        <img
+          [src]="usuarioSesion()?.avatarUrl"
+          alt="Foto de perfil"
+          class="h-full w-full object-cover"
+        />
+      } @else {
+        {{ inicial(usuarioSesion()?.nombre) }}
+      }
     </div>
   </header>
 
@@ -469,8 +477,16 @@
                   class="h-full w-full object-cover"
                 />
               </a>
-              <span class="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/55 text-[10px] font-bold text-white">
-                {{ inicial(foto.usuarioNombre) }}
+              <span class="absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center overflow-hidden rounded-full bg-black/55 text-[10px] font-bold text-white">
+                @if (foto.usuarioAvatarUrl) {
+                  <img
+                    [src]="foto.usuarioAvatarUrl"
+                    [alt]="'Foto de ' + foto.usuarioNombre"
+                    class="h-full w-full object-cover"
+                  />
+                } @else {
+                  {{ inicial(foto.usuarioNombre) }}
+                }
               </span>
               @if (puedeBorrarFoto(foto)) {
                 <button
@@ -733,9 +749,17 @@
                   class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-gray-800"
                 >
                   <div
-                    class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white"
+                    class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-sm font-bold text-white"
                   >
-                    {{ inicial(participante.nombre) }}
+                    @if (participante.avatarUrl) {
+                      <img
+                        [src]="participante.avatarUrl"
+                        [alt]="'Foto de ' + participante.nombre"
+                        class="h-full w-full object-cover"
+                      />
+                    } @else {
+                      {{ inicial(participante.nombre) }}
+                    }
                   </div>
                   <div class="min-w-0 flex-1">
                     <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">

@@ -47,6 +47,7 @@ export interface Participante {
   nombre: string;
   email: string;
   rolEnViaje: string;
+  avatarUrl?: string;
 }
 
 export interface ViajeRequest {
@@ -122,6 +123,7 @@ export interface Foto {
   fechaSubida: string;
   usuarioId: UUID;
   usuarioNombre: string;
+  usuarioAvatarUrl?: string;
 }
 
 export interface TareaChecklistRequest {
