@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgClass } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -9,7 +9,7 @@ import { Viaje } from '../../../shared/types';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DatePipe, CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [DatePipe, CurrencyPipe, NgClass, ReactiveFormsModule, RouterLink],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
