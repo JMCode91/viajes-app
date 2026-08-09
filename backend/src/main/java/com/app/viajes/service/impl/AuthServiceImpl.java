@@ -53,7 +53,7 @@ public class AuthServiceImpl implements AuthService {
         usuarioRepository.save(usuario);
 
         String token = jwtUtil.generateToken(usuario.getEmail());
-        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre());
+        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
     }
 
     @Override
@@ -67,6 +67,6 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas"));
 
         String token = jwtUtil.generateToken(usuario.getEmail());
-        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre());
+        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
     }
 }

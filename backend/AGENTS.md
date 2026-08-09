@@ -46,7 +46,14 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE) + AVATAR DE USUARIO (SUBIDA DE PERFIL A R2)** COMPLETADOS.
+- **Completado en esta sesión (Avatar de usuario — endpoint de subida con Cloudflare R2):**
+  - **`Usuario.avatarUrl` (String, `length=500`, nullable):** nueva columna `avatar_url` en la entidad `Usuario` para guardar la URL pública (Cloudflare R2) de la foto de perfil.
+  - **DTOs:** `AuthResponseDTO` ampliado con el campo **`avatarUrl`** (login/register devuelven la URL; `null` si aún no hay avatar). Nuevo **`UsuarioResponseDTO`** (`id`, `email`, `nombre`, `avatarUrl`) como respuesta del perfil.
+  - **`AuthServiceImpl`:** `registrar` y `login` construyen `AuthResponseDTO` con `usuario.getAvatarUrl()`.
+  - **`UsuarioService`/`UsuarioServiceImpl`** (nuevos): `actualizarAvatar(MultipartFile)` recupera el usuario autenticado desde el JWT (`SecurityContextHolder` → `findByEmail`), hace **borrado inteligente** (purga el `avatarUrl` anterior de R2 vía `StorageService.eliminarDocumento`, no-op si es null), sube la nueva imagen con `StorageService.subirDocumento` (misma whitelist de imágenes) y persiste la URL en el usuario. Devuelve `UsuarioResponseDTO`.
+  - **`UsuarioController`** (nuevo) en `/api/usuarios`: **`POST /me/avatar`** (multipart `file`) → 200 con `UsuarioResponseDTO`. Exige JWT (cae bajo `anyRequest().authenticated()` de `SecurityConfig`; se creó un controlador nuevo fuera de `/api/auth/**` para no exponerlo públicamente).
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Panel de Ajustes del Viaje — portada, edición de datos y expulsar participante):**
   - **`Viaje.fotoPortada` (String, `length=500`, nullable):** nueva columna `foto_portada` para guardar la URL pública (Cloudflare R2) de la foto de portada del viaje.
   - **`ViajeResponseDTO` ampliado:** ahora devuelve `fotoPortada` y **`participantes` (`List<ParticipanteResponseDTO>` con id, nombre, email, rolEnViaje)**. Se añadió el helper `obtenerParticipantesDTO(Viaje)` (filtra ACEPTADAS) y un segundo `toResponseDTO(viaje, rolEnViaje)`; `crearViaje` y el `toResponseDTO` de pertenencia se actualizaron a la nueva firma.
@@ -152,6 +159,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | :--- | :--- | :--- | :--- |
 | POST | `/api/auth/register` | Registro de nuevo usuario. Devuelve 201 Created con token JWT | Público |
 | POST | `/api/auth/login` | Inicio de sesión. Devuelve 200 OK con token JWT | Público |
+| POST | `/api/usuarios/me/avatar` | Subir/actualizar avatar (multipart `file`, máx 5MB). Borra el avatar anterior de R2 antes de guardar el nuevo. Devuelve `UsuarioResponseDTO` | JWT |
 | POST | `/api/viajes` | Crear un viaje (creador queda como PROPIETARIO) | JWT |
 | GET | `/api/viajes` | Listar los viajes del usuario autenticado (ACEPTADOS) | JWT |
 | POST | `/api/viajes/{id}/invitar` | Invitar a un usuario (solo PROPIETARIO) | JWT |

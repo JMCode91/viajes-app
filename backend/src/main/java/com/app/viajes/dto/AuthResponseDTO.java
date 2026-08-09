@@ -6,6 +6,7 @@ package com.app.viajes.dto;
 public record AuthResponseDTO(
         String token,
         String email,
-        String nombre
+        String nombre,
+        String avatarUrl
 ) {
 }
