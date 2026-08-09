@@ -46,7 +46,16 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS)** COMPLETADOS.
+- **Completado en esta sesión (Módulo Galería Multimedia — Álbumes y Fotos con autor):**
+  - **Nueva entidad `Album`** (tabla `albumes`): `id` UUID auto, `nombre` (String 200), `fechaCreacion` (LocalDateTime) y `@ManyToOne` hacia `Viaje`. Nuevo `AlbumRepository` con `findByViajeIdOrderByFechaCreacionDesc` + `deleteByViajeId`.
+  - **Nueva entidad `Foto`** (tabla `fotos`): `id` UUID auto, `url` (String 500, ruta Cloudflare R2), `fechaSubida` (LocalDateTime), y `@ManyToOne` hacia `Viaje` (no nulo), `Album` (nullable: fotos sin álbum) y `Usuario` como **autor** (no nulo, el que subió la foto para futuros filtros en el frontend). Nuevo `FotoRepository` con `findByViajeIdOrderByFechaSubidaDesc`, `findByViajeIdAndAlbumIdOrderByFechaSubidaDesc`, `findByAlbumId(OrderByFechaSubidaDesc)` + `deleteByViajeId`.
+  - **DTOs:** `AlbumRequestDTO` (`nombre` con `@NotBlank` + `@Size(max=200)`) y `AlbumResponseDTO` (`id`, `viajeId`, `nombre`, `fechaCreacion`). **`FotoResponseDTO` incluye la información básica del autor** (`usuarioId`, `usuarioNombre`) además de `albumId` (opcional), `url`, `fechaSubida` y `viajeId` — preparado para pintar el avatar del autor en el frontend.
+  - **`AlbumService`/`AlbumServiceImpl`:** `obtenerAlbumes`, `crearAlbum` y `eliminarAlbum`. Al eliminar un álbum las fotos NO se borran: se desasocian (`foto.setAlbum(null)`) y pasan a la galería "sin álbum". Todo con verificación de pertenencia.
+  - **`FotoService`/`FotoServiceImpl`:** `obtenerFotos(viajeId, albumId)` (filtro opcional por álbum, validando que pertenezca al viaje), `subirFoto(viajeId, albumId, archivo)` y `eliminarFoto`. **La subida reutiliza `StorageService.subirDocumento`** (Cloudflare R2: whitelist PDF/imagen, UUID como nombre, devuelve URL pública; la whitelist ya incluye jpg/jpeg/png/gif/webp) y **el autor se extrae del JWT** (`obtenerUsuarioAutenticado` → `UsuarioRepository.findByEmail`). El `DELETE` hace borrado inteligente: primero `StorageService.eliminarDocumento(url)` (purga física en R2) y luego borra el registro de la BD.
+  - **Controladores:** `AlbumController` en `/api/viajes/{viajeId}/albumes` (GET, POST 201, DELETE 204) y `FotoController` en `/api/viajes/{viajeId}/fotos` (GET con `?albumId=` opcional, POST multipart `file` + `albumId` opcional → 201, DELETE 204). Todos con JWT + pertenencia.
+  - **`ViajeServiceImpl.eliminarViaje` actualizado:** el borrado en cascada manual ahora purga también las fotos de Cloudflare R2 (`FotoRepository.findByViajeId` → `eliminarDocumento`) y elimina `fotos` **antes** que `albumes` para no violar la FK.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (CRUD completo de Actividades — endpoint PUT):**
   - **`ActividadService.actualizarActividad(UUID viajeId, UUID actividadId, ActividadRequestDTO dto)`** (nuevo método en interfaz + implementación): valida pertenencia del usuario al viaje, comprueba que la actividad pertenece al viaje indicado y actualiza `titulo`, `descripcion`, `tipoActividad`, `fechaHoraInicio`, `fechaHoraFin`, `latitud`, `longitud` y `direccion`. Devuelve el `ActividadResponseDTO` actualizado (manteniendo los documentos existentes).
   - **Nuevo endpoint `PUT /api/viajes/{viajeId}/actividades/{actividadId}`** en `ActividadController` (200 OK con body). El `DELETE /api/viajes/{viajeId}/actividades/{actividadId}` (204) ya existía (con purga física de documentos de Cloudflare R2).
@@ -100,6 +109,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Pendiente (fuera del backend):**
   - Conectar el checklist del frontend Angular a estos nuevos endpoints (sustituir el `localStorage` por llamadas a la API).
+  - Conectar la Galería Multimedia del frontend a `/api/viajes/{id}/albumes` y `/api/viajes/{id}/fotos`.
   - Rate Limiting en proxy inverso Nginx (previsión DoS a nivel de infraestructura).
   - Revisar el cifrado/entorno de claves JWT y DeepL en producción.
 - **Completado en esta sesión (Fase 5: Módulos Secundarios, Archivos Seguros y multi-idioma):**
@@ -122,7 +132,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
+- **Últimos commits:** `feat(backend): Create Album and Foto entities, S3 integration and endpoints for Gallery`, `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 
@@ -155,6 +165,12 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | POST | `/api/viajes/{viajeId}/gastos` | Registrar un gasto del viaje | JWT |
 | GET | `/api/viajes/{viajeId}/gastos` | Listar gastos del viaje | JWT |
 | DELETE | `/api/viajes/{viajeId}/gastos/{gastoId}` | Eliminar un gasto | JWT |
+| POST | `/api/viajes/{viajeId}/albumes` | Crear un álbum de fotos de la galería (`nombre`). Devuelve 201 con `AlbumResponseDTO` | JWT |
+| GET | `/api/viajes/{viajeId}/albumes` | Listar álbumes del viaje ordenados por fecha de creación | JWT |
+| DELETE | `/api/viajes/{viajeId}/albumes/{albumId}` | Eliminar un álbum (204). Las fotos se desasocian (pasan a "sin álbum"), no se borran | JWT |
+| GET | `/api/viajes/{viajeId}/fotos` | Listar fotos del viaje (opcional `?albumId=` para filtrar por álbum). `FotoResponseDTO` incluye el autor | JWT |
+| POST | `/api/viajes/{viajeId}/fotos` | Subir foto a Cloudflare R2 (multipart `file`, `albumId` opcional). El autor se extrae del JWT. Devuelve 201 con `FotoResponseDTO` | JWT |
+| DELETE | `/api/viajes/{viajeId}/fotos/{fotoId}` | Borrar foto (204). Borra físicamente de R2 (`StorageService.eliminarDocumento`) y elimina el registro de la BD | JWT |
 | POST | `/api/viajes/{viajeId}/archivos` | Subir un archivo (máx 5MB, whitelist de extensiones) | JWT |
 | GET | `/api/viajes/{viajeId}/archivos/{nombreArchivo}` | Descargar un archivo como flujo de bytes | JWT |
 | GET | `/api/diccionario` | Diccionario (opcional `?idioma=JA` y `?categoria=`) | JWT |

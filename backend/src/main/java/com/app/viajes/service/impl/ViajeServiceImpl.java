@@ -8,12 +8,15 @@ import com.app.viajes.exception.AccesoDenegadoException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Documento;
+import com.app.viajes.model.Foto;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.model.enums.EstadoInvitacion;
 import com.app.viajes.repository.ActividadRepository;
+import com.app.viajes.repository.AlbumRepository;
 import com.app.viajes.repository.DocumentoRepository;
+import com.app.viajes.repository.FotoRepository;
 import com.app.viajes.repository.GastoRepository;
 import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
@@ -48,6 +51,8 @@ public class ViajeServiceImpl implements ViajeService {
     private final GastoRepository gastoRepository;
     private final TareaChecklistRepository tareaChecklistRepository;
     private final DocumentoRepository documentoRepository;
+    private final FotoRepository fotoRepository;
+    private final AlbumRepository albumRepository;
     private final StorageService storageService;
 
     public ViajeServiceImpl(ViajeRepository viajeRepository,
@@ -57,6 +62,8 @@ public class ViajeServiceImpl implements ViajeService {
                             GastoRepository gastoRepository,
                             TareaChecklistRepository tareaChecklistRepository,
                             DocumentoRepository documentoRepository,
+                            FotoRepository fotoRepository,
+                            AlbumRepository albumRepository,
                             StorageService storageService) {
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
@@ -65,6 +72,8 @@ public class ViajeServiceImpl implements ViajeService {
         this.gastoRepository = gastoRepository;
         this.tareaChecklistRepository = tareaChecklistRepository;
         this.documentoRepository = documentoRepository;
+        this.fotoRepository = fotoRepository;
+        this.albumRepository = albumRepository;
         this.storageService = storageService;
     }
 
@@ -245,6 +254,16 @@ public class ViajeServiceImpl implements ViajeService {
         documentoRepository.deleteByViajeId(viajeId);
         actividadRepository.deleteByViajeId(viajeId);
         usuarioViajeRepository.deleteByViajeId(viajeId);
+
+        // Galeria multimedia: primero se purgan fisicamente las fotos de
+        // Cloudflare R2 y luego se eliminan las filas (fotos -> albumes).
+        List<Foto> fotos = fotoRepository.findByViajeId(viajeId);
+        for (Foto foto : fotos) {
+            storageService.eliminarDocumento(foto.getUrl());
+        }
+        fotoRepository.deleteByViajeId(viajeId);
+        albumRepository.deleteByViajeId(viajeId);
+
         viajeRepository.deleteById(viajeId);
     }
 
