@@ -38,11 +38,14 @@ import {
   Album,
   Documento,
   Foto,
+  Participante,
   TareaChecklistResponse,
   UUID,
+  Viaje,
+  ViajeUpdateRequest,
 } from '../../../shared/types';
 
-export type Tab = 'itinerario' | 'mapa' | 'checklist' | 'galeria';
+export type Tab = 'itinerario' | 'mapa' | 'checklist' | 'galeria' | 'ajustes';
 
 export interface TabItem {
   key: Tab;
@@ -218,9 +221,18 @@ export class DetalleViaje implements OnDestroy {
 
   protected readonly usuarioSesion = this.authService.usuario;
 
-  protected readonly esOrganizador = computed(
-    () => this.viaje()?.rolEnViaje === 'PROPIETARIO'
-  );
+  protected readonly esOrganizador = computed(() => {
+    if (this.viaje()?.rolEnViaje === 'PROPIETARIO') {
+      return true;
+    }
+    const miId = this.usuarioIdPropio();
+    return (
+      miId != null &&
+      this.participantes().some(
+        (p) => p.id === miId && p.rolEnViaje === 'PROPIETARIO'
+      )
+    );
+  });
 
   protected readonly usuarioIdPropio = computed<UUID | null>(() => {
     const email = this.usuarioSesion()?.email;
@@ -239,6 +251,23 @@ export class DetalleViaje implements OnDestroy {
   protected readonly uuidInvitacion = computed<UUID | null>(
     () => this.viaje()?.id ?? null
   );
+
+  protected readonly formAjustes = this.fb.group({
+    titulo: ['', [Validators.required, Validators.maxLength(200)]],
+    fechaInicio: ['', Validators.required],
+    fechaFin: ['', Validators.required],
+  });
+
+  protected readonly guardandoAjustes = signal(false);
+  protected readonly errorAjustes = signal<string | null>(null);
+  protected readonly subiendoPortada = signal(false);
+  protected readonly errorPortada = signal<string | null>(null);
+  protected readonly expulsandoUsuario = signal<UUID | null>(null);
+  protected readonly errorExpulsar = signal<string | null>(null);
+  protected readonly modalInvitarAbierto = signal(false);
+  protected readonly copiadoInvitacion = signal(false);
+  protected readonly abandonandoAjustes = signal(false);
+  protected readonly errorAbandonar = signal<string | null>(null);
 
   private readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
     'id'
@@ -312,6 +341,11 @@ export class DetalleViaje implements OnDestroy {
       label: 'Galería',
       icon: 'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z',
     },
+    {
+      key: 'ajustes',
+      label: 'Ajustes',
+      icon: 'M11.42 15.17 17.25 21A2.652 2.652 0 0 0 21 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 1 1-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 0 0 4.486-6.336l-3.276 3.277a3.004 3.004 0 0 1-2.25-2.25l3.276-3.276a4.5 4.5 0 0 0-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437 1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008Z',
+    },
   ];
 
   constructor() {
@@ -336,6 +370,17 @@ export class DetalleViaje implements OnDestroy {
     effect(() => {
       this.actividadesMapa();
       this.autoCentrarMapa();
+    });
+
+    effect(() => {
+      const viaje = this.viaje();
+      if (viaje) {
+        this.formAjustes.patchValue({
+          titulo: viaje.titulo,
+          fechaInicio: viaje.fechaInicio,
+          fechaFin: viaje.fechaFin,
+        });
+      }
     });
 
     this.suscripcionBusqueda = this.busquedaLugar$
@@ -533,6 +578,137 @@ export class DetalleViaje implements OnDestroy {
         );
       },
     });
+  }
+
+  protected guardarAjustes(): void {
+    if (!this.viajeId || this.formAjustes.invalid) {
+      this.formAjustes.markAllAsTouched();
+      return;
+    }
+    const { titulo, fechaInicio, fechaFin } = this.formAjustes.getRawValue();
+    this.guardandoAjustes.set(true);
+    this.errorAjustes.set(null);
+    const request: ViajeUpdateRequest = {
+      titulo: (titulo ?? '').trim(),
+      fechaInicio: fechaInicio ?? '',
+      fechaFin: fechaFin ?? '',
+    };
+    this.viajeService.updateViaje(this.viajeId, request).subscribe({
+      next: (viajeActualizado) => {
+        this.guardandoAjustes.set(false);
+        this.viajeService.viajeDetalle.set(viajeActualizado);
+        this.reactualizarEnLista(viajeActualizado);
+      },
+      error: () => {
+        this.guardandoAjustes.set(false);
+        this.errorAjustes.set('No se pudieron guardar los cambios.');
+      },
+    });
+  }
+
+  protected onPortadaSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const archivo = input.files?.[0];
+    input.value = '';
+    if (!archivo || !this.viajeId || this.subiendoPortada()) {
+      return;
+    }
+    this.subiendoPortada.set(true);
+    this.errorPortada.set(null);
+    this.viajeService.uploadPortada(this.viajeId, archivo).subscribe({
+      next: (viajeActualizado) => {
+        this.subiendoPortada.set(false);
+        this.viajeService.viajeDetalle.set(viajeActualizado);
+        this.reactualizarEnLista(viajeActualizado);
+      },
+      error: () => {
+        this.subiendoPortada.set(false);
+        this.errorPortada.set('No se pudo subir la portada.');
+      },
+    });
+  }
+
+  protected expulsarParticipante(participante: Participante): void {
+    if (!this.viajeId || this.expulsandoUsuario()) {
+      return;
+    }
+    if (!window.confirm(`¿Expulsar a “${participante.nombre}” del viaje?`)) {
+      return;
+    }
+    this.expulsandoUsuario.set(participante.id);
+    this.errorExpulsar.set(null);
+    this.viajeService
+      .kickParticipante(this.viajeId, participante.id)
+      .subscribe({
+        next: () => {
+          this.expulsandoUsuario.set(null);
+          this.viajeService.participantes.update((lista) =>
+            lista.filter((p) => p.id !== participante.id)
+          );
+        },
+        error: () => {
+          this.expulsandoUsuario.set(null);
+          this.errorExpulsar.set('No se pudo expulsar al participante.');
+        },
+      });
+  }
+
+  protected rolLabel(rol: string): string {
+    return rol === 'PROPIETARIO' ? 'Organizador' : 'Invitado';
+  }
+
+  protected abrirModalInvitar(): void {
+    this.copiadoInvitacion.set(false);
+    this.modalInvitarAbierto.set(true);
+  }
+
+  protected cerrarModalInvitar(): void {
+    this.modalInvitarAbierto.set(false);
+  }
+
+  protected copiarUuidInvitacion(): void {
+    const uuid = this.uuidInvitacion();
+    if (!uuid) {
+      return;
+    }
+    navigator.clipboard.writeText(uuid).then(() => {
+      this.copiadoInvitacion.set(true);
+      setTimeout(() => this.copiadoInvitacion.set(false), 2000);
+    });
+  }
+
+  protected confirmarAbandonarViaje(): void {
+    if (!this.viajeId || this.abandonandoAjustes()) {
+      return;
+    }
+    if (
+      !window.confirm(
+        '¿Abandonar este viaje? Podrás volver a unirte más tarde con el código.'
+      )
+    ) {
+      return;
+    }
+    this.abandonandoAjustes.set(true);
+    this.errorAbandonar.set(null);
+    this.viajeService.abandonarViaje(this.viajeId).subscribe({
+      next: () => {
+        this.abandonandoAjustes.set(false);
+        this.viajeService.viajes.update((viajes) =>
+          viajes.filter((viaje) => viaje.id !== this.viajeId)
+        );
+        void this.router.navigate(['/dashboard']);
+      },
+      error: () => {
+        this.abandonandoAjustes.set(false);
+        this.errorAbandonar.set('No se pudo abandonar el viaje.');
+      },
+    });
+  }
+
+  private reactualizarEnLista(viaje: Viaje): void {
+    this.viajeService.viajes.update((viajes) =>
+      viajes.map((v) => (v.id === viaje.id ? viaje : v))
+    );
   }
 
   protected hasError(field: 'dia' | 'titulo' | 'hora' | 'ubicacion'): boolean {

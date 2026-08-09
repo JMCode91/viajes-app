@@ -2,7 +2,13 @@ import { inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map } from 'rxjs';
 
-import { Participante, UUID, Viaje, ViajeRequest } from '../../shared/types';
+import {
+  Participante,
+  UUID,
+  Viaje,
+  ViajeRequest,
+  ViajeUpdateRequest,
+} from '../../shared/types';
 
 @Injectable({ providedIn: 'root' })
 export class ViajeService {
@@ -40,6 +46,16 @@ export class ViajeService {
     return this.http.post<Viaje>(`/api/viajes`, viaje);
   }
 
+  updateViaje(id: UUID, viaje: ViajeUpdateRequest): Observable<Viaje> {
+    return this.http.put<Viaje>(`/api/viajes/${id}`, viaje);
+  }
+
+  uploadPortada(id: UUID, file: File): Observable<Viaje> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<Viaje>(`/api/viajes/${id}/portada`, formData);
+  }
+
   unirseViaje(uuid: string): Observable<void> {
     return this.http.put<void>(`/api/viajes/${uuid}/responder-invitacion`, null, {
       params: { aceptar: 'true' },
@@ -64,5 +80,11 @@ export class ViajeService {
     this.getParticipantes(viajeId).subscribe({
       next: (participantes) => this.participantes.set(participantes),
     });
+  }
+
+  kickParticipante(viajeId: UUID, usuarioId: UUID): Observable<void> {
+    return this.http.delete<void>(
+      `/api/viajes/${viajeId}/participantes/${usuarioId}`
+    );
   }
 }

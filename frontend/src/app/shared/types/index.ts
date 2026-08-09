@@ -32,6 +32,14 @@ export interface Viaje {
   fechaFin: string;
   presupuestoBase: number;
   rolEnViaje: string;
+  fotoPortada: string | null;
+  participantes: Participante[];
+}
+
+export interface ViajeUpdateRequest {
+  titulo: string;
+  fechaInicio: string;
+  fechaFin: string;
 }
 
 export interface Participante {
