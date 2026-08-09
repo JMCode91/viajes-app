@@ -10,6 +10,7 @@ const USUARIO_KEY = 'auth_usuario';
 export interface UsuarioSesion {
   email: string;
   nombre: string;
+  avatarUrl: string | null;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -51,21 +52,47 @@ export class AuthService {
     return localStorage.getItem(TOKEN_KEY);
   }
 
+  uploadAvatar(file: File): Observable<{ avatarUrl: string | null }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http
+      .post<{ avatarUrl: string | null }>(`/api/usuarios/me/avatar`, formData)
+      .pipe(tap((response) => this.actualizarAvatar(response.avatarUrl)));
+  }
+
+  private actualizarAvatar(avatarUrl: string | null | undefined): void {
+    const usuario = this._usuario();
+    if (!usuario) {
+      return;
+    }
+    const actualizado: UsuarioSesion = {
+      ...usuario,
+      avatarUrl: avatarUrl ?? null,
+    };
+    this._usuario.set(actualizado);
+    localStorage.setItem(USUARIO_KEY, JSON.stringify(actualizado));
+  }
+
   private saveAuth(response: AuthResponse): void {
     localStorage.setItem(TOKEN_KEY, response.token);
-    localStorage.setItem(
-      USUARIO_KEY,
-      JSON.stringify({ email: response.email, nombre: response.nombre })
-    );
+    const usuario: UsuarioSesion = {
+      email: response.email,
+      nombre: response.nombre,
+      avatarUrl: response.avatarUrl ?? null,
+    };
+    localStorage.setItem(USUARIO_KEY, JSON.stringify(usuario));
     this._isAuthenticated.set(true);
-    this._usuario.set({ email: response.email, nombre: response.nombre });
+    this._usuario.set(usuario);
   }
 
   private cargarUsuarioSesion(): UsuarioSesion | null {
     try {
-      return JSON.parse(localStorage.getItem(USUARIO_KEY) ?? 'null') as
+      const sesion = JSON.parse(localStorage.getItem(USUARIO_KEY) ?? 'null') as
         | UsuarioSesion
         | null;
+      return sesion
+        ? { email: sesion.email, nombre: sesion.nombre, avatarUrl: sesion.avatarUrl ?? null }
+        : null;
     } catch {
       return null;
     }

@@ -152,6 +152,7 @@ export interface AuthResponse {
   token: string;
   email: string;
   nombre: string;
+  avatarUrl?: string | null;
 }
 
 export interface LoginRequest {
