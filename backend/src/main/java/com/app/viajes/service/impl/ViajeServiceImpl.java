@@ -16,6 +16,7 @@ import com.app.viajes.model.Viaje;
 import com.app.viajes.model.enums.EstadoInvitacion;
 import com.app.viajes.repository.ActividadRepository;
 import com.app.viajes.repository.AlbumRepository;
+import com.app.viajes.repository.DeudaGastoRepository;
 import com.app.viajes.repository.DocumentoRepository;
 import com.app.viajes.repository.FotoRepository;
 import com.app.viajes.repository.GastoRepository;
@@ -51,6 +52,7 @@ public class ViajeServiceImpl implements ViajeService {
     private final UsuarioViajeRepository usuarioViajeRepository;
     private final ActividadRepository actividadRepository;
     private final GastoRepository gastoRepository;
+    private final DeudaGastoRepository deudaGastoRepository;
     private final TareaChecklistRepository tareaChecklistRepository;
     private final DocumentoRepository documentoRepository;
     private final FotoRepository fotoRepository;
@@ -62,6 +64,7 @@ public class ViajeServiceImpl implements ViajeService {
                             UsuarioViajeRepository usuarioViajeRepository,
                             ActividadRepository actividadRepository,
                             GastoRepository gastoRepository,
+                            DeudaGastoRepository deudaGastoRepository,
                             TareaChecklistRepository tareaChecklistRepository,
                             DocumentoRepository documentoRepository,
                             FotoRepository fotoRepository,
@@ -72,6 +75,7 @@ public class ViajeServiceImpl implements ViajeService {
         this.usuarioViajeRepository = usuarioViajeRepository;
         this.actividadRepository = actividadRepository;
         this.gastoRepository = gastoRepository;
+        this.deudaGastoRepository = deudaGastoRepository;
         this.tareaChecklistRepository = tareaChecklistRepository;
         this.documentoRepository = documentoRepository;
         this.fotoRepository = fotoRepository;
@@ -104,6 +108,7 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getFechaInicio(),
                 viaje.getFechaFin(),
                 viaje.getPresupuestoBase(),
+                viaje.getPresupuestoGlobal(),
                 ROL_PROPIETARIO,
                 viaje.getFotoPortada(),
                 obtenerParticipantesDTO(viaje));
@@ -249,6 +254,9 @@ public class ViajeServiceImpl implements ViajeService {
         // Borrado inteligente: primero se purgan fisicamente de Cloudflare R2
         // todos los documentos asociados al viaje y luego se eliminan las filas.
         tareaChecklistRepository.deleteByViajeId(viajeId);
+        // Las deudas de gastos se purgan antes que los gastos para no
+        // violar la clave foranea en el borrado en cascada manual.
+        deudaGastoRepository.deleteByGastoViajeId(viajeId);
         gastoRepository.deleteByViajeId(viajeId);
 
         List<Documento> documentos = documentoRepository.findByActividadViajeId(viajeId);
@@ -288,7 +296,8 @@ public class ViajeServiceImpl implements ViajeService {
                         pertenencia.getUsuario().getNombre(),
                         pertenencia.getUsuario().getEmail(),
                         pertenencia.getRolEnViaje(),
-                        pertenencia.getUsuario().getAvatarUrl()))
+                        pertenencia.getUsuario().getAvatarUrl(),
+                        pertenencia.getPresupuestoIndividual()))
                 .toList();
     }
 
@@ -303,6 +312,11 @@ public class ViajeServiceImpl implements ViajeService {
         viaje.setTitulo(request.titulo());
         viaje.setFechaInicio(request.fechaInicio());
         viaje.setFechaFin(request.fechaFin());
+        // El presupuesto global es opcional: si no viaja en el request,
+        // se conserva el valor actual del viaje.
+        if (request.presupuestoGlobal() != null) {
+            viaje.setPresupuestoGlobal(request.presupuestoGlobal());
+        }
         viajeRepository.save(viaje);
 
         return toResponseDTO(viaje, ROL_PROPIETARIO);
@@ -378,7 +392,8 @@ public class ViajeServiceImpl implements ViajeService {
                         pertenencia.getUsuario().getNombre(),
                         pertenencia.getUsuario().getEmail(),
                         pertenencia.getRolEnViaje(),
-                        pertenencia.getUsuario().getAvatarUrl()))
+                        pertenencia.getUsuario().getAvatarUrl(),
+                        pertenencia.getPresupuestoIndividual()))
                 .toList();
     }
 
@@ -390,6 +405,7 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getFechaInicio(),
                 viaje.getFechaFin(),
                 viaje.getPresupuestoBase(),
+                viaje.getPresupuestoGlobal(),
                 pertenencia.getRolEnViaje(),
                 viaje.getFotoPortada(),
                 obtenerParticipantesDTO(viaje));
@@ -402,6 +418,7 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getFechaInicio(),
                 viaje.getFechaFin(),
                 viaje.getPresupuestoBase(),
+                viaje.getPresupuestoGlobal(),
                 rolEnViaje,
                 viaje.getFotoPortada(),
                 obtenerParticipantesDTO(viaje));

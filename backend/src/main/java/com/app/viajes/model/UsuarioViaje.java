@@ -17,6 +17,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.util.UUID;
 
 /**
@@ -58,4 +59,12 @@ public class UsuarioViaje {
      */
     @Column(name = "activo", nullable = false, columnDefinition = "boolean default true")
     private boolean activo = true;
+
+    /**
+     * Presupuesto individual de gastos asignado a este participante
+     * dentro del viaje. Por defecto 0.0 (modulo de Finanzas y Gastos Compartidos).
+     */
+    @Column(name = "presupuesto_individual", nullable = false, precision = 12, scale = 2,
+            columnDefinition = "numeric(12,2) default 0.0")
+    private BigDecimal presupuestoIndividual = BigDecimal.ZERO;
 }

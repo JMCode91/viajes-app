@@ -46,7 +46,21 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE) + AVATAR DE USUARIO (SUBIDA DE PERFIL A R2) + PROPAGACIÓN DE AVATAR A DTOs (PARTICIPANTES Y FOTOS)** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT) + MÓDULO GALERÍA MULTIMEDIA (ÁLBUMES Y FOTOS) + PANEL DE AJUSTES DEL VIAJE (PORTADA, EDITAR DATOS, EXPULSAR PARTICIPANTE) + AVATAR DE USUARIO (SUBIDA DE PERFIL A R2) + PROPAGACIÓN DE AVATAR A DTOs (PARTICIPANTES Y FOTOS) + MÓDULO DE FINANZAS Y GASTOS COMPARTIDOS (FASE ESTRUCTURAL)** COMPLETADOS.
+- **Completado en esta sesión (Módulo Finanzas — Fase Estructural: presupuestos, enums, Gasto avanzado y DeudaGasto):**
+  - **Presupuestos:** `Viaje.presupuestoGlobal` (BigDecimal, `numeric(12,2) default 0.0`, inicializado a `BigDecimal.ZERO`) amplía el presupuesto base existente. `ViajeResponseDTO` y `ViajeUpdateDTO` lo exponen (en Update es opcional; si llega `null` el valor actual se conserva). `UsuarioViaje.presupuestoIndividual` (BigDecimal, mismo default) se añade a `ParticipanteResponseDTO`.
+  - **Enums nuevos** en `model/enums`: `TipoGasto` (PERSONAL, COMPARTIDO) y `TipoDivision` (PARTES_IGUALES, PORCENTAJE, DEUDA_PAGADOR, DEUDA_TERCERO).
+  - **Entidad `Gasto` refactorizada** (tabla `gastos`): id UUID auto, `concepto` (200), `importe` (BigDecimal 12,2, sustituye a `cantidad`), `fecha` (LocalDateTime, por defecto ahora), `tipoGasto` (Enum STRING no nulo), `tipoDivision` (Enum STRING nullable: null para gastos personales). Relaciones: `@ManyToOne Viaje` y `@ManyToOne Usuario pagador` (sustituye al antiguo `pagadorId` UUID).
+  - **Entidad `DeudaGasto`** (tabla `deudas_gastos`): id UUID auto, `@ManyToOne Gasto` (no nulo), `@ManyToOne Usuario deudor` (no nulo), `importeDeuda` (BigDecimal 12,2, cantidad exacta que debe), `porcentajeAsignado` (BigDecimal 5,2, nullable, útil en divisiones PORCENTAJE).
+  - **Repositorios:** `GastoRepository` actualizado (`findByViajeIdOrderByFechaDesc`, `deleteByViajeId` por el cambio de campo) y nuevo `DeudaGastoRepository` (`findByGastoId`, `findByGastoViajeId`, `deleteByGastoId`, `deleteByGastoViajeId`).
+  - **`GastoServiceImpl` adaptado:** valida que el **pagador pertenezca al viaje** (seguridad por propiedad de recursos), aplica defaults (`tipoGasto=COMPARTIDO`, `tipoDivision=PARTES_IGUALES` si son null), fuerza `tipoDivision=null` en gastos PERSONAL y el `DELETE` purga primero las deudas (`deleteByGastoId`) para no violar la FK. `GastoResponseDTO` ahora devuelve `importe`, `fecha`, `tipoGasto`, `tipoDivision`, `pagadorId` y `pagadorNombre`.
+  - **`ViajeServiceImpl`:**
+    - `crearViaje` y ambos `toResponseDTO` (de pertenencia y de viaje+rol) rellenan el nuevo campo `presupuestoGlobal`.
+    - `obtenerParticipantes` y `obtenerParticipantesDTO` difunden `pertenencia.getPresupuestoIndividual()` en cada `ParticipanteResponseDTO`.
+    - `actualizarViaje` (PUT) aplica `request.presupuestoGlobal()` solo si no es null.
+    - `eliminarViaje` ahora purga las deudas **antes** que los gastos (`deudaGastoRepository.deleteByGastoViajeId`) dentro del borrado en cascada manual para no violar la FK.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile` (BUILD SUCCESS).
+- **Pendiente (próxima sesión del Módulo Finanzas):** lógica de cálculo de división de gastos (reparto a partes iguales / porcentajes), endpoints de deudas y liquidaciones entre participantes, y conexión del frontend a los gastos avanzados (el frontend actual envía `cantidad`/`pagadorId` y deberá migrar al nuevo contrato `importe`/`tipoGasto`/`tipoDivision`).
 - **Completado en esta sesión (Propagación de `avatarUrl` a participantes y fotos de la galería):**
   - **`ParticipanteResponseDTO`** ampliado con el campo **`avatarUrl`** (URL R2 del perfil del usuario; `null` si aún no tiene avatar).
   - **`ViajeServiceImpl`:** los dos mapeos de participantes (`obtenerParticipantes` y `obtenerParticipantesDTO` del `ViajeResponseDTO`) pasan ahora `pertenencia.getUsuario().getAvatarUrl()`. Así el frontend ya puede pintar la foto de perfil tanto en la lista de participantes de un viaje como dentro de cada `ViajeResponseDTO`.
@@ -154,7 +168,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
   - El rol se mapea como `ROLE_USER` / `ROLE_ADMIN` (SimpleGrantedAuthority).
   - Endpoints `/api/auth/**` son públicos (`permitAll`); el resto de rutas requieren JWT.
   - La autorización de viajes se basa en la tabla `usuarios_viajes` (pertenencia/propiedad de recursos). Todos los módulos de viaje (actividades, checklist, gastos, archivos) validan la pertenencia en cada operación.
-- **Últimos commits:** `feat(backend): Add trip settings endpoints (cover photo, update details, kick participant)`, `feat(backend): Create Album and Foto entities, S3 integration and endpoints for Gallery`, `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
+- **Últimos commits:** `feat(backend): Create financial entities, budgets, enums and relationships`, `feat(backend): Add trip settings endpoints (cover photo, update details, kick participant)`, `feat(backend): Create Album and Foto entities, S3 integration and endpoints for Gallery`, `feat: Borrado en cascada R2 y UI multi-documento en el frontend`, `refactor: Soporte multi-documento 1:N y borrado inteligente en R2`, `feat: Endpoint eliminar viaje y arquitectura backend para Checklist`, `feat: Integración de Cloudflare R2 (S3) y endpoint para subida de documentos`.
 
 ---
 
@@ -188,9 +202,9 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/estado?completada=true` | Marcar/desmarcar tarea como completada | JWT |
 | PUT | `/api/viajes/{viajeId}/checklist/{tareaId}/asignar?asignadoId=` | Asignar/desasignar usuario a una tarea | JWT |
 | DELETE | `/api/viajes/{viajeId}/checklist/{tareaId}` | Eliminar una tarea de la checklist | JWT |
-| POST | `/api/viajes/{viajeId}/gastos` | Registrar un gasto del viaje | JWT |
-| GET | `/api/viajes/{viajeId}/gastos` | Listar gastos del viaje | JWT |
-| DELETE | `/api/viajes/{viajeId}/gastos/{gastoId}` | Eliminar un gasto | JWT |
+| POST | `/api/viajes/{viajeId}/gastos` | Registrar un gasto del viaje (`concepto`, `importe`, `pagadorId`, `tipoGasto` y `tipoDivision` opcionales con defaults COMPARTIDO/PARTES_IGUALES). `GastoResponseDTO` incluye importe, fecha, tipos y pagador | JWT |
+| GET | `/api/viajes/{viajeId}/gastos` | Listar gastos del viaje ordenados por fecha desc | JWT |
+| DELETE | `/api/viajes/{viajeId}/gastos/{gastoId}` | Eliminar un gasto (purga previa de sus deudas) | JWT |
 | POST | `/api/viajes/{viajeId}/albumes` | Crear un álbum de fotos de la galería (`nombre`). Devuelve 201 con `AlbumResponseDTO` | JWT |
 | GET | `/api/viajes/{viajeId}/albumes` | Listar álbumes del viaje ordenados por fecha de creación | JWT |
 | DELETE | `/api/viajes/{viajeId}/albumes/{albumId}` | Eliminar un álbum (204). Las fotos se desasocian (pasan a "sin álbum"), no se borran | JWT |

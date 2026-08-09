@@ -1,7 +1,11 @@
 package com.app.viajes.model;
 
+import com.app.viajes.model.enums.TipoDivision;
+import com.app.viajes.model.enums.TipoGasto;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -15,10 +19,14 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Entidad que representa un gasto de un viaje y quien lo pago.
+ * Entidad principal del modulo de Finanzas y Gastos Compartidos.
+ * Representa un gasto del viaje, quien lo abono (pagador) y como se
+ * divide entre los participantes. La division de un gasto PERSONAL queda
+ * sin {@code tipoDivision} (null) y no genera deudas.
  */
 @Entity
 @Table(name = "gastos")
@@ -37,12 +45,28 @@ public class Gasto {
     @JoinColumn(name = "viaje_id", nullable = false)
     private Viaje viaje;
 
+    /**
+     * Usuario que abono el gasto. La pertenencia del pagador al viaje se
+     * valida en la capa de servicio antes de persistir.
+     */
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "pagador_id", nullable = false)
+    private Usuario pagador;
+
     @Column(name = "concepto", nullable = false, length = 200)
     private String concepto;
 
-    @Column(name = "cantidad", nullable = false, precision = 12, scale = 2)
-    private BigDecimal cantidad;
+    @Column(name = "importe", nullable = false, precision = 12, scale = 2)
+    private BigDecimal importe;
 
-    @Column(name = "pagador_id", nullable = false)
-    private UUID pagadorId;
+    @Column(name = "fecha", nullable = false)
+    private LocalDateTime fecha = LocalDateTime.now();
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_gasto", nullable = false, length = 20)
+    private TipoGasto tipoGasto;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_division", length = 30)
+    private TipoDivision tipoDivision;
 }

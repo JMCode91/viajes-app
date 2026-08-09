@@ -16,6 +16,7 @@ public record ViajeResponseDTO(
         LocalDate fechaInicio,
         LocalDate fechaFin,
         BigDecimal presupuestoBase,
+        BigDecimal presupuestoGlobal,
         String rolEnViaje,
         String fotoPortada,
         List<ParticipanteResponseDTO> participantes

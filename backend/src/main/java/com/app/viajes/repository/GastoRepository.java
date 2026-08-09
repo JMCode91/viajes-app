@@ -11,7 +11,14 @@ import java.util.UUID;
  */
 public interface GastoRepository extends JpaRepository<Gasto, UUID> {
 
-    List<Gasto> findByViajeIdOrderByCantidadDesc(UUID viajeId);
+    /**
+     * Obtiene los gastos de un viaje ordenados por fecha (mas recientes primero).
+     */
+    List<Gasto> findByViajeIdOrderByFechaDesc(UUID viajeId);
 
+    /**
+     * Elimina todos los gastos de un viaje.
+     * Usado en el borrado en cascada manual de {@code ViajeService}.
+     */
     void deleteByViajeId(UUID viajeId);
 }

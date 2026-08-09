@@ -44,6 +44,15 @@ public class Viaje {
     private BigDecimal presupuestoBase;
 
     /**
+     * Presupuesto global del viaje (techo economico total).
+     * Por defecto 0.0 y puede agrupar los presupuestos individuales
+     * de los participantes para el modulo de Finanzas y Gastos Compartidos.
+     */
+    @Column(name = "presupuesto_global", nullable = false, precision = 12, scale = 2,
+            columnDefinition = "numeric(12,2) default 0.0")
+    private BigDecimal presupuestoGlobal = BigDecimal.ZERO;
+
+    /**
      * URL publica (Cloudflare R2) de la foto de portada del viaje.
      * Es opcional y se gestiona desde el Panel de Ajustes del Viaje.
      */

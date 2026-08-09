@@ -8,6 +8,9 @@ import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Gasto;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.Viaje;
+import com.app.viajes.model.enums.TipoDivision;
+import com.app.viajes.model.enums.TipoGasto;
+import com.app.viajes.repository.DeudaGastoRepository;
 import com.app.viajes.repository.GastoRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
@@ -23,7 +26,7 @@ import java.util.UUID;
 
 /**
  * Implementacion del servicio de gastos. Valida la pertenencia del
- * usuario autenticado al viaje en cada operacion.
+ * usuario autenticado al viaje y del pagador al mismo en cada operacion.
  */
 @Service
 public class GastoServiceImpl implements GastoService {
@@ -32,15 +35,18 @@ public class GastoServiceImpl implements GastoService {
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final DeudaGastoRepository deudaGastoRepository;
 
     public GastoServiceImpl(GastoRepository gastoRepository,
                             ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
-                            UsuarioViajeRepository usuarioViajeRepository) {
+                            UsuarioViajeRepository usuarioViajeRepository,
+                            DeudaGastoRepository deudaGastoRepository) {
         this.gastoRepository = gastoRepository;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.deudaGastoRepository = deudaGastoRepository;
     }
 
     @Override
@@ -51,11 +57,32 @@ public class GastoServiceImpl implements GastoService {
         Viaje viaje = viajeRepository.findById(viajeId)
                 .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
 
+        Usuario pagador = usuarioRepository.findById(dto.pagadorId())
+                .orElseThrow(() -> new UsuarioNoEncontradoException(
+                        "El pagador indicado no existe"));
+
+        // Seguridad por propiedad de recursos: el pagador debe pertenecer
+        // al viaje para poder registrar gastos en el.
+        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(pagador.getId(), viajeId)) {
+            throw new AccesoDenegadoException(
+                    "El pagador indicado no pertenece a este viaje");
+        }
+
         Gasto gasto = new Gasto();
         gasto.setViaje(viaje);
+        gasto.setPagador(pagador);
         gasto.setConcepto(dto.concepto());
-        gasto.setCantidad(dto.cantidad());
-        gasto.setPagadorId(dto.pagadorId());
+        gasto.setImporte(dto.importe());
+        gasto.setTipoGasto(dto.tipoGasto() != null ? dto.tipoGasto() : TipoGasto.COMPARTIDO);
+
+        // Un gasto personal no se divide: su tipo de division queda null.
+        if (gasto.getTipoGasto() == TipoGasto.PERSONAL) {
+            gasto.setTipoDivision(null);
+        } else {
+            gasto.setTipoDivision(dto.tipoDivision() != null
+                    ? dto.tipoDivision()
+                    : TipoDivision.PARTES_IGUALES);
+        }
         gastoRepository.save(gasto);
 
         return toResponseDTO(gasto);
@@ -65,7 +92,7 @@ public class GastoServiceImpl implements GastoService {
     @Transactional(readOnly = true)
     public List<GastoResponseDTO> obtenerGastos(UUID viajeId) {
         verificarPertenencia(viajeId);
-        return gastoRepository.findByViajeIdOrderByCantidadDesc(viajeId)
+        return gastoRepository.findByViajeIdOrderByFechaDesc(viajeId)
                 .stream()
                 .map(this::toResponseDTO)
                 .toList();
@@ -83,6 +110,8 @@ public class GastoServiceImpl implements GastoService {
             throw new AccesoDenegadoException("El gasto no pertenece a este viaje");
         }
 
+        // Se purgan primero las deudas asociadas para no violar la FK.
+        deudaGastoRepository.deleteByGastoId(gastoId);
         gastoRepository.delete(gasto);
     }
 
@@ -106,7 +135,11 @@ public class GastoServiceImpl implements GastoService {
                 gasto.getId(),
                 gasto.getViaje().getId(),
                 gasto.getConcepto(),
-                gasto.getCantidad(),
-                gasto.getPagadorId());
+                gasto.getImporte(),
+                gasto.getFecha(),
+                gasto.getTipoGasto(),
+                gasto.getTipoDivision(),
+                gasto.getPagador().getId(),
+                gasto.getPagador().getNombre());
     }
 }
