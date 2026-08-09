@@ -23,5 +23,11 @@ public interface UsuarioViajeRepository extends JpaRepository<UsuarioViaje, UUID
 
     List<UsuarioViaje> findByUsuarioIdAndEstadoInvitacion(UUID usuarioId, EstadoInvitacion estadoInvitacion);
 
+    /**
+     * Participantes ACEPTADOS y activos de un viaje (excluye abandonos).
+     * Usado para repartir los gastos compartidos a partes iguales.
+     */
+    List<UsuarioViaje> findByViajeIdAndEstadoInvitacionAndActivoTrue(UUID viajeId, EstadoInvitacion estadoInvitacion);
+
     void deleteByViajeId(UUID viajeId);
 }

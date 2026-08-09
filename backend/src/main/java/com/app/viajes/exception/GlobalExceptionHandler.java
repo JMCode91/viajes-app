@@ -46,6 +46,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
     }
 
+    @ExceptionHandler(DatosInvalidosException.class)
+    public ResponseEntity<ApiError> handleDatosInvalidos(DatosInvalidosException ex) {
+        return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiError> handleBadCredentials(BadCredentialsException ex) {
         // Mensaje generico: no se revela si fallo el email o la contrasena.

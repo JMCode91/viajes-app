@@ -1,5 +1,6 @@
 package com.app.viajes.service;
 
+import com.app.viajes.dto.BalanceResponseDTO;
 import com.app.viajes.dto.GastoRequestDTO;
 import com.app.viajes.dto.GastoResponseDTO;
 
@@ -7,7 +8,7 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Servicio de gastos de un viaje.
+ * Servicio de gastos y balances de un viaje.
  */
 public interface GastoService {
 
@@ -16,4 +17,10 @@ public interface GastoService {
     List<GastoResponseDTO> obtenerGastos(UUID viajeId);
 
     void eliminarGasto(UUID viajeId, UUID gastoId);
+
+    /**
+     * Resumen financiero del viaje para el usuario autenticado:
+     * presupuestos, total gastado y deudas simplificadas.
+     */
+    BalanceResponseDTO obtenerBalance(UUID viajeId);
 }

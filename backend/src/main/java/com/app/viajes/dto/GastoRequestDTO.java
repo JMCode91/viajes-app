@@ -8,6 +8,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,10 @@ import java.util.UUID;
  * {@code tipoGasto} y {@code tipoDivision} son opcionales: si no se
  * indican, el servicio aplica los valores por defecto (COMPARTIDO /
  * PARTES_IGUALES).
+ * <p>
+ * {@code detalles} es obligatorio para las divisiones PORCENTAJE,
+ * DEUDA_PAGADOR y DEUDA_TERCERO, y se ignora en PARTES_IGUALES y
+ * en gastos PERSONALES.
  */
 public record GastoRequestDTO(
         @NotBlank(message = "El concepto es obligatorio")
@@ -30,6 +35,8 @@ public record GastoRequestDTO(
 
         TipoGasto tipoGasto,
 
-        TipoDivision tipoDivision
+        TipoDivision tipoDivision,
+
+        List<DetalleDivisionDTO> detalles
 ) {
 }
