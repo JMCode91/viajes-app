@@ -61,7 +61,7 @@ export class GastoService {
     return id;
   }
 
-  nombrePagador(id: UUID): string {
+  nombrePagador(id: UUID | undefined): string {
     return [...this.pagadores].find(([k]) => k === id)?.[1] ?? 'Invitado';
   }
 

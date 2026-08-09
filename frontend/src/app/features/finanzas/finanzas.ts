@@ -9,6 +9,7 @@ import { ThemeService } from '../../core/services/theme.service';
 import {
   DeudaResumen,
   DetalleDivision,
+  Gasto,
   TipoGasto,
   TipoDivision,
   UUID,
@@ -95,6 +96,16 @@ export class Finanzas {
     return this.balance()?.deudas ?? [];
   });
 
+  protected readonly miUsuarioId = computed<UUID | null>(() => {
+    const email = this.usuario()?.email;
+    if (!email) {
+      return null;
+    }
+    return (
+      this.participantes().find((p) => p.email === email)?.usuarioId ?? null
+    );
+  });
+
   protected readonly sumaPorcentajes = computed(() =>
     Object.values(this.porcentajes()).reduce<number>(
       (sum, valor) => sum + (valor ?? 0),
@@ -158,12 +169,38 @@ export class Finanzas {
     this.vistaActiva.set(vista);
   }
 
-  protected nombrePagador(id: UUID): string {
+  protected nombrePagador(id: UUID | undefined): string {
     return this.gastoService.nombrePagador(id);
   }
 
-  protected inicialPagador(id: UUID): string {
+  protected inicialPagador(id: UUID | undefined): string {
     return (this.nombrePagador(id) || '?').charAt(0).toUpperCase();
+  }
+
+  protected getResumenGasto(gasto: Gasto): {
+    texto: string;
+    importe: number;
+    color: string;
+  } {
+    const id = this.miUsuarioId();
+    const soyPagador = id !== null && gasto.pagadorId === id;
+
+    if (soyPagador) {
+      const totalPrestado = (gasto.deudas ?? []).reduce(
+        (suma, deuda) => suma + deuda.importe,
+        0
+      );
+      if (totalPrestado > 0) {
+        return { texto: 'prestaste', importe: totalPrestado, color: 'text-emerald-500' };
+      }
+      return { texto: 'pagaste', importe: gasto.importe, color: 'text-gray-400' };
+    }
+
+    const miDeuda = (gasto.deudas ?? []).find((d) => d.deudorId === id);
+    if (miDeuda) {
+      return { texto: 'pediste', importe: miDeuda.importe, color: 'text-orange-500' };
+    }
+    return { texto: 'no participas', importe: 0, color: 'text-gray-500' };
   }
 
   protected seleccionarViaje(id: string): void {

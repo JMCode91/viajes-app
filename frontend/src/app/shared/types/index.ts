@@ -109,6 +109,12 @@ export interface DetalleDivision {
   valorAsignado: number;
 }
 
+export interface DetalleDeuda {
+  deudorId: UUID;
+  deudorNombre: string;
+  importe: number;
+}
+
 export interface Gasto {
   id: UUID;
   viajeId: UUID;
@@ -117,8 +123,9 @@ export interface Gasto {
   fecha: string;
   tipoGasto: TipoGasto;
   tipoDivision: TipoDivision | null;
-  pagadorId: UUID;
+  pagadorId?: UUID;
   pagadorNombre: string;
+  deudas?: DetalleDeuda[];
 }
 
 export interface GastoRequest {

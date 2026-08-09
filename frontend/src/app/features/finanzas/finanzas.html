@@ -120,6 +120,7 @@
 
   <section class="flex flex-col gap-3">
     @for (gasto of gastosVisibles(); track gasto.id) {
+      @let resumen = getResumenGasto(gasto);
       <article class="flex items-center gap-4 rounded-3xl bg-white dark:bg-gray-800 p-4 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
         <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-500/10 text-lg font-bold text-blue-600 dark:text-blue-400">
           {{ inicialPagador(gasto.pagadorId) }}
@@ -130,9 +131,17 @@
             {{ gasto.pagadorNombre || nombrePagador(gasto.pagadorId) }}
           </p>
         </div>
-        <p class="shrink-0 text-base font-bold text-gray-900 dark:text-white">
-          {{ gasto.importe | currency: 'EUR' }}
-        </p>
+        <div class="shrink-0 text-right">
+          <p class="text-sm font-semibold text-gray-400 dark:text-gray-500">
+            {{ gasto.importe | currency: 'EUR' }}
+          </p>
+          <p class="mt-0.5 text-xs font-bold" [class]="resumen.color">
+            {{ resumen.texto }}
+            @if (resumen.importe > 0) {
+              {{ resumen.importe | currency: 'EUR' }}
+            }
+          </p>
+        </div>
       </article>
     } @empty {
       <section class="flex flex-col items-center justify-center py-24 text-center">
