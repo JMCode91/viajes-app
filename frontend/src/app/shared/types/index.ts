@@ -79,13 +79,6 @@ export interface ActividadRequest {
   direccion?: string;
 }
 
-export interface NominatimResult {
-  place_id: number;
-  display_name: string;
-  lat: string;
-  lon: string;
-}
-
 export interface Gasto {
   id: UUID;
   viajeId: UUID;

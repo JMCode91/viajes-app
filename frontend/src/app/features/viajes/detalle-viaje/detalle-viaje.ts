@@ -5,15 +5,26 @@ import {
   inject,
   OnDestroy,
   signal,
+  ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { DatePipe } from '@angular/common';
-import { HttpClient } from '@angular/common/http';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
-import * as L from 'leaflet';
+import { GoogleMap, MapInfoWindow, MapMarker } from '@angular/google-maps';
+import {
+  debounceTime,
+  distinctUntilChanged,
+  finalize,
+  Observable,
+  of,
+  Subject,
+  Subscription,
+  switchMap,
+} from 'rxjs';
 
 import { CustomTimePicker } from '../../../shared/components/custom-time-picker/custom-time-picker';
+import { GoogleMapsService } from '../../../core/services/google-maps.service';
 import { ActividadService } from '../../../core/services/actividad.service';
 import { TareaChecklistService } from '../../../core/services/tarea-checklist.service';
 import { ViajeService } from '../../../core/services/viaje.service';
@@ -21,7 +32,6 @@ import {
   Actividad,
   ActividadRequest,
   Documento,
-  NominatimResult,
   TareaChecklistResponse,
   UUID,
 } from '../../../shared/types';
@@ -44,7 +54,15 @@ export type ListaChecklist = 'comun' | 'privada';
 
 @Component({
   selector: 'app-detalle-viaje',
-  imports: [DatePipe, ReactiveFormsModule, FormsModule, CustomTimePicker],
+  imports: [
+    DatePipe,
+    ReactiveFormsModule,
+    FormsModule,
+    CustomTimePicker,
+    GoogleMap,
+    MapMarker,
+    MapInfoWindow,
+  ],
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
 })
@@ -52,10 +70,10 @@ export class DetalleViaje implements OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly fb = inject(FormBuilder);
-  private readonly http = inject(HttpClient);
   private readonly viajeService = inject(ViajeService);
   private readonly actividadService = inject(ActividadService);
   private readonly tareaChecklistService = inject(TareaChecklistService);
+  private readonly googleMapsService = inject(GoogleMapsService);
 
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
@@ -80,7 +98,9 @@ export class DetalleViaje implements OnDestroy {
   protected readonly errorEliminar = signal<string | null>(null);
 
   protected readonly buscandoLugar = signal(false);
-  protected readonly resultadosBusqueda = signal<NominatimResult[]>([]);
+  protected readonly resultadosBusqueda = signal<
+    google.maps.places.AutocompletePrediction[]
+  >([]);
   protected readonly errorBusqueda = signal<string | null>(null);
 
   protected readonly actividadesConCoordenadas = computed(() =>
@@ -89,7 +109,33 @@ export class DetalleViaje implements OnDestroy {
     )
   );
 
-  private mapa: L.Map | null = null;
+  protected readonly centroMapa = computed<google.maps.LatLngLiteral>(() => {
+    const puntos = this.actividadesConCoordenadas();
+    if (puntos.length > 0) {
+      return {
+        lat: puntos[0].latitud ?? 40.4168,
+        lng: puntos[0].longitud ?? -3.7038,
+      };
+    }
+    return { lat: 40.4168, lng: -3.7038 };
+  });
+
+  protected readonly zoomMapa = 6;
+
+  protected readonly opcionesMapa: google.maps.MapOptions = {
+    scrollwheel: false,
+    streetViewControl: false,
+    mapTypeControl: false,
+    fullscreenControl: false,
+  };
+
+  protected readonly actividadInfo = signal<Actividad | null>(null);
+
+  @ViewChild('infoWindow') protected infoWindow?: MapInfoWindow;
+
+  private mapaGoogle: google.maps.Map | null = null;
+  private readonly busquedaLugar$ = new Subject<string>();
+  private readonly suscripcionBusqueda: Subscription;
 
   protected readonly uuidInvitacion = computed<UUID | null>(
     () => this.viaje()?.id ?? null
@@ -171,12 +217,46 @@ export class DetalleViaje implements OnDestroy {
       this.viajeService.cargarParticipantes(this.viajeId);
     }
 
+    void this.googleMapsService.cargar();
+
     effect(() => {
       const primerDia = this.dias()[0]?.valor;
       if (primerDia && !this.diaSeleccionado()) {
         this.diaSeleccionado.set(primerDia);
       }
     });
+
+    effect(() => {
+      this.actividadesConCoordenadas();
+      this.ajustarBounds();
+    });
+
+    this.suscripcionBusqueda = this.busquedaLugar$
+      .pipe(
+        debounceTime(500),
+        distinctUntilChanged(),
+        switchMap((consulta) => {
+          this.buscandoLugar.set(true);
+          this.errorBusqueda.set(null);
+          return this.consultarAutocomplete(consulta).pipe(
+            finalize(() => this.buscandoLugar.set(false))
+          );
+        })
+      )
+      .subscribe({
+        next: (resultados) => this.resultadosBusqueda.set(resultados),
+        error: () => {
+          this.resultadosBusqueda.set([]);
+          this.buscandoLugar.set(false);
+          this.errorBusqueda.set(
+            'No se pudieron buscar lugares. Inténtalo de nuevo.'
+          );
+        },
+      });
+  }
+
+  ngOnDestroy(): void {
+    this.suscripcionBusqueda.unsubscribe();
   }
 
   protected goBack(): void {
@@ -185,16 +265,6 @@ export class DetalleViaje implements OnDestroy {
 
   protected setTab(tab: Tab): void {
     this.tabActiva.set(tab);
-    if (tab === 'mapa') {
-      // Al entrar en la pestana del mapa se (re)construye el mapa Leaflet
-      // sobre el contenedor recien renderizado por el @switch.
-      this.destruirMapa();
-      setTimeout(() => this.montarMapa(), 0);
-    }
-  }
-
-  ngOnDestroy(): void {
-    this.destruirMapa();
   }
 
   protected seleccionarDia(valor: string): void {
@@ -216,46 +286,46 @@ export class DetalleViaje implements OnDestroy {
     this.modalAbierto.set(false);
   }
 
-  protected buscarLugar(): void {
-    const consulta = this.formActividad.get('direccion')?.value?.trim();
-    if (!consulta || this.buscandoLugar()) {
+  protected onBuscarInput(): void {
+    const consulta = this.formActividad.get('direccion')?.value?.trim() ?? '';
+    if (!consulta) {
+      this.resultadosBusqueda.set([]);
+      this.buscandoLugar.set(false);
+      this.errorBusqueda.set(null);
       return;
     }
-
-    this.buscandoLugar.set(true);
-    this.errorBusqueda.set(null);
-
-    const url =
-      `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=` +
-      encodeURIComponent(consulta);
-
-    this.http.get<NominatimResult[]>(url).subscribe({
-      next: (resultados) => {
-        this.resultadosBusqueda.set(resultados);
-        this.buscandoLugar.set(false);
-      },
-      error: () => {
-        this.resultadosBusqueda.set([]);
-        this.buscandoLugar.set(false);
-        this.errorBusqueda.set(
-          'No se pudieron buscar lugares. Inténtalo de nuevo.'
-        );
-      },
-    });
+    this.busquedaLugar$.next(consulta);
   }
 
-  protected seleccionarLugar(resultado: NominatimResult): void {
-    const direccion =
-      resultado.display_name.length > 250
-        ? `${resultado.display_name.slice(0, 249)}…`
-        : resultado.display_name;
+  protected seleccionarLugar(
+    prediccion: google.maps.places.AutocompletePrediction
+  ): void {
+    const places = new google.maps.places.PlacesService(
+      document.createElement('div')
+    );
 
-    this.formActividad.patchValue({
-      direccion,
-      latitud: Number(resultado.lat),
-      longitud: Number(resultado.lon),
+    places.getDetails({ placeId: prediccion.place_id }, (lugar, estado) => {
+      if (
+        estado === google.maps.places.PlacesServiceStatus.OK &&
+        lugar?.geometry?.location
+      ) {
+        const direccion =
+          lugar.formatted_address ?? prediccion.description ?? '';
+        const direccionTruncada =
+          direccion.length > 250
+            ? `${direccion.slice(0, 249)}…`
+            : direccion;
+
+        this.formActividad.patchValue({
+          direccion: direccionTruncada,
+          latitud: lugar.geometry.location.lat(),
+          longitud: lugar.geometry.location.lng(),
+        });
+        this.resultadosBusqueda.set([]);
+      } else {
+        this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
+      }
     });
-    this.resultadosBusqueda.set([]);
   }
 
   protected abrirDetalleActividad(actividad: Actividad): void {
@@ -493,6 +563,54 @@ export class DetalleViaje implements OnDestroy {
       });
   }
 
+  protected onMapaInicializado(mapa: google.maps.Map): void {
+    this.mapaGoogle = mapa;
+    this.ajustarBounds();
+  }
+
+  protected abrirInfoWindow(marker: MapMarker, actividad: Actividad): void {
+    this.actividadInfo.set(actividad);
+    this.infoWindow?.open(marker);
+  }
+
+  private consultarAutocomplete(
+    consulta: string
+  ): Observable<google.maps.places.AutocompletePrediction[]> {
+    const termino = consulta.trim();
+    if (!termino) {
+      return of([]);
+    }
+    return new Observable((observer) => {
+      const service = new google.maps.places.AutocompleteService();
+      service.getPlacePredictions(
+        { input: termino },
+        (resultados, estado) => {
+          if (
+            estado === google.maps.places.PlacesServiceStatus.OK
+          ) {
+            observer.next(resultados ?? []);
+          } else {
+            observer.next([]);
+          }
+          observer.complete();
+        }
+      );
+    });
+  }
+
+  private ajustarBounds(): void {
+    const mapa = this.mapaGoogle;
+    const puntos = this.actividadesConCoordenadas();
+    if (!mapa || puntos.length === 0) {
+      return;
+    }
+    const bounds = new google.maps.LatLngBounds();
+    for (const punto of puntos) {
+      bounds.extend({ lat: punto.latitud ?? 0, lng: punto.longitud ?? 0 });
+    }
+    mapa.fitBounds(bounds, 56);
+  }
+
   private generarDias(inicio: string, fin: string): Dia[] {
     const start = this.fechaLocal(inicio);
     const end = this.fechaLocal(fin);
@@ -531,80 +649,5 @@ export class DetalleViaje implements OnDestroy {
     const mes = String(fecha.getUTCMonth() + 1).padStart(2, '0');
     const dia = String(fecha.getUTCDate()).padStart(2, '0');
     return `${fecha.getUTCFullYear()}-${mes}-${dia}`;
-  }
-
-  private destruirMapa(): void {
-    if (this.mapa) {
-      this.mapa.remove();
-      this.mapa = null;
-    }
-  }
-
-  private montarMapa(): void {
-    const contenedor = document.getElementById('map-itinerario');
-    if (!contenedor || this.mapa) {
-      return;
-    }
-
-    // Fix del icono por defecto de Leaflet: los assets no se resuelven
-    // con el bundler de Angular, se apuntan a copias locales en /public.
-    L.Icon.Default.mergeOptions({
-      iconRetinaUrl: 'markers/marker-icon-2x.png',
-      iconUrl: 'markers/marker-icon.png',
-      shadowUrl: 'markers/marker-shadow.png',
-    });
-
-    const puntos = this.actividadesConCoordenadas();
-
-    const centro: [number, number] =
-      puntos.length > 0
-        ? [puntos[0].latitud ?? 0, puntos[0].longitud ?? 0]
-        : [40.4168, -3.7038];
-    const zoom = puntos.length > 0 ? 12 : 6;
-
-    this.mapa = L.map(contenedor, { scrollWheelZoom: false }).setView(
-      centro,
-      zoom
-    );
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-    }).addTo(this.mapa);
-
-    const marcadores = puntos.map((actividad) =>
-      L.marker([actividad.latitud ?? 0, actividad.longitud ?? 0])
-        .addTo(this.mapa!)
-        .bindPopup(
-          `<strong>${this.escapeHtml(actividad.titulo)}</strong><br/>` +
-            `${this.horaCorta(actividad.fechaHoraInicio)}`
-        )
-    );
-
-    if (marcadores.length > 0) {
-      this.mapa.fitBounds(
-        L.featureGroup(marcadores).getBounds().pad(0.25)
-      );
-    }
-
-    // El contenedor se monta dentro de un @switch: se recalcula el tamaño
-    // para que los tiles no queden desalineados.
-    setTimeout(() => this.mapa?.invalidateSize(), 0);
-  }
-
-  private horaCorta(iso: string): string {
-    return new Date(iso).toLocaleTimeString('es-ES', {
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
-
-  private escapeHtml(texto: string): string {
-    return texto
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
   }
 }
