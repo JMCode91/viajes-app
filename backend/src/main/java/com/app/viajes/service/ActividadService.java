@@ -15,6 +15,8 @@ public interface ActividadService {
 
     ActividadResponseDTO crearActividad(UUID viajeId, ActividadRequestDTO dto);
 
+    ActividadResponseDTO actualizarActividad(UUID viajeId, UUID actividadId, ActividadRequestDTO dto);
+
     List<ActividadResponseDTO> obtenerActividadesPorViaje(UUID viajeId);
 
     List<ActividadResponseDTO> obtenerTimelinePorFecha(UUID viajeId, LocalDate fecha);

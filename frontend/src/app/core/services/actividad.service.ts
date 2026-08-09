@@ -30,6 +30,23 @@ export class ActividadService {
     );
   }
 
+  updateActividad(
+    viajeId: UUID,
+    actividadId: UUID,
+    actividad: Partial<ActividadRequest>
+  ): Observable<Actividad> {
+    return this.http.put<Actividad>(
+      `/api/viajes/${viajeId}/actividades/${actividadId}`,
+      actividad
+    );
+  }
+
+  deleteActividad(viajeId: UUID, actividadId: UUID): Observable<void> {
+    return this.http.delete<void>(
+      `/api/viajes/${viajeId}/actividades/${actividadId}`
+    );
+  }
+
   subirDocumento(
     viajeId: UUID,
     actividadId: UUID,

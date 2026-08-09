@@ -95,6 +95,11 @@ export class DetalleViaje implements OnDestroy {
   protected readonly modalAbierto = signal(false);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
+  protected readonly editandoId = signal<UUID | null>(null);
+  protected readonly modalBorrarActividadAbierto = signal(false);
+  protected readonly actividadAEliminar = signal<Actividad | null>(null);
+  protected readonly borrandoActividad = signal(false);
+  protected readonly errorBorrarActividad = signal<string | null>(null);
 
   protected readonly listaChecklist = signal<ListaChecklist>('comun');
   protected readonly nuevaTarea = signal('');
@@ -295,6 +300,25 @@ export class DetalleViaje implements OnDestroy {
     this.resultadosBusqueda.set([]);
     this.formActividad.reset();
     this.formActividad.patchValue({ dia: this.diaActivo() ?? '' });
+    this.editandoId.set(null);
+    this.modalAbierto.set(true);
+  }
+
+  protected abrirEdicion(actividad: Actividad): void {
+    this.errorForm.set(null);
+    this.errorBusqueda.set(null);
+    this.resultadosBusqueda.set([]);
+    this.formActividad.reset();
+    this.formActividad.patchValue({
+      dia: actividad.fechaHoraInicio.slice(0, 10),
+      titulo: actividad.titulo,
+      hora: actividad.fechaHoraInicio.slice(11, 16),
+      ubicacion: actividad.descripcion ?? '',
+      direccion: actividad.direccion ?? '',
+      latitud: actividad.latitud ?? null,
+      longitud: actividad.longitud ?? null,
+    });
+    this.editandoId.set(actividad.id);
     this.modalAbierto.set(true);
   }
 
@@ -442,19 +466,62 @@ export class DetalleViaje implements OnDestroy {
     this.guardando.set(true);
     this.errorForm.set(null);
 
-    this.actividadService
-      .crearActividad(this.viajeId, request)
-      .subscribe({
-        next: () => {
-          this.actividadService.cargarActividades(this.viajeId!);
-          this.guardando.set(false);
-          this.cerrarModal();
-        },
-        error: () => {
-          this.guardando.set(false);
-          this.errorForm.set('No se pudo guardar el plan. Inténtalo de nuevo.');
-        },
-      });
+    const edicionId = this.editandoId();
+
+    // Actualiza la actividad si existe su id; crea en caso contrario.
+    const peticion = edicionId
+      ? this.actividadService.updateActividad(this.viajeId, edicionId, request)
+      : this.actividadService.crearActividad(this.viajeId, request);
+
+    peticion.subscribe({
+      next: () => {
+        this.actividadService.cargarActividades(this.viajeId!);
+        this.guardando.set(false);
+        this.editandoId.set(null);
+        this.cerrarModal();
+      },
+      error: () => {
+        this.guardando.set(false);
+        this.errorForm.set('No se pudo guardar el plan. Inténtalo de nuevo.');
+      },
+    });
+  }
+
+  protected abrirModalBorrarActividad(actividad: Actividad): void {
+    this.actividadAEliminar.set(actividad);
+    this.errorBorrarActividad.set(null);
+    this.modalBorrarActividadAbierto.set(true);
+  }
+
+  protected cerrarModalBorrarActividad(): void {
+    this.modalBorrarActividadAbierto.set(false);
+    this.actividadAEliminar.set(null);
+  }
+
+  protected borrarActividad(): void {
+    const actividad = this.actividadAEliminar();
+    if (!this.viajeId || !actividad || this.borrandoActividad()) {
+      return;
+    }
+
+    this.borrandoActividad.set(true);
+    this.errorBorrarActividad.set(null);
+
+    this.actividadService.deleteActividad(this.viajeId, actividad.id).subscribe({
+      next: () => {
+        this.borrandoActividad.set(false);
+        this.actividadService.actividades.update((lista) =>
+          lista.filter((a) => a.id !== actividad.id)
+        );
+        this.cerrarModalBorrarActividad();
+      },
+      error: () => {
+        this.borrandoActividad.set(false);
+        this.errorBorrarActividad.set(
+          'No se pudo eliminar el plan. Inténtalo de nuevo.'
+        );
+      },
+    });
   }
 
   protected onArchivoSeleccionado(event: Event): void {

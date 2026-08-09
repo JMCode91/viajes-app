@@ -80,6 +80,31 @@ public class ActividadServiceImpl implements ActividadService {
     }
 
     @Override
+    @Transactional
+    public ActividadResponseDTO actualizarActividad(UUID viajeId, UUID actividadId, ActividadRequestDTO dto) {
+        verificarPertenencia(viajeId);
+
+        Actividad actividad = actividadRepository.findById(actividadId)
+                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
+
+        if (!actividad.getViaje().getId().equals(viajeId)) {
+            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
+        }
+
+        actividad.setTitulo(dto.titulo());
+        actividad.setDescripcion(dto.descripcion());
+        actividad.setTipoActividad(dto.tipoActividad());
+        actividad.setFechaHoraInicio(dto.fechaHoraInicio());
+        actividad.setFechaHoraFin(dto.fechaHoraFin());
+        actividad.setLatitud(dto.latitud());
+        actividad.setLongitud(dto.longitud());
+        actividad.setDireccion(dto.direccion());
+        actividadRepository.save(actividad);
+
+        return toResponseDTO(actividad);
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public List<ActividadResponseDTO> obtenerActividadesPorViaje(UUID viajeId) {
         verificarPertenencia(viajeId);

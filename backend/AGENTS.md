@@ -46,7 +46,12 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 09/08/2026
-- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD** COMPLETADOS.
+- **Hito actual:** BACKEND COMPLETADO (Fases 1-5) + **HOTFIX DELETE viaje + Arquitectura Checklist (TareaChecklist) + INTEGRACIÓN CLOUDFLARE R2 (S3) + REFACTOR MULTI-DOCUMENTO 1:N CON BORRADO INTELIGENTE EN CASCADA + BORRADO LÓGICO (ABANDONAR VIAJE) + GEOLOCALIZACIÓN EN ACTIVIDAD + CRUD COMPLETO DE ACTIVIDADES (PUT)** COMPLETADOS.
+- **Completado en esta sesión (CRUD completo de Actividades — endpoint PUT):**
+  - **`ActividadService.actualizarActividad(UUID viajeId, UUID actividadId, ActividadRequestDTO dto)`** (nuevo método en interfaz + implementación): valida pertenencia del usuario al viaje, comprueba que la actividad pertenece al viaje indicado y actualiza `titulo`, `descripcion`, `tipoActividad`, `fechaHoraInicio`, `fechaHoraFin`, `latitud`, `longitud` y `direccion`. Devuelve el `ActividadResponseDTO` actualizado (manteniendo los documentos existentes).
+  - **Nuevo endpoint `PUT /api/viajes/{viajeId}/actividades/{actividadId}`** en `ActividadController` (200 OK con body). El `DELETE /api/viajes/{viajeId}/actividades/{actividadId}` (204) ya existía (con purga física de documentos de Cloudflare R2).
+  - **CORS:** verificado en `SecurityConfig` — `allowedMethods` ya incluye `PUT` y `DELETE` (y `allowedOriginPatterns="*"`), sin cambios necesarios.
+  - Compilación verificada con éxito: `./mvnw.cmd clean compile`.
 - **Completado en esta sesión (Geolocalización — coordenadas y dirección en Actividad):**
   - **`Actividad` ahora soporta geolocalización completa:** `latitud` y `longitud` (Double, nullable) ya existían; se añade **`direccion`** (`String`, nullable, `length = 255`). El modelo queda preparado para el mapa Leaflet + geocodificación Nominatim del frontend.
   - **DTOs:** `ActividadRequestDTO` y `ActividadResponseDTO` exponen los tres campos (`latitud`, `longitud`, `direccion`), todos opcionales. `direccion` valida `@Size(max = 255)`.
@@ -138,6 +143,7 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 | POST | `/api/viajes/{viajeId}/actividades` | Crear una actividad en el viaje | JWT |
 | GET | `/api/viajes/{viajeId}/actividades` | Listar actividades del viaje ordenadas por fecha | JWT |
 | GET | `/api/viajes/{viajeId}/actividades/timeline?fecha=YYYY-MM-DD` | Actividades de un día concreto (minicalendario) | JWT |
+| PUT | `/api/viajes/{viajeId}/actividades/{actividadId}` | Actualizar una actividad del viaje (título, fechas, ubicación, coordenadas). Devuelve el `ActividadResponseDTO` actualizado | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}` | Eliminar una actividad del viaje | JWT |
 | POST | `/api/viajes/{viajeId}/actividades/{actividadId}/documentos` | Subir documento de una actividad a Cloudflare R2 (multipart, `file`, máx 5MB). Crea el registro `Documento` y lo asocia a la actividad | JWT |
 | DELETE | `/api/viajes/{viajeId}/actividades/{actividadId}/documentos/{documentoId}` | Borrar documento (204). Borra físicamente de R2 (`StorageService.eliminarDocumento`) y elimina el registro de la BD | JWT |
