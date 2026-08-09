@@ -30,15 +30,19 @@ import { GoogleMapsService } from '../../../core/services/google-maps.service';
 import { ActividadService } from '../../../core/services/actividad.service';
 import { TareaChecklistService } from '../../../core/services/tarea-checklist.service';
 import { ViajeService } from '../../../core/services/viaje.service';
+import { AuthService } from '../../../core/services/auth.service';
+import { GaleriaService } from '../../../core/services/galeria.service';
 import {
   Actividad,
   ActividadRequest,
+  Album,
   Documento,
+  Foto,
   TareaChecklistResponse,
   UUID,
 } from '../../../shared/types';
 
-export type Tab = 'itinerario' | 'mapa' | 'checklist';
+export type Tab = 'itinerario' | 'mapa' | 'checklist' | 'galeria';
 
 export interface TabItem {
   key: Tab;
@@ -87,6 +91,8 @@ export class DetalleViaje implements OnDestroy {
   private readonly actividadService = inject(ActividadService);
   private readonly tareaChecklistService = inject(TareaChecklistService);
   private readonly googleMapsService = inject(GoogleMapsService);
+  private readonly authService = inject(AuthService);
+  private readonly galeriaService = inject(GaleriaService);
 
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
@@ -187,6 +193,45 @@ export class DetalleViaje implements OnDestroy {
 
   @ViewChild('infoWindow') protected infoWindow?: MapInfoWindow;
 
+  protected readonly albumes = this.galeriaService.albumes;
+  protected readonly fotos = this.galeriaService.fotos;
+  protected readonly albumSeleccionado = signal<UUID | null>(null);
+  protected readonly modalSubirFotoAbierto = signal(false);
+  protected readonly modalCrearAlbumAbierto = signal(false);
+  protected readonly nombreNuevoAlbum = signal('');
+  protected readonly archivoFoto = signal<File | null>(null);
+  protected readonly albumFoto = signal<UUID | null>(null);
+  protected readonly subiendoFoto = signal(false);
+  protected readonly errorFoto = signal<string | null>(null);
+  protected readonly creandoAlbum = signal(false);
+  protected readonly errorAlbum = signal<string | null>(null);
+  protected readonly borrandoFotoId = signal<UUID | null>(null);
+  protected readonly borrandoAlbumId = signal<UUID | null>(null);
+
+  protected readonly fotosVisibles = computed<Foto[]>(() => {
+    const idAlbum = this.albumSeleccionado();
+    if (!idAlbum) {
+      return this.fotos();
+    }
+    return this.fotos().filter((f) => f.albumId === idAlbum);
+  });
+
+  protected readonly usuarioSesion = this.authService.usuario;
+
+  protected readonly esOrganizador = computed(
+    () => this.viaje()?.rolEnViaje === 'PROPIETARIO'
+  );
+
+  protected readonly usuarioIdPropio = computed<UUID | null>(() => {
+    const email = this.usuarioSesion()?.email;
+    if (!email) {
+      return null;
+    }
+    return (
+      this.participantes().find((p) => p.email === email)?.id ?? null
+    );
+  });
+
   private mapaGoogle: google.maps.Map | null = null;
   private readonly busquedaLugar$ = new Subject<string>();
   private readonly suscripcionBusqueda: Subscription;
@@ -262,6 +307,11 @@ export class DetalleViaje implements OnDestroy {
       label: 'Checklist',
       icon: 'M9 12.75 11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 0 1-1.043 3.296 3.745 3.745 0 0 1-3.296 1.043A3.745 3.745 0 0 1 12 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 0 1-3.296-1.043 3.745 3.745 0 0 1-1.043-3.296A3.745 3.745 0 0 1 3 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 0 1 1.043-3.296 3.746 3.746 0 0 1 3.296-1.043A3.746 3.746 0 0 1 12 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 0 1 3.296 1.043 3.746 3.746 0 0 1 1.043 3.296A3.745 3.745 0 0 1 21 12Z',
     },
+    {
+      key: 'galeria',
+      label: 'Galería',
+      icon: 'M6.827 6.175A2.31 2.31 0 0 1 5.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 0 0-1.134-.175 2.31 2.31 0 0 1-1.64-1.055l-.822-1.316a2.192 2.192 0 0 0-1.736-1.039 48.774 48.774 0 0 0-5.232 0 2.192 2.192 0 0 0-1.736 1.039l-.821 1.316Z',
+    },
   ];
 
   constructor() {
@@ -270,6 +320,8 @@ export class DetalleViaje implements OnDestroy {
       this.actividadService.cargarActividades(this.viajeId);
       this.tareaChecklistService.cargarTareas(this.viajeId);
       this.viajeService.cargarParticipantes(this.viajeId);
+      this.galeriaService.cargarAlbumes(this.viajeId);
+      this.galeriaService.cargarFotos(this.viajeId);
     }
 
     void this.googleMapsService.cargar();
@@ -627,6 +679,151 @@ export class DetalleViaje implements OnDestroy {
           this.borrandoDocumento.set(null);
         },
       });
+  }
+
+  protected seleccionarAlbum(albumId: UUID | null): void {
+    this.albumSeleccionado.set(albumId);
+  }
+
+  protected abrirCrearAlbum(): void {
+    this.errorAlbum.set(null);
+    this.nombreNuevoAlbum.set('');
+    this.modalCrearAlbumAbierto.set(true);
+  }
+
+  protected cerrarCrearAlbum(): void {
+    this.modalCrearAlbumAbierto.set(false);
+  }
+
+  protected crearAlbum(): void {
+    if (!this.viajeId || this.creandoAlbum()) {
+      return;
+    }
+    const nombre = this.nombreNuevoAlbum().trim();
+    if (!nombre) {
+      return;
+    }
+    this.creandoAlbum.set(true);
+    this.errorAlbum.set(null);
+    this.galeriaService.crearAlbum(this.viajeId, { nombre }).subscribe({
+      next: () => {
+        this.creandoAlbum.set(false);
+        this.galeriaService.cargarAlbumes(this.viajeId!);
+        this.cerrarCrearAlbum();
+      },
+      error: () => {
+        this.creandoAlbum.set(false);
+        this.errorAlbum.set(
+          'No se pudo crear el álbum. Inténtalo de nuevo.'
+        );
+      },
+    });
+  }
+
+  protected eliminarAlbum(album: Album): void {
+    if (!this.viajeId || this.borrandoAlbumId()) {
+      return;
+    }
+    if (
+      !window.confirm(
+        `¿Eliminar el álbum “${album.nombre}”? Las fotos se conservarán en la galería.`
+      )
+    ) {
+      return;
+    }
+    this.borrandoAlbumId.set(album.id);
+    this.galeriaService.eliminarAlbum(this.viajeId, album.id).subscribe({
+      next: () => {
+        this.borrandoAlbumId.set(null);
+        if (this.albumSeleccionado() === album.id) {
+          this.albumSeleccionado.set(null);
+        }
+        this.galeriaService.cargarAlbumes(this.viajeId!);
+        this.galeriaService.cargarFotos(this.viajeId!);
+      },
+      error: () => {
+        this.borrandoAlbumId.set(null);
+      },
+    });
+  }
+
+  protected portadaDe(albumId: UUID): string | null {
+    return this.fotos().find((f) => f.albumId === albumId)?.url ?? null;
+  }
+
+  protected cantidadFotos(albumId: UUID | null): number {
+    return this.fotos().filter((f) => f.albumId === albumId).length;
+  }
+
+  protected abrirSubirFoto(): void {
+    this.errorFoto.set(null);
+    this.archivoFoto.set(null);
+    this.albumFoto.set(this.albumSeleccionado());
+    this.modalSubirFotoAbierto.set(true);
+  }
+
+  protected cerrarSubirFoto(): void {
+    this.modalSubirFotoAbierto.set(false);
+  }
+
+  protected onFotoSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.archivoFoto.set(input.files?.[0] ?? null);
+  }
+
+  protected subirFoto(): void {
+    const archivo = this.archivoFoto();
+    if (!this.viajeId || !archivo || this.subiendoFoto()) {
+      return;
+    }
+    this.subiendoFoto.set(true);
+    this.errorFoto.set(null);
+    this.galeriaService
+      .subirFoto(this.viajeId, archivo, this.albumFoto())
+      .subscribe({
+        next: (foto) => {
+          this.subiendoFoto.set(false);
+          this.galeriaService.fotos.update((lista) => [foto, ...lista]);
+          this.cerrarSubirFoto();
+        },
+        error: () => {
+          this.subiendoFoto.set(false);
+          this.errorFoto.set(
+            'No se pudo subir la foto. Comprueba el tamaño y vuelve a intentarlo.'
+          );
+        },
+      });
+  }
+
+  protected eliminarFoto(foto: Foto): void {
+    if (!this.viajeId || this.borrandoFotoId()) {
+      return;
+    }
+    if (!window.confirm('¿Eliminar esta foto? Esta acción no se deshace.')) {
+      return;
+    }
+    this.borrandoFotoId.set(foto.id);
+    this.galeriaService.eliminarFoto(this.viajeId, foto.id).subscribe({
+      next: () => {
+        this.borrandoFotoId.set(null);
+        this.galeriaService.fotos.update((lista) =>
+          lista.filter((f) => f.id !== foto.id)
+        );
+      },
+      error: () => {
+        this.borrandoFotoId.set(null);
+      },
+    });
+  }
+
+  protected puedeBorrarFoto(foto: Foto): boolean {
+    return (
+      this.esOrganizador() || this.usuarioIdPropio() === foto.usuarioId
+    );
+  }
+
+  protected inicial(nombre: string | null | undefined): string {
+    return (nombre?.trim().charAt(0) ?? '?').toUpperCase();
   }
 
   protected setListaChecklist(lista: ListaChecklist): void {

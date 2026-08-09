@@ -95,6 +95,27 @@ export interface GastoRequest {
   pagadorId: UUID;
 }
 
+export interface Album {
+  id: UUID;
+  viajeId: UUID;
+  nombre: string;
+  fechaCreacion: string;
+}
+
+export interface AlbumRequest {
+  nombre: string;
+}
+
+export interface Foto {
+  id: UUID;
+  viajeId: UUID;
+  albumId: UUID | null;
+  url: string;
+  fechaSubida: string;
+  usuarioId: UUID;
+  usuarioNombre: string;
+}
+
 export interface TareaChecklistRequest {
   contenido: string;
   esPrivada: boolean;
