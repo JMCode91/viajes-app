@@ -135,6 +135,7 @@ export class DetalleViaje implements OnDestroy {
   }>({ googlePlaceId: null, rating: null, horarios: null, urlGoogleMaps: null });
 
   protected readonly resenasGoogle = signal<google.maps.places.PlaceReview[]>([]);
+  protected readonly fotosGoogle = signal<string[]>([]);
   protected readonly mostrarResenas = signal(false);
   protected readonly cargandoResenas = signal(false);
   protected readonly errorResenas = signal<string | null>(null);
@@ -342,6 +343,7 @@ export class DetalleViaje implements OnDestroy {
     notas: [''],
     latitud: [null as number | null],
     longitud: [null as number | null],
+    descripcionGoogle: [''],
   });
 
   protected readonly tabs: TabItem[] = [
@@ -489,6 +491,7 @@ export class DetalleViaje implements OnDestroy {
       notas: actividad.notas ?? '',
       latitud: actividad.latitud ?? null,
       longitud: actividad.longitud ?? null,
+      descripcionGoogle: actividad.descripcionGoogle ?? '',
     });
     this.editandoId.set(actividad.id);
     this.modalAbierto.set(true);
@@ -532,6 +535,7 @@ export class DetalleViaje implements OnDestroy {
           'location',
           'rating',
           'regularOpeningHours',
+          'editorialSummary',
         ],
       })
       .then(({ place: detalle }) => {
@@ -552,6 +556,7 @@ export class DetalleViaje implements OnDestroy {
           ),
           latitud: ubicacion.lat(),
           longitud: ubicacion.lng(),
+          descripcionGoogle: (detalle.editorialSummary ?? '').slice(0, 2000),
         });
         this.autorellenarTitulo(detalle.displayName ?? null);
         this.aplicarMetadatosGoogle(
@@ -594,11 +599,13 @@ export class DetalleViaje implements OnDestroy {
     this.cargandoResenas.set(true);
     this.errorResenas.set(null);
     this.resenasGoogle.set([]);
+    this.fotosGoogle.set([]);
     try {
-      const resenas = await this.googleMapsService.obtenerResenasGoogle(
+      const { resenas, fotos } = await this.googleMapsService.obtenerResenasGoogle(
         actividad.googlePlaceId
       );
       this.resenasGoogle.set(resenas.slice(0, 5));
+      this.fotosGoogle.set(fotos);
     } catch {
       this.errorResenas.set(
         'No se pudieron cargar las reseñas de Google.'
@@ -611,6 +618,7 @@ export class DetalleViaje implements OnDestroy {
   protected cerrarResenas(): void {
     this.mostrarResenas.set(false);
     this.resenasGoogle.set([]);
+    this.fotosGoogle.set([]);
     this.actividadResenas.set(null);
   }
 
@@ -633,6 +641,42 @@ export class DetalleViaje implements OnDestroy {
     }
     const cortado = limpio.slice(0, Math.max(0, max - 1)).trimEnd();
     return `${cortado}…`;
+  }
+
+  protected obtenerHorarioDia(
+    horariosStr: string | null | undefined,
+    fechaActividad: Date | string
+  ): string {
+    if (!horariosStr) {
+      return '';
+    }
+    const fecha =
+      typeof fechaActividad === 'string'
+        ? new Date(fechaActividad)
+        : fechaActividad;
+    if (isNaN(fecha.getTime())) {
+      return '';
+    }
+    const etiquetasDia: Array<[string, string]> = [
+      ['domingo', 'sunday'],
+      ['lunes', 'monday'],
+      ['martes', 'tuesday'],
+      ['miércoles', 'wednesday'],
+      ['jueves', 'thursday'],
+      ['viernes', 'friday'],
+      ['sábado', 'saturday'],
+    ];
+    const etiquetas = etiquetasDia[fecha.getDay()] ?? [];
+    const parte = (horariosStr.split('·') as string[])
+      .map((p) => p.trim())
+      .find((p) =>
+        etiquetas.some((etiqueta) => p.toLowerCase().startsWith(etiqueta))
+      );
+    if (!parte) {
+      return '';
+    }
+    const indice = parte.indexOf(':');
+    return indice >= 0 ? parte.slice(indice + 1).trim() : '';
   }
 
   protected abrirModalCompartir(): void {
@@ -873,7 +917,7 @@ export class DetalleViaje implements OnDestroy {
       return;
     }
 
-    const { dia, titulo, hora, direccion, latitud, longitud, notas } =
+    const { dia, titulo, hora, direccion, latitud, longitud, notas, descripcionGoogle } =
       this.formActividad.getRawValue();
     const fechaHoraInicio = `${dia ?? ''}T${hora ?? ''}`;
     const meta = this.metadatosGoogle();
@@ -889,6 +933,7 @@ export class DetalleViaje implements OnDestroy {
       ...(meta.urlGoogleMaps ? { urlGoogleMaps: meta.urlGoogleMaps } : {}),
       direccion: direccion || undefined,
       notas: notas || undefined,
+      descripcionGoogle: descripcionGoogle || undefined,
       latitud: latitud ?? undefined,
       longitud: longitud ?? undefined,
     };
@@ -1374,19 +1419,35 @@ export class DetalleViaje implements OnDestroy {
       document.createElement('div')
     );
 
-    places.getDetails({ placeId: prediccion.place_id }, (lugar, estado) => {
-      if (
-        estado === google.maps.places.PlacesServiceStatus.OK &&
-        lugar?.geometry?.location
-      ) {
-        const latlng = lugar.geometry.location;
-        this.formActividad.patchValue({
-          direccion: this.truncarDireccion(
-            lugar.formatted_address ?? prediccion.description ?? ''
-          ),
-          latitud: latlng.lat(),
-          longitud: latlng.lng(),
-        });
+    places.getDetails(
+      {
+        placeId: prediccion.place_id,
+        fields: [
+          'formatted_address',
+          'geometry',
+          'name',
+          'rating',
+          'opening_hours',
+          'editorial_summary',
+        ],
+      },
+      (lugar, estado) => {
+        if (
+          estado === google.maps.places.PlacesServiceStatus.OK &&
+          lugar?.geometry?.location
+        ) {
+          const latlng = lugar.geometry.location;
+          const resumenEditorial = (
+            lugar as { editorial_summary?: { overview?: string } }
+          ).editorial_summary?.overview;
+          this.formActividad.patchValue({
+            direccion: this.truncarDireccion(
+              lugar.formatted_address ?? prediccion.description ?? ''
+            ),
+            latitud: latlng.lat(),
+            longitud: latlng.lng(),
+            descripcionGoogle: (resumenEditorial ?? '').slice(0, 2000),
+          });
         this.autorellenarTitulo(lugar.name ?? null);
         this.aplicarMetadatosGoogle(
           prediccion.place_id,

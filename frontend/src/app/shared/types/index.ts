@@ -96,6 +96,7 @@ export interface Actividad {
   rating: number | null;
   horarios: string | null;
   urlGoogleMaps: string | null;
+  descripcionGoogle: string | null;
   tipoActividad: TipoActividad;
   fechaHoraInicio: string;
   fechaHoraFin: string;
@@ -112,6 +113,7 @@ export interface ActividadRequest {
   rating?: number;
   horarios?: string;
   urlGoogleMaps?: string;
+  descripcionGoogle?: string;
   tipoActividad: TipoActividad;
   fechaHoraInicio: string;
   fechaHoraFin: string;
