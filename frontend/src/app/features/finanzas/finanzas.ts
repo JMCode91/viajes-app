@@ -1,6 +1,8 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { startWith } from 'rxjs';
 
 import { ViajeService } from '../../core/services/viaje.service';
 import { GastoService } from '../../core/services/gasto.service';
@@ -10,6 +12,7 @@ import {
   DeudaResumen,
   DetalleDivision,
   Gasto,
+  GastoRequest,
   TipoGasto,
   TipoDivision,
   UUID,
@@ -39,8 +42,10 @@ export class Finanzas {
   protected readonly viajeSeleccionado = signal<UUID | null>(null);
   protected readonly vistaActiva = signal<'GRUPO' | 'PERSONAL'>('GRUPO');
   protected readonly modalAbierto = signal(false);
+  protected readonly gastoEnEdicion = signal<Gasto | null>(null);
   protected readonly guardando = signal(false);
   protected readonly errorForm = signal<string | null>(null);
+  protected readonly errorBorrar = signal<string | null>(null);
   protected readonly porcentajes = signal<Partial<Record<UUID, number>>>({});
   protected readonly deudorSeleccionado = signal<UUID | null>(null);
 
@@ -124,6 +129,89 @@ export class Finanzas {
     tipoDivision: ['PARTES_IGUALES' as TipoDivision],
     pagadorId: ['' as string, Validators.required],
   });
+
+  /**
+   * Señal reactiva derivada de los cambios del formulario. Permite que las
+   * previsualizaciones (computed) se recalculen en tiempo real mientras el
+   * usuario edita concepto, importe, tipo de gasto o pagador.
+   */
+  private readonly estadoFormulario = toSignal(
+    this.formGasto.valueChanges.pipe(startWith(this.formGasto.getRawValue()))
+  );
+
+  protected readonly pagadorPreview = computed<string>(() => {
+    const pagadorId = this.estadoFormulario()?.pagadorId ?? '';
+    return (
+      this.participantes().find((p) => p.usuarioId === pagadorId)?.nombre ??
+      ''
+    );
+  });
+
+  /**
+   * Previsualizacion en tiempo real del reparto de un gasto COMPARTIDO:
+   * aplica la misma logica de division que el backend (partes iguales,
+   * porcentajes o deuda completa) y devuelve las lineas
+   * "deudor debera X a pagador" que se muestran en el modal.
+   */
+  protected readonly previewDeudas = computed<{ deudor: string; importe: number }[]>(
+    () => {
+      const raw = this.estadoFormulario();
+      if (!raw || raw.tipoGasto !== 'COMPARTIDO') {
+        return [];
+      }
+      const importe = Number(raw.importe);
+      if (!(importe > 0)) {
+        return [];
+      }
+      const pagadorId = raw.pagadorId;
+      const participantes = this.participantes();
+      const deudores = participantes.filter((p) => p.usuarioId !== pagadorId);
+
+      // REGLA DE ORO: el pagador nunca es deudor de su propio gasto.
+      if (raw.tipoDivision === 'PARTES_IGUALES') {
+        const n = participantes.length;
+        if (n === 0) {
+          return [];
+        }
+        const base = Math.floor((importe / n) * 100) / 100;
+        const remanente = Math.round((importe - base * n) * 100) / 100;
+        return deudores.map((p, i) => ({
+          deudor: p.nombre,
+          importe:
+            i === deudores.length - 1 && remanente > 0
+              ? Math.round((base + remanente) * 100) / 100
+              : base,
+        }));
+      }
+
+      if (raw.tipoDivision === 'PORCENTAJE') {
+        return deudores
+          .filter((p) => (this.porcentajes()[p.usuarioId] ?? 0) > 0)
+          .map((p) => ({
+            deudor: p.nombre,
+            importe:
+              Math.round(
+                (importe * (this.porcentajes()[p.usuarioId] ?? 0)) / 100
+              ) / 100,
+          }));
+      }
+
+      if (
+        raw.tipoDivision === 'DEUDA_PAGADOR' ||
+        raw.tipoDivision === 'DEUDA_TERCERO'
+      ) {
+        const deudor = participantes.find(
+          (p) => p.usuarioId === this.deudorSeleccionado()
+        );
+        if (!deudor || deudor.usuarioId === pagadorId) {
+          return [];
+        }
+        return [{ deudor: deudor.nombre, importe }];
+      }
+
+      return [];
+    }
+  );
 
   protected readonly puedeGuardar = computed(() => {
     if (this.guardando()) {
@@ -215,6 +303,7 @@ export class Finanzas {
   }
 
   protected abrirModal(): void {
+    this.gastoEnEdicion.set(null);
     const usuario = this.usuario();
     const participantes = this.participantes();
     const pagadorInicial =
@@ -235,8 +324,97 @@ export class Finanzas {
     this.modalAbierto.set(true);
   }
 
+  protected abrirEdicion(gasto: Gasto): void {
+    this.gastoEnEdicion.set(gasto);
+    this.errorForm.set(null);
+    this.deudorSeleccionado.set(null);
+
+    this.formGasto.reset({
+      concepto: gasto.concepto,
+      importe: gasto.importe,
+      tipoGasto: gasto.tipoGasto,
+      tipoDivision: gasto.tipoDivision ?? 'PARTES_IGUALES',
+      pagadorId: gasto.pagadorId ?? '',
+    });
+
+    // PORCENTAJE: se reconstruyen los porcentajes desde las deudas actuales
+    // del gasto (el pagador queda a 0); si no hay datos, reparto equitativo.
+    if (
+      gasto.tipoGasto === 'COMPARTIDO' &&
+      gasto.tipoDivision === 'PORCENTAJE'
+    ) {
+      const deudas = gasto.deudas ?? [];
+      if (deudas.length > 0 && gasto.importe > 0) {
+        const asignados: Record<UUID, number> = {};
+        for (const deuda of deudas) {
+          asignados[deuda.deudorId] =
+            Math.round((deuda.importe / gasto.importe) * 10000) / 100;
+        }
+        const suma = Object.values(asignados).reduce((s, v) => s + v, 0);
+        const factor = suma > 0 ? 100 / suma : 1;
+        const final: Record<UUID, number> = {};
+        for (const p of this.participantes()) {
+          final[p.usuarioId] =
+            Math.round((asignados[p.usuarioId] ?? 0) * factor * 100) / 100;
+        }
+        // Ajustar el ultimo para que la suma sea exactamente 100.
+        const claves = Object.keys(final);
+        const sumaRounded = Object.values(final).reduce((s, v) => s + v, 0);
+        const ajuste = Math.round((100 - sumaRounded) * 100) / 100;
+        if (claves.length > 0) {
+          const ultimaClave = claves[claves.length - 1] as UUID;
+          final[ultimaClave] =
+            Math.round(((final[ultimaClave] ?? 0) + ajuste) * 100) / 100;
+        }
+        this.porcentajes.set(final);
+      } else {
+        this.repartirPorcentajesPorDefecto();
+      }
+    } else {
+      this.repartirPorcentajesPorDefecto();
+    }
+
+    // DEUDA_PAGADOR / DEUDA_TERCERO: se preselecciona el deudor actual.
+    if (
+      gasto.tipoGasto === 'COMPARTIDO' &&
+      (gasto.tipoDivision === 'DEUDA_PAGADOR' ||
+        gasto.tipoDivision === 'DEUDA_TERCERO')
+    ) {
+      this.deudorSeleccionado.set(gasto.deudas?.[0]?.deudorId ?? null);
+    }
+
+    this.modalAbierto.set(true);
+  }
+
   protected cerrarModal(): void {
     this.modalAbierto.set(false);
+    this.gastoEnEdicion.set(null);
+  }
+
+  protected eliminarGasto(gasto: Gasto, $event: Event): void {
+    $event.stopPropagation();
+    const viajeId = this.viajeSeleccionado();
+    if (!viajeId) {
+      return;
+    }
+    const confirmado = window.confirm(
+      '¿Seguro que quieres borrar este gasto? Esta acción recalculará las deudas.'
+    );
+    if (!confirmado) {
+      return;
+    }
+    this.errorBorrar.set(null);
+    this.gastoService.eliminarGasto(viajeId, gasto.id).subscribe({
+      next: () => {
+        this.gastoService.cargarGastos(viajeId);
+        this.gastoService.cargarBalance(viajeId);
+      },
+      error: () => {
+        this.errorBorrar.set(
+          'No se pudo eliminar el gasto. Inténtalo de nuevo.'
+        );
+      },
+    });
   }
 
   protected cambiarTipoGasto(tipo: TipoGasto): void {
@@ -298,6 +476,7 @@ export class Finanzas {
 
     const { concepto, importe, tipoGasto, tipoDivision, pagadorId } =
       this.formGasto.getRawValue();
+    const enEdicion = this.gastoEnEdicion();
     this.guardando.set(true);
     this.errorForm.set(null);
 
@@ -306,29 +485,35 @@ export class Finanzas {
       tipoDivision
     );
 
-    this.gastoService
-      .crearGasto(viajeId, {
-        concepto,
-        importe,
-        pagadorId,
-        tipoGasto,
-        tipoDivision: tipoGasto === 'PERSONAL' ? undefined : tipoDivision,
-        detalles,
-      })
-      .subscribe({
-        next: () => {
-          this.gastoService.cargarGastos(viajeId);
-          this.gastoService.cargarBalance(viajeId);
-          this.guardando.set(false);
-          this.cerrarModal();
-        },
-        error: () => {
-          this.guardando.set(false);
-          this.errorForm.set(
-            'No se pudo registrar el gasto. Inténtalo de nuevo.'
-          );
-        },
-      });
+    const payload: Partial<GastoRequest> = {
+      concepto,
+      importe,
+      pagadorId,
+      tipoGasto,
+      tipoDivision: tipoGasto === 'PERSONAL' ? undefined : tipoDivision,
+      detalles,
+    };
+
+    const peticion = enEdicion
+      ? this.gastoService.actualizarGasto(viajeId, enEdicion.id, payload)
+      : this.gastoService.crearGasto(viajeId, payload);
+
+    peticion.subscribe({
+      next: () => {
+        this.gastoService.cargarGastos(viajeId);
+        this.gastoService.cargarBalance(viajeId);
+        this.guardando.set(false);
+        this.cerrarModal();
+      },
+      error: () => {
+        this.guardando.set(false);
+        this.errorForm.set(
+          enEdicion
+            ? 'No se pudo actualizar el gasto. Inténtalo de nuevo.'
+            : 'No se pudo registrar el gasto. Inténtalo de nuevo.'
+        );
+      },
+    });
   }
 
   private construirDetalles(

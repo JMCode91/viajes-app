@@ -44,6 +44,21 @@ export class GastoService {
     return this.http.post<Gasto>(`/api/viajes/${viajeId}/gastos`, gasto);
   }
 
+  actualizarGasto(
+    viajeId: UUID,
+    gastoId: UUID,
+    gasto: Partial<GastoRequest>
+  ): Observable<Gasto> {
+    return this.http.put<Gasto>(
+      `/api/viajes/${viajeId}/gastos/${gastoId}`,
+      gasto
+    );
+  }
+
+  eliminarGasto(viajeId: UUID, gastoId: UUID): Observable<void> {
+    return this.http.delete<void>(`/api/viajes/${viajeId}/gastos/${gastoId}`);
+  }
+
   /**
    * El backend solo persiste `pagadorId` (UUID), sin nombre de la persona.
    * Este helper genera un UUID determinista por nombre y lo recuerda en

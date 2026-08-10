@@ -119,9 +119,17 @@
   }
 
   <section class="flex flex-col gap-3">
+    @if (errorBorrar()) {
+      <div class="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400">
+        {{ errorBorrar() }}
+      </div>
+    }
     @for (gasto of gastosVisibles(); track gasto.id) {
       @let resumen = getResumenGasto(gasto);
-      <article class="flex items-center gap-4 rounded-3xl bg-white dark:bg-gray-800 p-4 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700">
+      <article
+        class="relative flex cursor-pointer items-center gap-4 rounded-3xl bg-white p-4 shadow-lg shadow-gray-200/50 border border-gray-100 dark:border-gray-700 dark:bg-gray-800 active:scale-[0.98]"
+        (click)="abrirEdicion(gasto)"
+      >
         <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-500/10 text-lg font-bold text-blue-600 dark:text-blue-400">
           {{ inicialPagador(gasto.pagadorId) }}
         </div>
@@ -131,7 +139,7 @@
             {{ gasto.pagadorNombre || nombrePagador(gasto.pagadorId) }}
           </p>
         </div>
-        <div class="shrink-0 text-right">
+        <div class="shrink-0 pr-9 text-right">
           <p class="text-sm font-semibold text-gray-400 dark:text-gray-500">
             {{ gasto.importe | currency: 'EUR' }}
           </p>
@@ -142,6 +150,16 @@
             }
           </p>
         </div>
+        <button
+          type="button"
+          aria-label="Eliminar gasto"
+          (click)="eliminarGasto(gasto, $event)"
+          class="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full text-red-500 transition-colors active:bg-red-50 dark:text-red-400 dark:active:bg-red-500/10"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-5 w-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+          </svg>
+        </button>
       </article>
     } @empty {
       <section class="flex flex-col items-center justify-center py-24 text-center">
@@ -179,8 +197,14 @@
       class="max-h-[90vh] w-full overflow-y-auto rounded-t-3xl bg-white p-6 pb-8 shadow-2xl dark:bg-gray-900 sm:max-w-md sm:rounded-3xl"
       (click)="$event.stopPropagation()"
     >
-      <h2 class="text-lg font-bold text-gray-900 dark:text-white">Nuevo gasto</h2>
-      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Registra un gasto del viaje seleccionado.</p>
+      <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+        {{ gastoEnEdicion() ? 'Editar gasto' : 'Nuevo gasto' }}
+      </h2>
+      <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        {{ gastoEnEdicion()
+          ? 'Modifica los datos del gasto y el reparto se recalculará.'
+          : 'Registra un gasto del viaje seleccionado.' }}
+      </p>
 
       <form [formGroup]="formGasto" (ngSubmit)="guardarGasto()" class="mt-5 flex flex-col gap-4">
         <div class="flex flex-col gap-2">
@@ -356,12 +380,34 @@
           <span class="text-xs text-red-600">{{ errorForm() }}</span>
         }
 
+        @if (
+          formGasto.getRawValue().tipoGasto === 'COMPARTIDO' &&
+          formGasto.valid &&
+          previewDeudas().length > 0
+        ) {
+          <div class="rounded-lg bg-blue-900/20 p-3 text-sm text-blue-200">
+            <p class="mb-2 font-semibold">Previsualización del reparto</p>
+            <ul class="flex flex-col gap-1">
+              @for (linea of previewDeudas(); track linea.deudor) {
+                <li>
+                  {{ linea.deudor }} deberá
+                  <span class="font-semibold text-white">{{ linea.importe | currency: 'EUR' }}</span>
+                  a
+                  <span class="font-semibold text-white">{{ pagadorPreview() }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        }
+
         <button
           type="submit"
           [disabled]="formGasto.invalid || formGasto.controls.importe.value <= 0"
           class="mt-1 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700 disabled:opacity-60"
         >
-          {{ guardando() ? 'Guardando...' : 'Guardar gasto' }}
+          {{ guardando()
+            ? 'Guardando...'
+            : (gastoEnEdicion() ? 'Guardar cambios' : 'Guardar gasto') }}
         </button>
       </form>
     </div>
