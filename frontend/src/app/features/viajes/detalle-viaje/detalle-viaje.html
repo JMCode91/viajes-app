@@ -283,9 +283,10 @@
               [options]="opcionesMapa"
               (mapInitialized)="onMapaInicializado($event)"
             >
-              @for (actividad of actividadesMapa(); track actividad.id) {
+              @for (actividad of actividadesMapa(); track actividad.id; let i = $index) {
                 <map-advanced-marker
                   [position]="{ lat: actividad.latitud!, lng: actividad.longitud! }"
+                  [content]="crearMarcadorNumerado(actividad.id, i)"
                   [title]="actividad.titulo"
                   (mapClick)="abrirInfoWindow(marker, actividad)"
                   #marker="mapAdvancedMarker"
@@ -301,9 +302,15 @@
               }
               <map-info-window #infoWindow="mapInfoWindow">
                 @if (actividadInfo(); as actividad) {
-                  <div class="min-w-40 px-1 py-1 text-center">
-                    <p class="text-xs font-bold text-blue-600">{{ actividad.fechaHoraInicio | date: 'HH:mm' }}</p>
-                    <p class="mt-0.5 text-sm font-semibold text-gray-900">{{ actividad.titulo }}</p>
+                  <div class="max-w-[200px] p-2 font-sans">
+                    <div class="mb-1 text-sm font-bold text-blue-600">{{ actividad.fechaHoraInicio | date: 'HH:mm' }}</div>
+                    <div class="mb-1 text-base font-bold leading-tight text-gray-900">{{ actividad.titulo }}</div>
+                    @if (actividad.rating != null) {
+                      <div class="mb-1 text-xs font-semibold text-yellow-600">⭐ {{ actividad.rating.toFixed(1) }}</div>
+                    }
+                    @if (actividad.direccion) {
+                      <div class="truncate text-xs text-gray-500">{{ actividad.direccion }}</div>
+                    }
                   </div>
                 }
               </map-info-window>

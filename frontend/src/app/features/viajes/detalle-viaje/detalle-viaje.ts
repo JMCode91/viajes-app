@@ -171,7 +171,9 @@ export class DetalleViaje implements OnDestroy {
   );
 
   protected readonly actividadesMapa = computed<Actividad[]>(() => {
-    const conCoordenadas = this.actividadesConCoordenadas();
+    const conCoordenadas = this.actividadesConCoordenadas()
+      .slice()
+      .sort((a, b) => a.fechaHoraInicio.localeCompare(b.fechaHoraInicio));
     const tipo = this.mapFilterType();
     const valor = this.mapFilterValue();
     if (tipo === 'DAY' && valor) {
@@ -1362,6 +1364,26 @@ export class DetalleViaje implements OnDestroy {
         <circle cx="22" cy="22" r="5" fill="#2563eb"/>
       </svg>`;
     return contenedor.firstElementChild as HTMLElement;
+  }
+
+  /**
+   * Crea (y cachea por actividad) el contenido HTML de un marcador numerado
+   * (AdvancedMarkerElement). Devuelve un círculo azul con el número del
+   * índice + 1 centrado en el punto. La caché mantiene estable la referencia
+   * del elemento entre ciclos de detección de cambios.
+   */
+  private readonly contenidosMarcador = new Map<string, HTMLElement>();
+
+  protected crearMarcadorNumerado(actividadId: string, index: number): HTMLElement {
+    let contenido = this.contenidosMarcador.get(actividadId);
+    if (!contenido) {
+      contenido = document.createElement('div');
+      contenido.className =
+        'flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-[11px] font-bold text-white ring-2 ring-white shadow-md';
+      this.contenidosMarcador.set(actividadId, contenido);
+    }
+    contenido.textContent = String(index + 1);
+    return contenido;
   }
 
   private consultarAutocomplete(
