@@ -44,6 +44,12 @@ public class Usuario {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    @Column(name = "notificaciones_gastos", nullable = false, columnDefinition = "boolean default true")
+    private boolean notificacionesGastos = true;
+
+    @Column(name = "notificaciones_planes", nullable = false, columnDefinition = "boolean default true")
+    private boolean notificacionesPlanes = true;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "rol", nullable = false, length = 20)
     private Rol rol = Rol.USER;

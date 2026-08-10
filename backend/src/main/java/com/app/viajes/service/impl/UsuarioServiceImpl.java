@@ -1,6 +1,9 @@
 package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.UsuarioResponseDTO;
+import com.app.viajes.dto.request.CambiarPasswordRequest;
+import com.app.viajes.dto.request.PreferenciasNotificacionRequest;
+import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.repository.UsuarioRepository;
@@ -8,6 +11,7 @@ import com.app.viajes.service.StorageService;
 import com.app.viajes.service.UsuarioService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -15,19 +19,23 @@ import org.springframework.web.multipart.MultipartFile;
 
 /**
  * Implementacion del servicio de perfil de usuario.
- * Reutiliza {@link StorageService} para subir el avatar a Cloudflare R2 y
- * aplica borrado inteligente del avatar anterior antes de persistir el nuevo.
+ * Reutiliza {@link StorageService} para subir el avatar a Cloudflare R2,
+ * aplica borrado inteligente del avatar anterior antes de persistir el nuevo,
+ * gestiona el cambio de contrasena (BCrypt) y las preferencias de notificaciones.
  */
 @Service
 public class UsuarioServiceImpl implements UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final StorageService storageService;
+    private final PasswordEncoder passwordEncoder;
 
     public UsuarioServiceImpl(UsuarioRepository usuarioRepository,
-                              StorageService storageService) {
+                              StorageService storageService,
+                              PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.storageService = storageService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
@@ -48,6 +56,35 @@ public class UsuarioServiceImpl implements UsuarioService {
         return toResponseDTO(usuario);
     }
 
+    @Override
+    public UsuarioResponseDTO obtenerPerfil() {
+        return toResponseDTO(obtenerUsuarioAutenticado());
+    }
+
+    @Override
+    @Transactional
+    public void cambiarPassword(CambiarPasswordRequest request) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+
+        // Verifica que la contrasena actual coincide con la almacenada (BCrypt).
+        if (!passwordEncoder.matches(request.passwordActual(), usuario.getPassword())) {
+            throw new DatosInvalidosException("La contrasena actual no es correcta");
+        }
+
+        usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
+        usuarioRepository.save(usuario);
+    }
+
+    @Override
+    @Transactional
+    public UsuarioResponseDTO actualizarPreferencias(PreferenciasNotificacionRequest request) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+        usuario.setNotificacionesGastos(request.notificacionesGastos());
+        usuario.setNotificacionesPlanes(request.notificacionesPlanes());
+        usuarioRepository.save(usuario);
+        return toResponseDTO(usuario);
+    }
+
     private Usuario obtenerUsuarioAutenticado() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         String email = authentication.getName();
@@ -61,6 +98,8 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getId(),
                 usuario.getEmail(),
                 usuario.getNombre(),
-                usuario.getAvatarUrl());
+                usuario.getAvatarUrl(),
+                usuario.isNotificacionesGastos(),
+                usuario.isNotificacionesPlanes());
     }
 }
