@@ -48,47 +48,75 @@ export class GoogleMapsService {
   }
 
   /**
-   * Obtiene las reseñas y hasta 3 fotos de Google del lugar indicado usando el
+   * Obtiene las reseñas de Google del lugar indicado usando el
    * `google.maps.places.PlacesService` (requiere un elemento HTML dummy).
-   * Devuelve `{ resenas, fotos }` o rechaza si el detalle falla.
+   * Devuelve el array de `PlaceReview` o rechaza si el detalle falla.
    */
   async obtenerResenasGoogle(
     placeId: string
-  ): Promise<{ resenas: google.maps.places.PlaceReview[]; fotos: string[] }> {
+  ): Promise<google.maps.places.PlaceReview[]> {
     await this.cargar();
     const w = window as WindowWithGoogleMaps;
     const mapsApi = w.google as typeof google | undefined;
     if (!mapsApi) {
-      return { resenas: [], fotos: [] };
+      return [];
     }
 
     const service = new mapsApi.maps.places.PlacesService(
       document.createElement('div')
     );
 
-    return new Promise<{
-      resenas: google.maps.places.PlaceReview[];
-      fotos: string[];
-    }>((resolve, reject) => {
+    return new Promise<google.maps.places.PlaceReview[]>((resolve, reject) => {
       service.getDetails(
-        { placeId, fields: ['reviews', 'photos'] },
+        { placeId, fields: ['reviews'] },
         (resultado, estado) => {
           if (
             estado === mapsApi.maps.places.PlacesServiceStatus.OK &&
             resultado?.reviews
           ) {
-            const fotos = (resultado.photos ?? [])
-              .slice(0, 3)
-              .map((foto) =>
-                foto.getUrl({ maxWidth: 400, maxHeight: 300 })
-              );
-            resolve({
-              resenas: resultado.reviews,
-              fotos,
-            });
+            resolve(resultado.reviews);
           } else {
             reject(new Error('No se pudieron obtener las reseñas de Google.'));
           }
+        }
+      );
+    });
+  }
+
+  /**
+   * Obtiene hasta 3 fotos de Google del lugar indicado usando el
+   * `google.maps.places.PlacesService` (requiere un elemento HTML dummy).
+   * Devuelve las URLs de las fotos (máx 400x300) o un array vacío si el
+   * detalle falla o el lugar no tiene fotos.
+   */
+  async obtenerFotosLugar(placeId: string): Promise<string[]> {
+    await this.cargar();
+    const w = window as WindowWithGoogleMaps;
+    const mapsApi = w.google as typeof google | undefined;
+    if (!mapsApi) {
+      return [];
+    }
+
+    const service = new mapsApi.maps.places.PlacesService(
+      document.createElement('div')
+    );
+
+    return new Promise<string[]>((resolve) => {
+      service.getDetails(
+        { placeId, fields: ['photos'] },
+        (resultado, estado) => {
+          if (
+            estado !== mapsApi.maps.places.PlacesServiceStatus.OK ||
+            !resultado?.photos
+          ) {
+            resolve([]);
+            return;
+          }
+          resolve(
+            resultado.photos.slice(0, 3).map((foto) =>
+              foto.getUrl({ maxWidth: 400, maxHeight: 300 })
+            )
+          );
         }
       );
     });

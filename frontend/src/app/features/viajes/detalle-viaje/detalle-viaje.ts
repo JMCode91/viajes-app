@@ -135,7 +135,7 @@ export class DetalleViaje implements OnDestroy {
   }>({ googlePlaceId: null, rating: null, horarios: null, urlGoogleMaps: null });
 
   protected readonly resenasGoogle = signal<google.maps.places.PlaceReview[]>([]);
-  protected readonly fotosGoogle = signal<string[]>([]);
+  protected readonly fotosLugar = signal<string[]>([]);
   protected readonly mostrarResenas = signal(false);
   protected readonly cargandoResenas = signal(false);
   protected readonly errorResenas = signal<string | null>(null);
@@ -587,7 +587,13 @@ export class DetalleViaje implements OnDestroy {
 
   protected abrirDetalleActividad(actividad: Actividad): void {
     this.actividadSeleccionada.set(actividad);
+    this.fotosLugar.set([]);
     this.modalDetalleAbierto.set(true);
+    if (actividad.googlePlaceId) {
+      void this.googleMapsService
+        .obtenerFotosLugar(actividad.googlePlaceId)
+        .then((fotos) => this.fotosLugar.set(fotos));
+    }
   }
 
   protected async abrirResenas(actividad: Actividad): Promise<void> {
@@ -599,13 +605,11 @@ export class DetalleViaje implements OnDestroy {
     this.cargandoResenas.set(true);
     this.errorResenas.set(null);
     this.resenasGoogle.set([]);
-    this.fotosGoogle.set([]);
     try {
-      const { resenas, fotos } = await this.googleMapsService.obtenerResenasGoogle(
+      const resenas = await this.googleMapsService.obtenerResenasGoogle(
         actividad.googlePlaceId
       );
       this.resenasGoogle.set(resenas.slice(0, 5));
-      this.fotosGoogle.set(fotos);
     } catch {
       this.errorResenas.set(
         'No se pudieron cargar las reseñas de Google.'
@@ -618,12 +622,12 @@ export class DetalleViaje implements OnDestroy {
   protected cerrarResenas(): void {
     this.mostrarResenas.set(false);
     this.resenasGoogle.set([]);
-    this.fotosGoogle.set([]);
     this.actividadResenas.set(null);
   }
 
   protected cerrarDetalleActividad(): void {
     this.modalDetalleAbierto.set(false);
+    this.fotosLugar.set([]);
   }
 
   protected abrirDocumento(url: string): void {
