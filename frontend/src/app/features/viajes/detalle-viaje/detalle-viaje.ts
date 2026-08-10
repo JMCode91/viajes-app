@@ -134,6 +134,12 @@ export class DetalleViaje implements OnDestroy {
     urlGoogleMaps: string | null;
   }>({ googlePlaceId: null, rating: null, horarios: null, urlGoogleMaps: null });
 
+  protected readonly resenasGoogle = signal<google.maps.places.PlaceReview[]>([]);
+  protected readonly mostrarResenas = signal(false);
+  protected readonly cargandoResenas = signal(false);
+  protected readonly errorResenas = signal<string | null>(null);
+  protected readonly actividadResenas = signal<Actividad | null>(null);
+
   protected readonly mapId = 'DEMO_MAP_ID';
 
   protected readonly userLocation = signal<google.maps.LatLngLiteral | null>(
@@ -521,6 +527,7 @@ export class DetalleViaje implements OnDestroy {
       .fetchFields({
         fields: [
           'id',
+          'displayName',
           'formattedAddress',
           'location',
           'rating',
@@ -546,6 +553,7 @@ export class DetalleViaje implements OnDestroy {
           latitud: ubicacion.lat(),
           longitud: ubicacion.lng(),
         });
+        this.autorellenarTitulo(detalle.displayName ?? null);
         this.aplicarMetadatosGoogle(
           placeId ?? null,
           detalle.rating ?? null,
@@ -559,9 +567,51 @@ export class DetalleViaje implements OnDestroy {
       });
   }
 
+  private autorellenarTitulo(nombreLugar: string | null): void {
+    if (!nombreLugar) {
+      return;
+    }
+    const control = this.formActividad.controls.titulo;
+    if (!control.value?.trim() || control.pristine) {
+      const titulo = nombreLugar.trim().slice(0, 200);
+      if (titulo) {
+        this.formActividad.patchValue({ titulo });
+      }
+    }
+  }
+
   protected abrirDetalleActividad(actividad: Actividad): void {
     this.actividadSeleccionada.set(actividad);
     this.modalDetalleAbierto.set(true);
+  }
+
+  protected async abrirResenas(actividad: Actividad): Promise<void> {
+    if (!actividad.googlePlaceId) {
+      return;
+    }
+    this.actividadResenas.set(actividad);
+    this.mostrarResenas.set(true);
+    this.cargandoResenas.set(true);
+    this.errorResenas.set(null);
+    this.resenasGoogle.set([]);
+    try {
+      const resenas = await this.googleMapsService.obtenerResenasGoogle(
+        actividad.googlePlaceId
+      );
+      this.resenasGoogle.set(resenas.slice(0, 5));
+    } catch {
+      this.errorResenas.set(
+        'No se pudieron cargar las reseñas de Google.'
+      );
+    } finally {
+      this.cargandoResenas.set(false);
+    }
+  }
+
+  protected cerrarResenas(): void {
+    this.mostrarResenas.set(false);
+    this.resenasGoogle.set([]);
+    this.actividadResenas.set(null);
   }
 
   protected cerrarDetalleActividad(): void {
@@ -1107,6 +1157,14 @@ export class DetalleViaje implements OnDestroy {
     return (nombre?.trim().charAt(0) ?? '?').toUpperCase();
   }
 
+  protected estrellasResena(rating: number | undefined): string {
+    const redondeo = Math.round(rating ?? 0);
+    return (
+      '★'.repeat(redondeo) +
+      '☆'.repeat(Math.max(0, Math.min(5, 5 - redondeo)))
+    );
+  }
+
   protected setListaChecklist(lista: ListaChecklist): void {
     this.listaChecklist.set(lista);
   }
@@ -1329,6 +1387,7 @@ export class DetalleViaje implements OnDestroy {
           latitud: latlng.lat(),
           longitud: latlng.lng(),
         });
+        this.autorellenarTitulo(lugar.name ?? null);
         this.aplicarMetadatosGoogle(
           prediccion.place_id,
           lugar.rating ?? null,

@@ -46,4 +46,40 @@ export class GoogleMapsService {
 
     return this.promesa;
   }
+
+  /**
+   * Obtiene las reseñas de Google del lugar indicado usando el
+   * `google.maps.places.PlacesService` (requiere un elemento HTML dummy).
+   * Devuelve el array de `PlaceReview` o rechaza si el detalle falla.
+   */
+  async obtenerResenasGoogle(
+    placeId: string
+  ): Promise<google.maps.places.PlaceReview[]> {
+    await this.cargar();
+    const w = window as WindowWithGoogleMaps;
+    const mapsApi = w.google as typeof google | undefined;
+    if (!mapsApi) {
+      return [];
+    }
+
+    const service = new mapsApi.maps.places.PlacesService(
+      document.createElement('div')
+    );
+
+    return new Promise<google.maps.places.PlaceReview[]>((resolve, reject) => {
+      service.getDetails(
+        { placeId, fields: ['reviews'] },
+        (resultado, estado) => {
+          if (
+            estado === mapsApi.maps.places.PlacesServiceStatus.OK &&
+            resultado?.reviews
+          ) {
+            resolve(resultado.reviews);
+          } else {
+            reject(new Error('No se pudieron obtener las reseñas de Google.'));
+          }
+        }
+      );
+    });
+  }
 }
