@@ -18,6 +18,7 @@ public record ActividadResponseDTO(
         Double rating,
         String horarios,
         String urlGoogleMaps,
+        String descripcionGoogle,
         TipoActividad tipoActividad,
         LocalDateTime fechaHoraInicio,
         LocalDateTime fechaHoraFin,

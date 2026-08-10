@@ -60,6 +60,9 @@ public class Actividad {
     @Column(name = "url_google_maps", length = 500)
     private String urlGoogleMaps;
 
+    @Column(name = "descripcion_google", columnDefinition = "TEXT")
+    private String descripcionGoogle;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_actividad", nullable = false, length = 30)
     private TipoActividad tipoActividad;

@@ -71,6 +71,7 @@ public class ActividadServiceImpl implements ActividadService {
         actividad.setRating(dto.rating());
         actividad.setHorarios(dto.horarios());
         actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
+        actividad.setDescripcionGoogle(dto.descripcionGoogle());
         actividad.setTipoActividad(dto.tipoActividad());
         actividad.setFechaHoraInicio(dto.fechaHoraInicio());
         actividad.setFechaHoraFin(dto.fechaHoraFin());
@@ -100,6 +101,7 @@ public class ActividadServiceImpl implements ActividadService {
         actividad.setRating(dto.rating());
         actividad.setHorarios(dto.horarios());
         actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
+        actividad.setDescripcionGoogle(dto.descripcionGoogle());
         actividad.setTipoActividad(dto.tipoActividad());
         actividad.setFechaHoraInicio(dto.fechaHoraInicio());
         actividad.setFechaHoraFin(dto.fechaHoraFin());
@@ -229,6 +231,7 @@ public class ActividadServiceImpl implements ActividadService {
                 actividad.getRating(),
                 actividad.getHorarios(),
                 actividad.getUrlGoogleMaps(),
+                actividad.getDescripcionGoogle(),
                 actividad.getTipoActividad(),
                 actividad.getFechaHoraInicio(),
                 actividad.getFechaHoraFin(),
