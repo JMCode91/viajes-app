@@ -291,6 +291,13 @@ export class DetalleViaje implements OnDestroy {
   protected readonly copiadoInvitacion = signal(false);
   protected readonly abandonandoAjustes = signal(false);
   protected readonly errorAbandonar = signal<string | null>(null);
+  protected readonly seccionAbierta = signal<string | null>(null);
+
+  protected toggleSeccion(seccion: string): void {
+    this.seccionAbierta.update((actual) =>
+      actual === seccion ? null : seccion
+    );
+  }
 
   protected readonly presupuestoIndividual = signal<number>(0);
   protected readonly guardandoPresupuesto = signal(false);

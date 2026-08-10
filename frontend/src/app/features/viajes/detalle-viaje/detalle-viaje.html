@@ -302,7 +302,7 @@
               }
               <map-info-window #infoWindow="mapInfoWindow">
                 @if (actividadInfo(); as actividad) {
-                  <div class="max-w-[200px] p-2 font-sans">
+                  <div class="mt-[-8px] max-w-[200px] font-sans">
                     <div class="mb-1 text-sm font-bold text-blue-600">{{ actividad.fechaHoraInicio | date: 'HH:mm' }}</div>
                     <div class="mb-1 text-base font-bold leading-tight text-gray-900">{{ actividad.titulo }}</div>
                     @if (actividad.rating != null) {
@@ -669,18 +669,35 @@
             }
           </section>
 
-          <section>
-            <h2
-              class="mb-2 text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"
+          <section class="overflow-hidden rounded-3xl bg-white shadow-sm dark:bg-gray-800">
+            <button
+              type="button"
+              (click)="toggleSeccion('general')"
+              class="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-gray-50 dark:active:bg-gray-700/40"
+              [attr.aria-expanded]="seccionAbierta() === 'general'"
             >
-              General
-            </h2>
-            @if (esOrganizador()) {
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.083.498a3.824 3.824 0 0 0 1.077.594l.472.185c.383.15.82.083 1.142-.176l.363-.295c.42-.34 1.043-.314 1.43.107l.547.593c.39.42.404 1.084.03 1.52l-.297.345c-.398.463-.55 1.135-.418 1.74a3.823 3.823 0 0 0 .532 1.32l.168.25c.24.357.307.813.18 1.224l-.178.58c-.127.412-.443.74-.862.895a3.838 3.838 0 0 0-1.075.487l-.236.151c-.455.29-.771.836-.86 1.445l-.066.453c-.107.73-.747 1.26-1.485 1.26h-1.093c-.738 0-1.378-.53-1.485-1.26l-.066-.453a3.883 3.883 0 0 0-.86-1.445l-.236-.151a3.838 3.838 0 0 0-1.075-.487l-.178-.58a1.23 1.23 0 0 1 .18-1.224l.168-.25a3.823 3.823 0 0 0 .532-1.32 3.823 3.823 0 0 0-.418-1.74l-.297-.345a1.214 1.214 0 0 1 .03-1.52l.547-.593c.387-.421 1.01-.447 1.43-.107l.363.295c.322.26.759.326 1.142.176l.472-.185a3.824 3.824 0 0 0 1.077-.594l.083-.498Z" />
+                  <circle cx="12" cy="12" r="2.25" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">General</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Edita el nombre y las fechas del viaje</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 transition-transform duration-200 dark:text-gray-600" [class.rotate-90]="seccionAbierta() === 'general'">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            @if (seccionAbierta() === 'general') {
+              <div class="px-5 pb-6 pt-1">
+                @if (esOrganizador()) {
               <form
                 [formGroup]="formAjustes"
                 (ngSubmit)="guardarAjustes()"
                 novalidate
-                class="mt-3 flex flex-col gap-4"
+                class="flex flex-col gap-4"
               >
                 <div>
                   <label
@@ -757,53 +774,69 @@
                   {{ guardandoAjustes() ? 'Guardando…' : 'Guardar cambios' }}
                 </button>
               </form>
-            } @else {
-              <div
-                class="mt-3 rounded-3xl bg-white p-5 shadow-sm dark:bg-gray-800"
-              >
-                <p class="text-base font-bold text-gray-900 dark:text-white">
-                  {{ viaje()?.titulo }}
-                </p>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Del {{ viaje()?.fechaInicio }} al {{ viaje()?.fechaFin }} ·
-                  Solo el organizador puede modificar estos datos.
-                </p>
+                } @else {
+                  <div
+                    class="rounded-2xl bg-gray-50 p-4 dark:bg-gray-900"
+                  >
+                    <p class="text-base font-bold text-gray-900 dark:text-white">
+                      {{ viaje()?.titulo }}
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Del {{ viaje()?.fechaInicio }} al {{ viaje()?.fechaFin }} ·
+                      Solo el organizador puede modificar estos datos.
+                    </p>
+                  </div>
+                }
               </div>
             }
           </section>
 
-          <section>
-            <div class="flex items-center justify-between gap-2">
-              <h2
-                class="text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"
-              >
-                Participantes
-              </h2>
-              @if (esOrganizador()) {
-                <button
-                  type="button"
-                  (click)="abrirModalInvitar()"
-                  class="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-blue-600 px-4 text-xs font-semibold text-white shadow active:scale-95"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke-width="2"
-                    stroke="currentColor"
-                    class="h-4 w-4"
+          <section class="overflow-hidden rounded-3xl bg-white shadow-sm dark:bg-gray-800">
+            <button
+              type="button"
+              (click)="toggleSeccion('participantes')"
+              class="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-gray-50 dark:active:bg-gray-700/40"
+              [attr.aria-expanded]="seccionAbierta() === 'participantes'"
+            >
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Participantes</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Gestiona quién forma parte del viaje</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 transition-transform duration-200 dark:text-gray-600" [class.rotate-90]="seccionAbierta() === 'participantes'">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            @if (seccionAbierta() === 'participantes') {
+              <div class="px-5 pb-6 pt-1">
+                @if (esOrganizador()) {
+                  <button
+                    type="button"
+                    (click)="abrirModalInvitar()"
+                    class="mb-3 flex h-9 items-center gap-1.5 rounded-full bg-blue-600 px-4 text-xs font-semibold text-white shadow active:scale-95"
                   >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M12 4.5v15m7.5-7.5h-15"
-                    />
-                  </svg>
-                  Invitar
-                </button>
-              }
-            </div>
-            <div class="mt-3 flex flex-col gap-2.5">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke-width="2"
+                      stroke="currentColor"
+                      class="h-4 w-4"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 4.5v15m7.5-7.5h-15"
+                      />
+                    </svg>
+                    Invitar
+                  </button>
+                }
+                <div class="flex flex-col gap-2.5">
               @for (participante of participantes(); track participante.id) {
                 <div
                   class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 dark:bg-gray-800"
@@ -895,24 +928,39 @@
                   No hay participantes todavía.
                 </div>
               }
-            </div>
-            @if (errorExpulsar()) {
-              <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">
-                {{ errorExpulsar() }}
-              </p>
+                </div>
+                @if (errorExpulsar()) {
+                  <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">
+                    {{ errorExpulsar() }}
+                  </p>
+                }
+              </div>
             }
           </section>
 
-          <section>
-            <h2
-              class="mb-2 text-sm font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400"
+          <section class="overflow-hidden rounded-3xl bg-white shadow-sm dark:bg-gray-800">
+            <button
+              type="button"
+              (click)="toggleSeccion('mis-gastos')"
+              class="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-gray-50 dark:active:bg-gray-700/40"
+              [attr.aria-expanded]="seccionAbierta() === 'mis-gastos'"
             >
-              Mis Gastos
-            </h2>
-            <div
-              class="mt-3 rounded-3xl bg-white p-5 shadow-sm dark:bg-gray-800"
-            >
-              <label
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-100 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0V9M3 12V9m18 0a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 9m18 0V6a2.25 2.25 0 0 0-2.25-2.25H5.25A2.25 2.25 0 0 0 3 6v3" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Mis Gastos</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Ajusta tu presupuesto individual</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 transition-transform duration-200 dark:text-gray-600" [class.rotate-90]="seccionAbierta() === 'mis-gastos'">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            @if (seccionAbierta() === 'mis-gastos') {
+              <div class="px-5 pb-6 pt-1">
+                <label
                 for="presupuesto-individual"
                 class="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-gray-300"
               >
@@ -946,16 +994,33 @@
               >
                 {{ guardandoPresupuesto() ? 'Guardando…' : 'Actualizar Presupuesto' }}
               </button>
-            </div>
+              </div>
+            }
           </section>
 
-          <section>
-            <h2
-              class="mb-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:text-red-400"
+          <section class="overflow-hidden rounded-3xl bg-white shadow-sm dark:bg-gray-800">
+            <button
+              type="button"
+              (click)="toggleSeccion('peligro')"
+              class="flex w-full items-center gap-4 px-5 py-4 text-left active:bg-gray-50 dark:active:bg-gray-700/40"
+              [attr.aria-expanded]="seccionAbierta() === 'peligro'"
             >
-              Zona de peligro
-            </h2>
-            <div class="mt-3 flex flex-col gap-2">
+              <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-red-100 text-red-600 dark:bg-red-500/10 dark:text-red-400">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-6 w-6">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+                </svg>
+              </div>
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">Seguridad</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Eliminar o abandonar el viaje</p>
+              </div>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="ml-auto h-5 w-5 text-gray-300 transition-transform duration-200 dark:text-gray-600" [class.rotate-90]="seccionAbierta() === 'peligro'">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+            @if (seccionAbierta() === 'peligro') {
+              <div class="px-5 pb-6 pt-1">
+                <div class="flex flex-col gap-2">
               @if (esOrganizador()) {
                 <button
                   type="button"
@@ -1028,11 +1093,13 @@
                   }}
                 </button>
               }
-            </div>
-            @if (errorAbandonar()) {
-              <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">
-                {{ errorAbandonar() }}
-              </p>
+                </div>
+                @if (errorAbandonar()) {
+                  <p class="mt-2 text-xs font-semibold text-red-600 dark:text-red-400">
+                    {{ errorAbandonar() }}
+                  </p>
+                }
+              </div>
             }
           </section>
         </div>
