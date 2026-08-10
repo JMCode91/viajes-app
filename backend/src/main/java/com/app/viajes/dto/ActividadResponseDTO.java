@@ -7,14 +7,17 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * DTO de respuesta con los datos de una actividad, su viaje y los
- * documentos asociados (relacion 1:N).
+ * DTO de respuesta con los datos de una actividad, su viaje, la integracion
+ * con Google Places y los documentos asociados (relacion 1:N).
  */
 public record ActividadResponseDTO(
         UUID id,
         UUID viajeId,
         String titulo,
-        String descripcion,
+        String googlePlaceId,
+        Double rating,
+        String horarios,
+        String urlGoogleMaps,
         TipoActividad tipoActividad,
         LocalDateTime fechaHoraInicio,
         LocalDateTime fechaHoraFin,

@@ -48,8 +48,17 @@ public class Actividad {
     @Column(name = "titulo", nullable = false, length = 200)
     private String titulo;
 
-    @Column(name = "descripcion", columnDefinition = "TEXT")
-    private String descripcion;
+    @Column(name = "google_place_id", length = 255)
+    private String googlePlaceId;
+
+    @Column(name = "rating")
+    private Double rating;
+
+    @Column(name = "horarios", length = 500)
+    private String horarios;
+
+    @Column(name = "url_google_maps", length = 500)
+    private String urlGoogleMaps;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "tipo_actividad", nullable = false, length = 30)

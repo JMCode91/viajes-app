@@ -67,7 +67,10 @@ public class ActividadServiceImpl implements ActividadService {
         Actividad actividad = new Actividad();
         actividad.setViaje(viaje);
         actividad.setTitulo(dto.titulo());
-        actividad.setDescripcion(dto.descripcion());
+        actividad.setGooglePlaceId(dto.googlePlaceId());
+        actividad.setRating(dto.rating());
+        actividad.setHorarios(dto.horarios());
+        actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
         actividad.setTipoActividad(dto.tipoActividad());
         actividad.setFechaHoraInicio(dto.fechaHoraInicio());
         actividad.setFechaHoraFin(dto.fechaHoraFin());
@@ -93,7 +96,10 @@ public class ActividadServiceImpl implements ActividadService {
         }
 
         actividad.setTitulo(dto.titulo());
-        actividad.setDescripcion(dto.descripcion());
+        actividad.setGooglePlaceId(dto.googlePlaceId());
+        actividad.setRating(dto.rating());
+        actividad.setHorarios(dto.horarios());
+        actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
         actividad.setTipoActividad(dto.tipoActividad());
         actividad.setFechaHoraInicio(dto.fechaHoraInicio());
         actividad.setFechaHoraFin(dto.fechaHoraFin());
@@ -219,7 +225,10 @@ public class ActividadServiceImpl implements ActividadService {
                 actividad.getId(),
                 actividad.getViaje().getId(),
                 actividad.getTitulo(),
-                actividad.getDescripcion(),
+                actividad.getGooglePlaceId(),
+                actividad.getRating(),
+                actividad.getHorarios(),
+                actividad.getUrlGoogleMaps(),
                 actividad.getTipoActividad(),
                 actividad.getFechaHoraInicio(),
                 actividad.getFechaHoraFin(),

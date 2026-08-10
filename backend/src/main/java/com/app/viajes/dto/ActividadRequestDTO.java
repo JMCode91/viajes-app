@@ -15,7 +15,16 @@ public record ActividadRequestDTO(
         @Size(max = 200, message = "El titulo no puede superar los 200 caracteres")
         String titulo,
 
-        String descripcion,
+        @Size(max = 255, message = "El googlePlaceId no puede superar los 255 caracteres")
+        String googlePlaceId,
+
+        Double rating,
+
+        @Size(max = 500, message = "Los horarios no pueden superar los 500 caracteres")
+        String horarios,
+
+        @Size(max = 500, message = "La urlGoogleMaps no puede superar los 500 caracteres")
+        String urlGoogleMaps,
 
         @NotNull(message = "El tipo de actividad es obligatorio")
         TipoActividad tipoActividad,
