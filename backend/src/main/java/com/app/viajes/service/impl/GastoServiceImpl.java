@@ -269,7 +269,7 @@ public class GastoServiceImpl implements GastoService {
         return switch (tipoDivision) {
             case PARTES_IGUALES -> dividirPartesIguales(gasto, participantes);
             case PORCENTAJE -> dividirPorcentaje(gasto, detalles, participantesIds);
-            case DEUDA_PAGADOR, DEUDA_TERCERO -> deudaCompleta(gasto, detalles, participantesIds);
+            case DEUDA_TERCERO -> deudaCompleta(gasto, detalles, participantesIds);
         };
     }
 
@@ -348,7 +348,7 @@ public class GastoServiceImpl implements GastoService {
     /**
      * REGLA 2c: asigna el 100% del importe a la persona indicada en los
      * detalles, creando un unico registro de deuda hacia el pagador.
-     * Se aplica a DEUDA_PAGADOR y DEUDA_TERCERO.
+     * Se aplica a DEUDA_TERCERO.
      */
     private List<DeudaGasto> deudaCompleta(Gasto gasto,
                                            List<DetalleDivisionDTO> detalles,

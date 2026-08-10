@@ -6,14 +6,11 @@ package com.app.viajes.model.enums;
  *   participantes involucrados.
  * PORCENTAJE: cada participante asume un porcentaje del importe
  *   (covertura reflejada en {@code porcentajeAsignado} de la deuda).
- * DEUDA_PAGADOR: el pagador asume el importe total y el resto le queda
- *   debiendo su parte (deuda hacia el pagador del gasto).
  * DEUDA_TERCERO: la deuda se registra contra un tercero involucrado en
  *   el gasto (no necesariamente el pagador).
  */
 public enum TipoDivision {
     PARTES_IGUALES,
     PORCENTAJE,
-    DEUDA_PAGADOR,
     DEUDA_TERCERO
 }

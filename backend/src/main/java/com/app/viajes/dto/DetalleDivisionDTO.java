@@ -12,7 +12,7 @@ import java.util.UUID;
  * PORCENTAJE) o el importe a asumir segun el tipo de division:
  * <ul>
  *   <li>PORCENTAJE: valor porcentual (deben sumar 100).</li>
- *   <li>DEUDA_PAGADOR / DEUDA_TERCERO: un unico detalle con el 100%.</li>
+ *   <li>DEUDA_TERCERO: un unico detalle con el 100%.</li>
  * </ul>
  */
 public record DetalleDivisionDTO(

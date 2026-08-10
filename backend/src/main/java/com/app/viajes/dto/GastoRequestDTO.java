@@ -17,9 +17,8 @@ import java.util.UUID;
  * indican, el servicio aplica los valores por defecto (COMPARTIDO /
  * PARTES_IGUALES).
  * <p>
- * {@code detalles} es obligatorio para las divisiones PORCENTAJE,
- * DEUDA_PAGADOR y DEUDA_TERCERO, y se ignora en PARTES_IGUALES y
- * en gastos PERSONALES.
+ * {@code detalles} es obligatorio para las divisiones PORCENTAJE y
+ * DEUDA_TERCERO, y se ignora en PARTES_IGUALES y en gastos PERSONALES.
  */
 public record GastoRequestDTO(
         @NotBlank(message = "El concepto es obligatorio")
