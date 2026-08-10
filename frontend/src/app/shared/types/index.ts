@@ -101,7 +101,6 @@ export type TipoGasto = 'PERSONAL' | 'COMPARTIDO';
 export type TipoDivision =
   | 'PARTES_IGUALES'
   | 'PORCENTAJE'
-  | 'DEUDA_PAGADOR'
   | 'DEUDA_TERCERO';
 
 export interface DetalleDivision {

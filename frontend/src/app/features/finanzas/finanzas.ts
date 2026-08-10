@@ -139,79 +139,73 @@ export class Finanzas {
     this.formGasto.valueChanges.pipe(startWith(this.formGasto.getRawValue()))
   );
 
-  protected readonly pagadorPreview = computed<string>(() => {
-    const pagadorId = this.estadoFormulario()?.pagadorId ?? '';
-    return (
-      this.participantes().find((p) => p.usuarioId === pagadorId)?.nombre ??
-      ''
-    );
-  });
-
   /**
    * Previsualizacion en tiempo real del reparto de un gasto COMPARTIDO:
    * aplica la misma logica de division que el backend (partes iguales,
-   * porcentajes o deuda completa) y devuelve las lineas
-   * "deudor debera X a pagador" que se muestran en el modal.
+   * porcentajes o deuda completa) y devuelve un objeto estructurado con el
+   * pagador (que abona el importe total) y la lista de deudores con su
+   * parte calculada. Devuelve {@code null} si no hay datos suficientes.
    */
-  protected readonly previewDeudas = computed<{ deudor: string; importe: number }[]>(
-    () => {
-      const raw = this.estadoFormulario();
-      if (!raw || raw.tipoGasto !== 'COMPARTIDO') {
-        return [];
-      }
-      const importe = Number(raw.importe);
-      if (!(importe > 0)) {
-        return [];
-      }
-      const pagadorId = raw.pagadorId;
-      const participantes = this.participantes();
-      const deudores = participantes.filter((p) => p.usuarioId !== pagadorId);
-
-      // REGLA DE ORO: el pagador nunca es deudor de su propio gasto.
-      if (raw.tipoDivision === 'PARTES_IGUALES') {
-        const n = participantes.length;
-        if (n === 0) {
-          return [];
-        }
-        const base = Math.floor((importe / n) * 100) / 100;
-        const remanente = Math.round((importe - base * n) * 100) / 100;
-        return deudores.map((p, i) => ({
-          deudor: p.nombre,
-          importe:
-            i === deudores.length - 1 && remanente > 0
-              ? Math.round((base + remanente) * 100) / 100
-              : base,
-        }));
-      }
-
-      if (raw.tipoDivision === 'PORCENTAJE') {
-        return deudores
-          .filter((p) => (this.porcentajes()[p.usuarioId] ?? 0) > 0)
-          .map((p) => ({
-            deudor: p.nombre,
-            importe:
-              Math.round(
-                (importe * (this.porcentajes()[p.usuarioId] ?? 0)) / 100
-              ) / 100,
-          }));
-      }
-
-      if (
-        raw.tipoDivision === 'DEUDA_PAGADOR' ||
-        raw.tipoDivision === 'DEUDA_TERCERO'
-      ) {
-        const deudor = participantes.find(
-          (p) => p.usuarioId === this.deudorSeleccionado()
-        );
-        if (!deudor || deudor.usuarioId === pagadorId) {
-          return [];
-        }
-        return [{ deudor: deudor.nombre, importe }];
-      }
-
-      return [];
+  protected readonly previewDeudas = computed<{
+    pagador: { nombre: string; importe: number };
+    deudores: { nombre: string; importe: number }[];
+  } | null>(() => {
+    const raw = this.estadoFormulario();
+    if (!raw || raw.tipoGasto !== 'COMPARTIDO') {
+      return null;
     }
-  );
+    const importe = Number(raw.importe);
+    if (!(importe > 0)) {
+      return null;
+    }
+    const pagadorId = raw.pagadorId;
+    const participantes = this.participantes();
+    const pagador = participantes.find((p) => p.usuarioId === pagadorId);
+    if (!pagador) {
+      return null;
+    }
+
+    // REGLA DE ORO: el pagador nunca es deudor de su propio gasto.
+    const deudoresBase = participantes.filter((p) => p.usuarioId !== pagadorId);
+    let deudores: { nombre: string; importe: number }[] = [];
+
+    if (raw.tipoDivision === 'PARTES_IGUALES') {
+      const n = participantes.length;
+      if (n === 0) {
+        return null;
+      }
+      const base = Math.floor((importe / n) * 100) / 100;
+      const remanente = Math.round((importe - base * n) * 100) / 100;
+      deudores = deudoresBase.map((p, i) => ({
+        nombre: p.nombre,
+        importe:
+          i === deudoresBase.length - 1 && remanente > 0
+            ? Math.round((base + remanente) * 100) / 100
+            : base,
+      }));
+    } else if (raw.tipoDivision === 'PORCENTAJE') {
+      // Formula estricta: (importeTotal * porcentajeAsignado) / 100.
+      deudores = deudoresBase
+        .filter((p) => (this.porcentajes()[p.usuarioId] ?? 0) > 0)
+        .map((p) => ({
+          nombre: p.nombre,
+          importe: (importe * (this.porcentajes()[p.usuarioId] ?? 0)) / 100,
+        }));
+    } else if (raw.tipoDivision === 'DEUDA_TERCERO') {
+      const deudor = participantes.find(
+        (p) => p.usuarioId === this.deudorSeleccionado()
+      );
+      if (!deudor || deudor.usuarioId === pagadorId) {
+        return null;
+      }
+      deudores = [{ nombre: deudor.nombre, importe }];
+    }
+
+    return {
+      pagador: { nombre: pagador.nombre, importe },
+      deudores,
+    };
+  });
 
   protected readonly puedeGuardar = computed(() => {
     if (this.guardando()) {
@@ -228,10 +222,7 @@ export class Finanzas {
     if (tipoDivision === 'PORCENTAJE') {
       return this.porcentajesValidos();
     }
-    if (
-      tipoDivision === 'DEUDA_PAGADOR' ||
-      tipoDivision === 'DEUDA_TERCERO'
-    ) {
+    if (tipoDivision === 'DEUDA_TERCERO') {
       return !!this.deudorSeleccionado();
     }
     return true;
@@ -374,11 +365,10 @@ export class Finanzas {
       this.repartirPorcentajesPorDefecto();
     }
 
-    // DEUDA_PAGADOR / DEUDA_TERCERO: se preselecciona el deudor actual.
+    // DEUDA_TERCERO: se preselecciona el deudor actual.
     if (
       gasto.tipoGasto === 'COMPARTIDO' &&
-      (gasto.tipoDivision === 'DEUDA_PAGADOR' ||
-        gasto.tipoDivision === 'DEUDA_TERCERO')
+      gasto.tipoDivision === 'DEUDA_TERCERO'
     ) {
       this.deudorSeleccionado.set(gasto.deudas?.[0]?.deudorId ?? null);
     }
@@ -550,10 +540,7 @@ export class Finanzas {
           valorAsignado: this.porcentajes()[p.usuarioId] ?? 0,
         }));
     }
-    if (
-      tipoDivision === 'DEUDA_PAGADOR' ||
-      tipoDivision === 'DEUDA_TERCERO'
-    ) {
+    if (tipoDivision === 'DEUDA_TERCERO') {
       const deudorId = this.deudorSeleccionado();
       return deudorId ? [{ usuarioId: deudorId, valorAsignado: 100 }] : undefined;
     }
