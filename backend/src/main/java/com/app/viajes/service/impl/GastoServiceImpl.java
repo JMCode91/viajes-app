@@ -1,6 +1,7 @@
 package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.BalanceResponseDTO;
+import com.app.viajes.dto.DetalleDeudaDTO;
 import com.app.viajes.dto.DeudaResumenDTO;
 import com.app.viajes.dto.DetalleDivisionDTO;
 import com.app.viajes.dto.GastoRequestDTO;
@@ -32,6 +33,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -101,7 +103,7 @@ public class GastoServiceImpl implements GastoService {
         if (tipoGasto == TipoGasto.PERSONAL) {
             gasto.setTipoDivision(null);
             gastoRepository.save(gasto);
-            return toResponseDTO(gasto);
+            return toResponseDTO(gasto, List.of());
         }
 
         // REGLA 2: gasto compartido. Se resuelve la division y se crean
@@ -118,17 +120,87 @@ public class GastoServiceImpl implements GastoService {
             deudaGastoRepository.saveAll(deudas);
         }
 
-        return toResponseDTO(gasto);
+        return toResponseDTO(gasto, deudas);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<GastoResponseDTO> obtenerGastos(UUID viajeId) {
         verificarPertenencia(viajeId);
-        return gastoRepository.findByViajeIdOrderByFechaDesc(viajeId)
+
+        List<Gasto> gastos = gastoRepository.findByViajeIdOrderByFechaDesc(viajeId);
+        // Se cargan las deudas de todos los gastos del viaje en una sola
+        // consulta y se agrupan por gasto para evitar N+1.
+        Map<UUID, List<DeudaGasto>> deudasPorGasto = deudaGastoRepository
+                .findByGastoViajeId(viajeId)
                 .stream()
-                .map(this::toResponseDTO)
+                .collect(Collectors.groupingBy(deuda -> deuda.getGasto().getId()));
+
+        return gastos.stream()
+                .map(gasto -> toResponseDTO(
+                        gasto,
+                        deudasPorGasto.getOrDefault(gasto.getId(), List.of())))
                 .toList();
+    }
+
+    @Override
+    @Transactional
+    public GastoResponseDTO actualizarGasto(UUID viajeId, UUID gastoId, GastoRequestDTO dto) {
+        verificarPertenencia(viajeId);
+
+        // a) Buscar el gasto original y comprobar que pertenece al viaje.
+        Gasto gasto = gastoRepository.findById(gastoId)
+                .orElseThrow(() -> new AccesoDenegadoException("Gasto no encontrado"));
+
+        if (!gasto.getViaje().getId().equals(viajeId)) {
+            throw new AccesoDenegadoException("El gasto no pertenece a este viaje");
+        }
+
+        // b) Eliminar fisicamente todas las deudas actuales del gasto para
+        // regenerar la division desde cero sin violar la FK.
+        deudaGastoRepository.deleteByGastoId(gastoId);
+
+        // c) Reasignar el pagador respetando estrictamente el UUID indicado
+        // y actualizar los campos base del gasto.
+        Usuario pagador = usuarioRepository.findById(dto.pagadorId())
+                .orElseThrow(() -> new UsuarioNoEncontradoException(
+                        "El pagador indicado no existe"));
+
+        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(pagador.getId(), viajeId)) {
+            throw new AccesoDenegadoException(
+                    "El pagador indicado no pertenece a este viaje");
+        }
+
+        gasto.setConcepto(dto.concepto());
+        gasto.setImporte(dto.importe());
+        gasto.setPagador(pagador);
+
+        TipoGasto tipoGasto = dto.tipoGasto() != null ? dto.tipoGasto() : TipoGasto.COMPARTIDO;
+        gasto.setTipoGasto(tipoGasto);
+
+        // REGLA 1: gasto personal. Se guarda asignado al pagador y NO
+        // genera registros en DeudaGasto.
+        if (tipoGasto == TipoGasto.PERSONAL) {
+            gasto.setTipoDivision(null);
+            gastoRepository.save(gasto);
+            return toResponseDTO(gasto, List.of());
+        }
+
+        // REGLA 2: gasto compartido. Se vuelve a ejecutar la logica de
+        // division para generar las nuevas deudas.
+        TipoDivision tipoDivision = dto.tipoDivision() != null
+                ? dto.tipoDivision()
+                : TipoDivision.PARTES_IGUALES;
+        gasto.setTipoDivision(tipoDivision);
+        gastoRepository.save(gasto);
+
+        List<UsuarioViaje> participantes = participantesActivos(viajeId);
+        List<DeudaGasto> deudas = generarDeudas(gasto, tipoDivision, dto.detalles(), participantes);
+        if (!deudas.isEmpty()) {
+            deudaGastoRepository.saveAll(deudas);
+        }
+
+        return toResponseDTO(gasto, deudas);
     }
 
     @Override
@@ -203,13 +275,19 @@ public class GastoServiceImpl implements GastoService {
 
     /**
      * REGLA 2a: reparte el importe a partes iguales entre los participantes
-     * activos del viaje. El ultimo participante absorbe el remanente de
-     * centimos para que la suma de las deudas coincida con el importe.
+     * activos del viaje EXCEPTO el pagador (la REGLA DE ORO prohibe que el
+     * pagador deba su propio dinero). Cada deudor asume {@code total / n}
+     * (con {@code n} = participantes del viaje) y el ultimo deudor absorbe
+     * el remanente de centimos para que la suma de las deudas reembolse
+     * exactamente la parte adelantada por el pagador.
      */
-    private List<DeudaGasto> dividirPartesIguales(Gasto gasto, List<UsuarioViaje> participantes) {
-        List<DeudaGasto> deudas = new ArrayList<>();
-        if (participantes.isEmpty()) {
-            return deudas;
+    private List<DeudaGasto> dividirPartesIguales(Gasto gasto,
+                                                  List<UsuarioViaje> participantes) {
+        List<UsuarioViaje> deudores = participantes.stream()
+                .filter(p -> !p.getUsuario().getId().equals(gasto.getPagador().getId()))
+                .toList();
+        if (deudores.isEmpty()) {
+            return List.of();
         }
 
         int n = participantes.size();
@@ -217,12 +295,13 @@ public class GastoServiceImpl implements GastoService {
         BigDecimal base = importe.divide(BigDecimal.valueOf(n), 2, RoundingMode.FLOOR);
         BigDecimal remanente = importe.subtract(base.multiply(BigDecimal.valueOf(n)));
 
-        for (int i = 0; i < n; i++) {
+        List<DeudaGasto> deudas = new ArrayList<>();
+        for (int i = 0; i < deudores.size(); i++) {
             BigDecimal parte = base;
-            if (i == n - 1 && remanente.signum() > 0) {
+            if (i == deudores.size() - 1 && remanente.signum() > 0) {
                 parte = base.add(remanente);
             }
-            deudas.add(construirDeuda(gasto, participantes.get(i).getUsuario(), parte, null));
+            deudas.add(construirDeuda(gasto, deudores.get(i).getUsuario(), parte, null));
         }
         return deudas;
     }
@@ -246,8 +325,13 @@ public class GastoServiceImpl implements GastoService {
                     "Los porcentajes asignados deben sumar 100");
         }
 
+        UUID pagadorId = gasto.getPagador().getId();
         List<DeudaGasto> deudas = new ArrayList<>();
         for (DetalleDivisionDTO detalle : detalles) {
+            // REGLA DE ORO: el pagador nunca es deudor de su propio gasto.
+            if (detalle.usuarioId().equals(pagadorId)) {
+                continue;
+            }
             BigDecimal importeDeuda = gasto.getImporte()
                     .multiply(detalle.valorAsignado())
                     .divide(CIEN, 2, RoundingMode.HALF_UP);
@@ -282,6 +366,12 @@ public class GastoServiceImpl implements GastoService {
         Usuario deudor = usuarioRepository.findById(detalle.usuarioId())
                 .orElseThrow(() -> new UsuarioNoEncontradoException(
                         "Usuario de la division no encontrado"));
+
+        // REGLA DE ORO: si el unico deudor es el propio pagador, no existe
+        // deuda real (no puede deber su propio dinero), asi que se ignora.
+        if (deudor.getId().equals(gasto.getPagador().getId())) {
+            return List.of();
+        }
 
         return List.of(construirDeuda(gasto, deudor, gasto.getImporte(), CIEN));
     }
@@ -318,25 +408,29 @@ public class GastoServiceImpl implements GastoService {
                     .merge(acreedorId, deuda.getImporteDeuda(), BigDecimal::add);
         }
 
-        // Simplificacion: para cada pareja se compensan las dos direcciones
-        // y solo queda la deuda neta en un sentido.
+        // Compensacion de saldos: cada pareja (X, Y) se procesa una sola
+        // vez (clave canonica) y se restan las dos direcciones, de modo que
+        // si A debe B y B debe A solo sobrevive el saldo neto en un sentido.
         Map<String, BigDecimal> netas = new LinkedHashMap<>();
-        Set<UUID> procesados = new java.util.HashSet<>();
-        for (Map.Entry<UUID, Map<UUID, BigDecimal>> pendiente : deudas.entrySet()) {
-            UUID deudor = pendiente.getKey();
-            if (procesados.contains(deudor)) {
-                continue;
-            }
-            procesados.add(deudor);
-            for (Map.Entry<UUID, BigDecimal> acreedorEntry : pendiente.getValue().entrySet()) {
+        Set<String> parejasProcesadas = new HashSet<>();
+        for (UUID deudor : deudas.keySet()) {
+            for (Map.Entry<UUID, BigDecimal> acreedorEntry
+                    : deudas.getOrDefault(deudor, Map.of()).entrySet()) {
                 UUID acreedor = acreedorEntry.getKey();
+                String pareja = clavePareja(deudor, acreedor);
+                if (!parejasProcesadas.add(pareja)) {
+                    continue;
+                }
                 BigDecimal debe = acreedorEntry.getValue();
                 BigDecimal leDeben = deudas.getOrDefault(acreedor, Map.of())
                         .getOrDefault(deudor, BigDecimal.ZERO);
                 BigDecimal neto = debe.subtract(leDeben);
+                if (neto.signum() == 0) {
+                    continue;
+                }
                 if (neto.signum() > 0) {
                     netas.merge(claveDeuda(deudor, acreedor), neto, BigDecimal::add);
-                } else if (neto.signum() < 0) {
+                } else {
                     netas.merge(claveDeuda(acreedor, deudor), neto.abs(), BigDecimal::add);
                 }
             }
@@ -356,6 +450,12 @@ public class GastoServiceImpl implements GastoService {
                 })
                 .sorted((a, b) -> b.importe().compareTo(a.importe()))
                 .toList();
+    }
+
+    private String clavePareja(UUID a, UUID b) {
+        String sa = a.toString();
+        String sb = b.toString();
+        return sa.compareTo(sb) <= 0 ? sa + "|" + sb : sb + "|" + sa;
     }
 
     private String claveDeuda(UUID deudorId, UUID acreedorId) {
@@ -396,7 +496,7 @@ public class GastoServiceImpl implements GastoService {
                         "Usuario autenticado no encontrado"));
     }
 
-    private GastoResponseDTO toResponseDTO(Gasto gasto) {
+    private GastoResponseDTO toResponseDTO(Gasto gasto, List<DeudaGasto> deudas) {
         return new GastoResponseDTO(
                 gasto.getId(),
                 gasto.getViaje().getId(),
@@ -406,6 +506,14 @@ public class GastoServiceImpl implements GastoService {
                 gasto.getTipoGasto(),
                 gasto.getTipoDivision(),
                 gasto.getPagador().getId(),
-                gasto.getPagador().getNombre());
+                gasto.getPagador().getNombre(),
+                deudas.stream().map(this::aDetalleDeudaDTO).toList());
+    }
+
+    private DetalleDeudaDTO aDetalleDeudaDTO(DeudaGasto deuda) {
+        return new DetalleDeudaDTO(
+                deuda.getDeudor().getId(),
+                deuda.getDeudor().getNombre(),
+                deuda.getImporteDeuda());
     }
 }

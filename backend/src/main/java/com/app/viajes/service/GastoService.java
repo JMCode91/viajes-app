@@ -16,6 +16,8 @@ public interface GastoService {
 
     List<GastoResponseDTO> obtenerGastos(UUID viajeId);
 
+    GastoResponseDTO actualizarGasto(UUID viajeId, UUID gastoId, GastoRequestDTO dto);
+
     void eliminarGasto(UUID viajeId, UUID gastoId);
 
     /**
