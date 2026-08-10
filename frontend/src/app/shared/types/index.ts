@@ -25,6 +25,25 @@ export interface UsuarioResponse {
   rol: Rol;
 }
 
+export interface UsuarioPerfil {
+  id: UUID;
+  email: string;
+  nombre: string;
+  avatarUrl: string | null;
+  notificacionesGastos: boolean;
+  notificacionesPlanes: boolean;
+}
+
+export interface CambiarPasswordRequest {
+  passwordActual: string;
+  nuevaPassword: string;
+}
+
+export interface PreferenciasNotificacionRequest {
+  notificacionesGastos: boolean;
+  notificacionesPlanes: boolean;
+}
+
 export interface Viaje {
   id: UUID;
   titulo: string;
