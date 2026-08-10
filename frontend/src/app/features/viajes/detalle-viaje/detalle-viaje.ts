@@ -311,9 +311,9 @@ export class DetalleViaje implements OnDestroy {
   );
 
   protected readonly actividadesDelDia = computed(() => {
-    const dia = this.diaActivo();
+    const dia = this.diaSeleccionado();
     if (!dia) {
-      return [];
+      return this.actividades();
     }
     return this.actividades().filter((a) =>
       a.fechaHoraInicio.startsWith(dia)
@@ -450,7 +450,7 @@ export class DetalleViaje implements OnDestroy {
     this.tabActiva.set(tab);
   }
 
-  protected seleccionarDia(valor: string): void {
+  protected seleccionarDia(valor: string | null): void {
     this.diaSeleccionado.set(valor);
   }
 

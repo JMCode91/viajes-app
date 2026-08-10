@@ -58,26 +58,52 @@
     @switch (tabActiva()) {
       @case ('itinerario') {
         <div class="scrollbar-hide -mx-4 mb-8 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2">
+          <button
+            type="button"
+            (click)="seleccionarDia(null)"
+            [class]="
+              diaSeleccionado() === null
+                ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-blue-600 px-2 py-3 shadow-lg shadow-blue-600/30 active:scale-95'
+                : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95'
+            "
+          >
+            <span
+              class="text-xs font-bold uppercase tracking-wide"
+              [class.text-blue-100]="diaSeleccionado() === null"
+              [class.text-gray-400]="diaSeleccionado() !== null"
+            >
+              Todos
+            </span>
+            <span
+              [class]="
+                diaSeleccionado() === null
+                  ? 'mt-0.5 text-sm font-semibold text-white'
+                  : 'mt-0.5 text-sm font-semibold text-gray-900 dark:text-white'
+              "
+            >
+              {{ dias().length }} días
+            </span>
+          </button>
           @for (dia of dias(); track dia.valor) {
             <button
               type="button"
               (click)="seleccionarDia(dia.valor)"
               [class]="
-                diaActivo() === dia.valor
+                diaSeleccionado() === dia.valor
                   ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-blue-600 px-2 py-3 shadow-lg shadow-blue-600/30 active:scale-95'
                   : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95'
               "
             >
               <span
                 class="text-xs font-bold uppercase tracking-wide"
-                [class.text-blue-100]="diaActivo() === dia.valor"
-                [class.text-gray-400]="diaActivo() !== dia.valor"
+                [class.text-blue-100]="diaSeleccionado() === dia.valor"
+                [class.text-gray-400]="diaSeleccionado() !== dia.valor"
               >
                 Día {{ dia.numero }}
               </span>
               <span
                 [class]="
-                  diaActivo() === dia.valor
+                  diaSeleccionado() === dia.valor
                     ? 'mt-0.5 text-sm font-semibold text-white'
                     : 'mt-0.5 text-sm font-semibold text-gray-900 dark:text-white'
                 "
@@ -164,8 +190,12 @@
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.4" stroke="currentColor" class="mb-2 h-10 w-10 text-blue-500 dark:text-blue-400">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
               </svg>
-              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Este día aún no tiene planes</p>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Añade tu primera actividad para este día.</p>
+              <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ diaSeleccionado() ? 'Este día aún no tiene planes' : 'Este viaje aún no tiene planes' }}
+              </p>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ diaSeleccionado() ? 'Añade tu primera actividad para este día.' : 'Añade tu primera actividad al viaje.' }}
+              </p>
             </div>
           }
         </div>
