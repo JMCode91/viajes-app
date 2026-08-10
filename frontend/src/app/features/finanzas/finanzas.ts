@@ -391,6 +391,25 @@ export class Finanzas {
     this.gastoEnEdicion.set(null);
   }
 
+  /**
+   * Prepara el modal de nuevo gasto como "Liquidación de deuda". El que
+   * debía (deudor) paga ahora un gasto del importe adeudado y el 100% se
+   * asigna al acreedor (DEUDA_TERCERO), de modo que el backend registra el
+   * gasto inverso y el balance compensa la deuda cruzada.
+   */
+  protected prepararLiquidacion(deuda: DeudaResumen): void {
+    this.gastoEnEdicion.set(null);
+    this.formGasto.patchValue({
+      concepto: 'Liquidación / Bizum',
+      importe: deuda.importe,
+      pagadorId: deuda.deudorId,
+      tipoGasto: 'COMPARTIDO',
+      tipoDivision: 'DEUDA_TERCERO',
+    });
+    this.deudorSeleccionado.set(deuda.acreedorId);
+    this.modalAbierto.set(true);
+  }
+
   protected eliminarGasto(gasto: Gasto, $event: Event): void {
     $event.stopPropagation();
     const viajeId = this.viajeSeleccionado();
