@@ -127,6 +127,12 @@ export class DetalleViaje implements OnDestroy {
   protected readonly buscandoLugar = signal(false);
   protected readonly resultadosBusqueda = signal<ResultadoBusqueda[]>([]);
   protected readonly errorBusqueda = signal<string | null>(null);
+  protected readonly metadatosGoogle = signal<{
+    googlePlaceId: string | null;
+    rating: number | null;
+    horarios: string | null;
+    urlGoogleMaps: string | null;
+  }>({ googlePlaceId: null, rating: null, horarios: null, urlGoogleMaps: null });
 
   protected readonly mapId = 'DEMO_MAP_ID';
 
@@ -326,7 +332,6 @@ export class DetalleViaje implements OnDestroy {
     dia: ['', Validators.required],
     titulo: ['', [Validators.required, Validators.maxLength(200)]],
     hora: ['', Validators.required],
-    ubicacion: [''],
     direccion: [''],
     notas: [''],
     latitud: [null as number | null],
@@ -447,6 +452,12 @@ export class DetalleViaje implements OnDestroy {
     this.errorForm.set(null);
     this.errorBusqueda.set(null);
     this.resultadosBusqueda.set([]);
+    this.metadatosGoogle.set({
+      googlePlaceId: null,
+      rating: null,
+      horarios: null,
+      urlGoogleMaps: null,
+    });
     this.formActividad.reset();
     this.formActividad.patchValue({ dia: this.diaActivo() ?? '' });
     this.editandoId.set(null);
@@ -457,12 +468,17 @@ export class DetalleViaje implements OnDestroy {
     this.errorForm.set(null);
     this.errorBusqueda.set(null);
     this.resultadosBusqueda.set([]);
+    this.metadatosGoogle.set({
+      googlePlaceId: actividad.googlePlaceId ?? null,
+      rating: actividad.rating ?? null,
+      horarios: actividad.horarios ?? null,
+      urlGoogleMaps: actividad.urlGoogleMaps ?? null,
+    });
     this.formActividad.reset();
     this.formActividad.patchValue({
       dia: actividad.fechaHoraInicio.slice(0, 10),
       titulo: actividad.titulo,
       hora: actividad.fechaHoraInicio.slice(11, 16),
-      ubicacion: actividad.descripcion ?? '',
       direccion: actividad.direccion ?? '',
       notas: actividad.notas ?? '',
       latitud: actividad.latitud ?? null,
@@ -502,13 +518,27 @@ export class DetalleViaje implements OnDestroy {
     }
 
     void place
-      .fetchFields({ fields: ['formattedAddress', 'location'] })
+      .fetchFields({
+        fields: [
+          'id',
+          'formattedAddress',
+          'location',
+          'rating',
+          'regularOpeningHours',
+        ],
+      })
       .then(({ place: detalle }) => {
         const ubicacion = detalle.location;
         if (!ubicacion) {
           this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
           return;
         }
+        const placeId = detalle.id;
+        const horarios = detalle.regularOpeningHours
+          ? detalle.regularOpeningHours.weekdayDescriptions
+              .join(' · ')
+              .slice(0, 500)
+          : null;
         this.formActividad.patchValue({
           direccion: this.truncarDireccion(
             detalle.formattedAddress ?? resultado.descripcion
@@ -516,6 +546,12 @@ export class DetalleViaje implements OnDestroy {
           latitud: ubicacion.lat(),
           longitud: ubicacion.lng(),
         });
+        this.aplicarMetadatosGoogle(
+          placeId ?? null,
+          detalle.rating ?? null,
+          horarios,
+          this.urlGoogleMapsPara(placeId ?? null, ubicacion)
+        );
         this.resultadosBusqueda.set([]);
       })
       .catch(() => {
@@ -776,7 +812,7 @@ export class DetalleViaje implements OnDestroy {
     );
   }
 
-  protected hasError(field: 'dia' | 'titulo' | 'hora' | 'ubicacion'): boolean {
+  protected hasError(field: 'dia' | 'titulo' | 'hora'): boolean {
     const control = this.formActividad.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
   }
@@ -787,16 +823,20 @@ export class DetalleViaje implements OnDestroy {
       return;
     }
 
-    const { dia, titulo, hora, ubicacion, direccion, latitud, longitud, notas } =
+    const { dia, titulo, hora, direccion, latitud, longitud, notas } =
       this.formActividad.getRawValue();
     const fechaHoraInicio = `${dia ?? ''}T${hora ?? ''}`;
+    const meta = this.metadatosGoogle();
 
     const request: Partial<ActividadRequest> = {
       titulo: titulo ?? '',
       tipoActividad: 'OTRO',
       fechaHoraInicio,
       fechaHoraFin: fechaHoraInicio,
-      descripcion: ubicacion || undefined,
+      ...(meta.googlePlaceId ? { googlePlaceId: meta.googlePlaceId } : {}),
+      ...(meta.rating != null ? { rating: meta.rating } : {}),
+      ...(meta.horarios ? { horarios: meta.horarios } : {}),
+      ...(meta.urlGoogleMaps ? { urlGoogleMaps: meta.urlGoogleMaps } : {}),
       direccion: direccion || undefined,
       notas: notas || undefined,
       latitud: latitud ?? undefined,
@@ -1281,18 +1321,48 @@ export class DetalleViaje implements OnDestroy {
         estado === google.maps.places.PlacesServiceStatus.OK &&
         lugar?.geometry?.location
       ) {
+        const latlng = lugar.geometry.location;
         this.formActividad.patchValue({
           direccion: this.truncarDireccion(
             lugar.formatted_address ?? prediccion.description ?? ''
           ),
-          latitud: lugar.geometry.location.lat(),
-          longitud: lugar.geometry.location.lng(),
+          latitud: latlng.lat(),
+          longitud: latlng.lng(),
         });
+        this.aplicarMetadatosGoogle(
+          prediccion.place_id,
+          lugar.rating ?? null,
+          (lugar.opening_hours?.weekday_text ?? []).join(' · ').slice(0, 500) ??
+            null,
+          this.urlGoogleMapsPara(prediccion.place_id, latlng)
+        );
         this.resultadosBusqueda.set([]);
       } else {
         this.errorBusqueda.set('No se pudo obtener el detalle del lugar.');
       }
     });
+  }
+
+  private aplicarMetadatosGoogle(
+    googlePlaceId: string | null,
+    rating: number | null,
+    horarios: string | null,
+    urlGoogleMaps: string | null
+  ): void {
+    this.metadatosGoogle.set({ googlePlaceId, rating, horarios, urlGoogleMaps });
+  }
+
+  private urlGoogleMapsPara(
+    placeId: string | null,
+    ubicacion: google.maps.LatLng
+  ): string {
+    const lat = Number(ubicacion.lat().toFixed(5));
+    const lng = Number(ubicacion.lng().toFixed(5));
+    const params = new URLSearchParams({ api: '1', query: `${lat},${lng}` });
+    if (placeId) {
+      params.set('query_place_id', placeId);
+    }
+    return `https://www.google.com/maps/search/?${params.toString()}`;
   }
 
   private truncarDireccion(direccion: string): string {

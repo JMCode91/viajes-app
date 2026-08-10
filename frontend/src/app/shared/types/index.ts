@@ -92,7 +92,10 @@ export interface Actividad {
   id: UUID;
   viajeId: UUID;
   titulo: string;
-  descripcion: string;
+  googlePlaceId: string | null;
+  rating: number | null;
+  horarios: string | null;
+  urlGoogleMaps: string | null;
   tipoActividad: TipoActividad;
   fechaHoraInicio: string;
   fechaHoraFin: string;
@@ -105,7 +108,10 @@ export interface Actividad {
 
 export interface ActividadRequest {
   titulo: string;
-  descripcion?: string;
+  googlePlaceId?: string;
+  rating?: number;
+  horarios?: string;
+  urlGoogleMaps?: string;
   tipoActividad: TipoActividad;
   fechaHoraInicio: string;
   fechaHoraFin: string;
