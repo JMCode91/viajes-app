@@ -235,14 +235,18 @@ public class GastoServiceImpl implements GastoService {
                 .map(UsuarioViaje::getPresupuestoIndividual)
                 .orElse(BigDecimal.ZERO);
 
-        // Total gastado por el grupo y por el usuario (incluye sus gastos
-        // personales, ya que se suman todos los gastos que el pago).
+        // Total gastado por el grupo: la suma de todos los gastos del viaje.
+        // IMPORTANTE: "Mis Gastos" (totalGastadoUsuario) suma EXCLUSIVAMENTE
+        // los gastos PERSONALES pagados por el usuario autenticado. Las
+        // cuotas de los gastos compartidos NO se suman aqui; el consumo de
+        // deudas grupales se refleja en el resumen de deudas, no en este total.
         BigDecimal totalGastadoGrupo = BigDecimal.ZERO;
         BigDecimal totalGastadoUsuario = BigDecimal.ZERO;
         for (Gasto gasto : gastoRepository.findByViajeIdOrderByFechaDesc(viajeId)) {
             BigDecimal importe = gasto.getImporte();
             totalGastadoGrupo = totalGastadoGrupo.add(importe);
-            if (gasto.getPagador().getId().equals(usuario.getId())) {
+            if (gasto.getTipoGasto() == TipoGasto.PERSONAL
+                    && gasto.getPagador().getId().equals(usuario.getId())) {
                 totalGastadoUsuario = totalGastadoUsuario.add(importe);
             }
         }

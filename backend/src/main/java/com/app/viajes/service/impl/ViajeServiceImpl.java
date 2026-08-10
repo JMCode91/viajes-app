@@ -10,6 +10,7 @@ import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Documento;
 import com.app.viajes.model.Foto;
+import com.app.viajes.model.Gasto;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
@@ -255,10 +256,14 @@ public class ViajeServiceImpl implements ViajeService {
         // Borrado inteligente: primero se purgan fisicamente de Cloudflare R2
         // todos los documentos asociados al viaje y luego se eliminan las filas.
         tareaChecklistRepository.deleteByViajeId(viajeId);
-        // Las deudas de gastos se purgan antes que los gastos para no
-        // violar la clave foranea en el borrado en cascada manual.
-        deudaGastoRepository.deleteByGastoViajeId(viajeId);
-        gastoRepository.deleteByViajeId(viajeId);
+        // Borrado en cascada de gastos: por cada gasto del viaje se purgan
+        // primero sus DeudaGasto asociados y despues se elimina el Gasto.
+        // Asi se evitan violaciones de clave foranea y registros huerfanos.
+        List<Gasto> gastos = gastoRepository.findByViajeIdOrderByFechaDesc(viajeId);
+        for (Gasto gasto : gastos) {
+            deudaGastoRepository.deleteByGastoId(gasto.getId());
+            gastoRepository.delete(gasto);
+        }
 
         List<Documento> documentos = documentoRepository.findByActividadViajeId(viajeId);
         for (Documento documento : documentos) {
