@@ -1,8 +1,14 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  inject,
+  input,
+  signal,
+} from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
 import { startWith } from 'rxjs';
 
 import { ViajeService } from '../../core/services/viaje.service';
@@ -26,15 +32,11 @@ import {
 })
 export class Finanzas {
   private readonly fb = inject(FormBuilder);
-  private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly viajeService = inject(ViajeService);
   private readonly gastoService = inject(GastoService);
   private readonly authService = inject(AuthService);
 
-  protected readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
-    'id'
-  ) as UUID | null;
+  readonly viajeId = input<UUID>();
 
   protected readonly gastos = this.gastoService.gastos;
   protected readonly balance = this.gastoService.balance;
@@ -218,19 +220,14 @@ export class Finanzas {
   });
 
   constructor() {
-    if (this.viajeId) {
-      this.gastoService.cargarGastos(this.viajeId);
-      this.gastoService.cargarBalance(this.viajeId);
-      this.viajeService.cargarParticipantes(this.viajeId);
-    }
-  }
-
-  protected goBack(): void {
-    if (this.viajeId) {
-      void this.router.navigate(['/viajes', this.viajeId]);
-      return;
-    }
-    void this.router.navigate(['/dashboard']);
+    effect(() => {
+      const viajeId = this.viajeId();
+      if (viajeId) {
+        this.gastoService.cargarGastos(viajeId);
+        this.gastoService.cargarBalance(viajeId);
+        this.viajeService.cargarParticipantes(viajeId);
+      }
+    });
   }
 
   protected cambiarVista(vista: 'GRUPO' | 'PERSONAL'): void {
@@ -380,7 +377,7 @@ export class Finanzas {
 
   protected eliminarGasto(gasto: Gasto, $event: Event): void {
     $event.stopPropagation();
-    const viajeId = this.viajeId;
+    const viajeId = this.viajeId();
     if (!viajeId) {
       return;
     }
@@ -455,7 +452,7 @@ export class Finanzas {
   }
 
   protected guardarGasto(): void {
-    const viajeId = this.viajeId;
+    const viajeId = this.viajeId();
     if (!viajeId || !this.puedeGuardar()) {
       this.formGasto.markAllAsTouched();
       return;

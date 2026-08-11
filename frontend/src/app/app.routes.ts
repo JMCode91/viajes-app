@@ -53,12 +53,6 @@ export const routes: Routes = [
       ),
   },
   {
-    path: 'viajes/:id/gastos',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/finanzas/finanzas').then((m) => m.Finanzas),
-  },
-  {
     path: 'viajes/:id',
     canActivate: [authGuard],
     loadComponent: () =>

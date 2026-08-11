@@ -34,6 +34,7 @@ import { ViajeService } from '../../../core/services/viaje.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { GaleriaService } from '../../../core/services/galeria.service';
 import { ClimaService } from '../../../core/services/clima.service';
+import { Finanzas } from '../../finanzas/finanzas';
 import {
   Actividad,
   ActividadRequest,
@@ -92,6 +93,7 @@ export interface ResultadoBusqueda {
     GoogleMap,
     MapAdvancedMarker,
     MapInfoWindow,
+    Finanzas,
   ],
   templateUrl: './detalle-viaje.html',
   styleUrl: './detalle-viaje.css',
@@ -501,12 +503,6 @@ export class DetalleViaje implements OnDestroy {
   }
 
   protected setTab(tab: Tab): void {
-    if (tab === 'gastos') {
-      if (this.viajeId) {
-        void this.router.navigate(['/viajes', this.viajeId, 'gastos']);
-      }
-      return;
-    }
     this.tabActiva.set(tab);
   }
 

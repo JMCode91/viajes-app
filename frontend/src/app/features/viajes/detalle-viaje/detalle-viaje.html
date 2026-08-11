@@ -1118,6 +1118,11 @@
           </section>
         </div>
       }
+      @case ('gastos') {
+        @if (viaje()?.id; as viajeId) {
+          <app-finanzas [viajeId]="viajeId" />
+        }
+      }
     }
   </section>
 </div>
