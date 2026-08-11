@@ -23,11 +23,8 @@ export const routes: Routes = [
       },
       {
         path: 'ia',
-        data: { titulo: 'IA' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder').then(
-            (m) => m.Placeholder
-          ),
+          import('./features/ia/ia').then((m) => m.Ia),
       },
       {
         path: 'conversor',

@@ -1,0 +1,171 @@
+<div class="min-h-screen bg-gray-50 px-4 pb-28 pt-6 dark:bg-gray-950">
+  <header class="mb-6">
+    <h1 class="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="h-7 w-7 text-violet-500"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z"
+        />
+      </svg>
+      Asistente IA
+    </h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      Deja que la magia te planifique el viaje de tus sueños.
+    </p>
+  </header>
+
+  <section
+    class="rounded-3xl bg-gradient-to-br from-violet-600 via-purple-600 to-blue-600 p-6 text-white shadow-xl shadow-purple-600/30"
+  >
+    <div class="mb-5 flex items-center gap-2">
+      <span class="text-2xl">✨</span>
+      <h2 class="text-lg font-bold">Cuéntame tu viaje ideal</h2>
+    </div>
+
+    <div class="space-y-4">
+      <div>
+        <label class="mb-1 block text-sm font-semibold text-purple-100" for="destino">
+          Destino
+        </label>
+        <input
+          id="destino"
+          type="text"
+          placeholder="Ej. Tokio"
+          [(ngModel)]="destino"
+          class="w-full rounded-2xl border-0 bg-white/15 px-4 py-3 text-base font-semibold text-white placeholder-purple-200 outline-none backdrop-blur-sm focus:bg-white/20"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold text-purple-100" for="dias">
+          Días
+        </label>
+        <input
+          id="dias"
+          type="number"
+          min="1"
+          max="30"
+          [(ngModel)]="dias"
+          class="w-full rounded-2xl border-0 bg-white/15 px-4 py-3 text-base font-semibold text-white placeholder-purple-200 outline-none backdrop-blur-sm focus:bg-white/20"
+        />
+      </div>
+
+      <div>
+        <label class="mb-1 block text-sm font-semibold text-purple-100" for="tematica">
+          Temática
+        </label>
+        <input
+          id="tematica"
+          type="text"
+          placeholder="Ej. cultura, comida callejera y naturaleza"
+          [(ngModel)]="tematica"
+          class="w-full rounded-2xl border-0 bg-white/15 px-4 py-3 text-base font-semibold text-white placeholder-purple-200 outline-none backdrop-blur-sm focus:bg-white/20"
+        />
+      </div>
+
+      <button
+        type="button"
+        [disabled]="cargando()"
+        (click)="generarItinerario()"
+        class="flex w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-4 text-base font-bold text-purple-700 shadow-lg transition-transform active:scale-95 disabled:cursor-not-allowed disabled:opacity-80"
+      >
+        @if (cargando()) {
+          <svg
+            class="h-5 w-5 animate-spin text-purple-700"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            ></path>
+          </svg>
+          Generando magia…
+        } @else {
+          <span>Generar Ideas</span>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="2"
+            stroke="currentColor"
+            class="h-5 w-5"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="m3.75 13.5 10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75Z"
+            />
+          </svg>
+        }
+      </button>
+    </div>
+  </section>
+
+  @if (error(); as mensaje) {
+    <p
+      class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400"
+    >
+      {{ mensaje }}
+    </p>
+  }
+
+  @if (itinerarioGenerado().length > 0) {
+    <section class="mt-6">
+      <h2 class="mb-4 flex items-center gap-2 text-lg font-bold text-gray-900 dark:text-white">
+        <span class="text-xl">🗺️</span>
+        Tu itinerario mágico
+      </h2>
+
+      <div class="space-y-4">
+        @for (dia of itinerarioGenerado(); track dia.dia) {
+          <article
+            class="overflow-hidden rounded-3xl bg-white shadow-lg dark:bg-gray-800"
+          >
+            <header
+              class="flex items-center justify-between bg-gradient-to-r from-violet-600 to-blue-600 px-5 py-4 text-white"
+            >
+              <span class="text-xs font-bold uppercase tracking-wider text-purple-200">
+                Día {{ dia.dia }}
+              </span>
+              <h3 class="text-base font-bold">{{ dia.titulo }}</h3>
+            </header>
+
+            <ul class="space-y-3 px-5 py-4">
+              @for (actividad of dia.actividades; track $index) {
+                <li class="flex items-start gap-3">
+                  <span
+                    class="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 text-xs font-bold text-purple-700 dark:bg-purple-500/20 dark:text-purple-300"
+                  >
+                    {{ $index + 1 }}
+                  </span>
+                  <span class="text-sm leading-relaxed text-gray-700 dark:text-gray-300">
+                    {{ actividad }}
+                  </span>
+                </li>
+              }
+            </ul>
+          </article>
+        }
+      </div>
+    </section>
+  }
+</div>
