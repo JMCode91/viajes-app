@@ -250,3 +250,11 @@ export interface Clima {
   icono: string;
   esHistorico: boolean;
 }
+
+export interface DivisaResponseDTO {
+  montoOriginal: number;
+  monedaOriginal: string;
+  montoConvertido: number;
+  monedaDestino: string;
+  ratioCambio: number;
+}

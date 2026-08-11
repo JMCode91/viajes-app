@@ -31,10 +31,9 @@ export const routes: Routes = [
       },
       {
         path: 'conversor',
-        data: { titulo: 'Conversor' },
         loadComponent: () =>
-          import('./features/placeholder/placeholder').then(
-            (m) => m.Placeholder
+          import('./features/conversor/conversor').then(
+            (m) => m.Conversor
           ),
       },
       {
