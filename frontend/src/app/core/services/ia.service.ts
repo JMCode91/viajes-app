@@ -20,6 +20,7 @@ export interface ActividadIaDTO {
   hora: string;
   titulo: string;
   lugar: string;
+  rating?: number;
   descripcion: string;
 }
 
