@@ -50,6 +50,16 @@ export class Conversor implements OnInit {
     });
   }
 
+  protected obtenerNombreMoneda(codigo: string | undefined): string {
+    if (!codigo) {
+      return '';
+    }
+    return (
+      this.monedasDisponibles().find((moneda) => moneda.codigo === codigo)
+        ?.nombre ?? codigo
+    );
+  }
+
   protected actualizarMonto(valor: number): void {
     this.monto.set(valor);
     this.convertir();

@@ -40,10 +40,9 @@
           @for (moneda of monedasDisponibles(); track moneda.codigo) {
             <option
               [value]="moneda.codigo"
-              [title]="moneda.nombre"
               class="bg-white text-gray-900"
             >
-              {{ moneda.codigo }}
+              {{ moneda.codigo }} - {{ moneda.nombre }}
             </option>
           }
         </select>
@@ -96,10 +95,9 @@
           @for (moneda of monedasDisponibles(); track moneda.codigo) {
             <option
               [value]="moneda.codigo"
-              [title]="moneda.nombre"
               class="bg-white text-gray-900"
             >
-              {{ moneda.codigo }}
+              {{ moneda.codigo }} - {{ moneda.nombre }}
             </option>
           }
         </select>
@@ -133,6 +131,9 @@
         {{ res.montoConvertido | number: '1.2-2' }}
         <span class="text-2xl font-bold text-blue-600 dark:text-blue-400">
           {{ res.monedaDestino }}
+        </span>
+        <span class="ml-1 text-lg font-normal text-gray-500 dark:text-gray-400">
+          ({{ obtenerNombreMoneda(res.monedaDestino) }})
         </span>
       </p>
       <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
