@@ -62,11 +62,16 @@ export class Finanzas {
   );
 
   protected readonly totalGastadoVista = computed(() => {
-    const balance = this.balance();
     if (this.vistaActiva() === 'GRUPO') {
-      return balance?.totalGastadoGrupo ?? 0;
+      // Se recalcula en cliente sobre la lista ya filtrada (COMPARTIDO) para
+      // cuadrar SIEMPRE con la lista visual; se ignora el totalGastadoGrupo
+      // del backend, que incluye también los gastos individuales.
+      return this.gastosVisibles().reduce(
+        (suma, gasto) => suma + gasto.importe,
+        0
+      );
     }
-    return balance?.totalGastadoUsuario ?? 0;
+    return this.balance()?.totalGastadoUsuario ?? 0;
   });
 
   protected readonly presupuestoVista = computed(() => {
