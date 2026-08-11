@@ -18,14 +18,14 @@ import java.util.Map;
 
 /**
  * Implementacion del servicio de generacion de itinerarios con la API de Google Gemini
- * (modelo gemini-1.5-flash). La API key se inyecta desde la propiedad 'gemini.api.key'
+ * (modelo gemini-3.6-flash). La API key se inyecta desde la propiedad 'gemini.api.key'
  * (debe sobrescribirse via variable de entorno en produccion).
  */
 @Service
 public class IaServiceImpl implements IaService {
 
     private static final Logger log = LoggerFactory.getLogger(IaServiceImpl.class);
-    private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+    private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
 
     private final String apiKey;
     private final RestClient restClient;
