@@ -181,6 +181,14 @@ public class IaServiceImpl implements IaService {
                 // El lugar exacto (nombre del sitio, ciudad y pais) alimenta el
                 // campo 'direccion', que el frontend geolocaliza en el mapa.
                 actividad.setDireccion(item.lugar());
+                // Si Gemini devuelve coordenadas, se persisten para que el mapa
+                // del frontend pueda renderizar los marcadores sin geocodificar.
+                if (item.latitud() != null) {
+                    actividad.setLatitud(item.latitud());
+                }
+                if (item.longitud() != null) {
+                    actividad.setLongitud(item.longitud());
+                }
                 actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
             }
@@ -214,16 +222,20 @@ public class IaServiceImpl implements IaService {
 
                 %s
 
+                ACTUA COMO UN GEOCODER: Es OBLIGATORIO incluir la latitud y longitud GPS \
+                real y precisa de cada lugar en grados decimales (por ejemplo 35.6585, 139.7454).
+
                 Responde UNICAMENTE con un JSON valido, sin markdown, sin texto adicional \
                 y sin comentarios. El JSON debe ser un array con exactamente %d elementos \
                 (uno por dia), cada uno con esta estructura exacta:
-                [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad, Pais (MUY IMPORTANTE PARA EL MAPA)", "descripcion": "Descripcion breve de la actividad"}]}]
+                [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad", "latitud": 35.6585, "longitud": 139.7454, "descripcion": "Descripcion breve de la actividad"}]}]
 
                 El campo 'hora' debe tener formato HH:MM (por ejemplo "09:30"). El campo \
                 'lugar' debe ser el nombre exacto del sitio seguido de la ciudad y el pais \
-                para que pueda geolocalizarse en el mapa. Las actividades deben ser \
-                realistas, variadas y con horarios aproximados. Incluye siempre al menos \
-                3 actividades por dia.
+                para que pueda geolocalizarse en el mapa. Los campos 'latitud' y 'longitud' \
+                deben ser numericos y corresponder a las coordenadas GPS reales del lugar. \
+                Las actividades deben ser realistas, variadas y con horarios aproximados. \
+                Incluye siempre al menos 3 actividades por dia.
                 """.formatted(
                 request.destino(),
                 request.fechaInicio(),

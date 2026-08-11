@@ -6,8 +6,8 @@ import jakarta.validation.constraints.Size;
 /**
  * DTO que representa una actividad individual de un dia del itinerario
  * generado por IA. Contiene la hora estimada, el titulo, el lugar exacto
- * (clave para la geolocalizacion en el mapa del frontend) y una descripcion
- * breve de la actividad.
+ * (clave para la geolocalizacion en el mapa del frontend), las coordenadas
+ * GPS (latitud/longitud) y una descripcion breve de la actividad.
  */
 public record ActividadIaDTO(
         @NotBlank(message = "La hora de la actividad es obligatoria")
@@ -21,6 +21,10 @@ public record ActividadIaDTO(
         @NotBlank(message = "El lugar de la actividad es obligatorio")
         @Size(max = 255, message = "El lugar no puede superar 255 caracteres")
         String lugar,
+
+        Double latitud,
+
+        Double longitud,
 
         @Size(max = 2000, message = "La descripcion no puede superar 2000 caracteres")
         String descripcion
