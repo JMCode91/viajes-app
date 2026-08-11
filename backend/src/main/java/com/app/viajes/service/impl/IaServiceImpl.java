@@ -318,11 +318,14 @@ public class IaServiceImpl implements IaService {
             Map<String, Object> respuesta = placesRestClient.get()
                     .uri(uriBuilder -> {
                         uriBuilder.queryParam("query", nombreLimpio);
-                        // Ubica la busqueda junto a las coordenadas reales de la
-                        // actividad (si Gemini las devolvio) para acotar la zona.
+                        // Aplica el sesgo de ubicacion junto a las coordenadas
+                        // reales de la actividad (si Gemini las devolvio) para
+                        // acotar la zona. El radio (500 m) va integrado en el
+                        // formato circle:radio@lat,lng de 'locationbias'.
                         if (latitud != null && longitud != null) {
-                            uriBuilder.queryParam("location", latitud + "," + longitud);
-                            uriBuilder.queryParam("radius", 500);
+                            uriBuilder.queryParam(
+                                    "locationbias",
+                                    "circle:" + 500 + "@" + latitud + "," + longitud);
                         }
                         return uriBuilder
                                 .queryParam("key", googlePlacesApiKey)
