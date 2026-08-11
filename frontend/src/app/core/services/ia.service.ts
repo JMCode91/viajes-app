@@ -6,22 +6,33 @@ import { Viaje } from '../../shared/types';
 
 export interface IaPrompt {
   destino: string;
-  dias: number;
+  fechaInicio: string;
+  fechaFin: string;
   tematica: string;
+  detallesAdicionales: string;
 }
 
 export interface IaItinerario {
   rawJson: string;
 }
 
+export interface ActividadIaDTO {
+  hora: string;
+  titulo: string;
+  lugar: string;
+  descripcion: string;
+}
+
 export interface DiaIaDTO {
   dia: number;
   titulo: string;
-  actividades: string[];
+  actividades: ActividadIaDTO[];
 }
 
 export interface IaGuardarViajeRequest {
   destino: string;
+  fechaInicio: string;
+  fechaFin: string;
   itinerario: DiaIaDTO[];
 }
 

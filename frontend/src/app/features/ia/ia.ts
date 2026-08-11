@@ -2,13 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { IaService } from '../../core/services/ia.service';
-
-interface DiaItinerario {
-  dia: number;
-  titulo: string;
-  actividades: string[];
-}
+import { DiaIaDTO, IaService } from '../../core/services/ia.service';
 
 @Component({
   selector: 'app-ia',
@@ -20,11 +14,13 @@ export class Ia {
   private readonly router = inject(Router);
 
   protected readonly destino = signal('');
-  protected readonly dias = signal(3);
+  protected readonly fechaInicio = signal('');
+  protected readonly fechaFin = signal('');
   protected readonly tematica = signal('');
+  protected readonly detallesAdicionales = signal('');
   protected readonly cargando = signal(false);
   protected readonly guardando = signal(false);
-  protected readonly itinerarioGenerado = signal<DiaItinerario[]>([]);
+  protected readonly itinerarioGenerado = signal<DiaIaDTO[]>([]);
   protected readonly error = signal<string | null>(null);
 
   protected generarItinerario(): void {
@@ -34,14 +30,16 @@ export class Ia {
     this.iaService
       .generarItinerario({
         destino: this.destino().trim(),
-        dias: this.dias(),
+        fechaInicio: this.fechaInicio(),
+        fechaFin: this.fechaFin(),
         tematica: this.tematica().trim(),
+        detallesAdicionales: this.detallesAdicionales().trim(),
       })
       .subscribe({
         next: (res) => {
           this.cargando.set(false);
           try {
-            this.itinerarioGenerado.set(JSON.parse(res.rawJson) as DiaItinerario[]);
+            this.itinerarioGenerado.set(JSON.parse(res.rawJson) as DiaIaDTO[]);
           } catch (ex) {
             console.error('Error al parsear el itinerario de Gemini', ex);
             alert('No se pudo interpretar la respuesta de la IA. Inténtalo de nuevo.');
@@ -68,6 +66,8 @@ export class Ia {
     this.iaService
       .guardarViaje({
         destino: this.destino().trim(),
+        fechaInicio: this.fechaInicio(),
+        fechaFin: this.fechaFin(),
         itinerario,
       })
       .subscribe({
