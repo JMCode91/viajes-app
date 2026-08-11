@@ -1,5 +1,6 @@
 import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 import { IaService } from '../../core/services/ia.service';
 
@@ -16,11 +17,13 @@ interface DiaItinerario {
 })
 export class Ia {
   private readonly iaService = inject(IaService);
+  private readonly router = inject(Router);
 
   protected readonly destino = signal('');
   protected readonly dias = signal(3);
   protected readonly tematica = signal('');
   protected readonly cargando = signal(false);
+  protected readonly guardando = signal(false);
   protected readonly itinerarioGenerado = signal<DiaItinerario[]>([]);
   protected readonly error = signal<string | null>(null);
 
@@ -49,6 +52,32 @@ export class Ia {
           this.cargando.set(false);
           this.itinerarioGenerado.set([]);
           this.error.set('No se pudo generar el itinerario. Inténtalo de nuevo.');
+        },
+      });
+  }
+
+  protected guardarItinerario(): void {
+    const itinerario = this.itinerarioGenerado();
+    if (itinerario.length === 0) {
+      return;
+    }
+
+    this.guardando.set(true);
+    this.error.set(null);
+
+    this.iaService
+      .guardarViaje({
+        destino: this.destino().trim(),
+        itinerario,
+      })
+      .subscribe({
+        next: (viaje) => {
+          this.guardando.set(false);
+          this.router.navigate(['/viajes', viaje.id]);
+        },
+        error: () => {
+          this.guardando.set(false);
+          this.error.set('No se pudo guardar el viaje. Inténtalo de nuevo.');
         },
       });
   }
