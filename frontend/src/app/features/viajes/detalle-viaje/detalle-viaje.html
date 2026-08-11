@@ -116,7 +116,7 @@
                   [class.text-blue-100]="diaSeleccionado() === dia.valor"
                   [class.text-gray-400]="diaSeleccionado() !== dia.valor"
                 >
-                  <span>{{ clima.icono }}</span>
+                  <span>{{ obtenerEmojiClima(clima.condicion || clima.icono) }}</span>
                   <span class="font-medium"
                     >{{ clima.tempMax | number:'1.0-0' }}°/{{
                       clima.tempMin | number:'1.0-0'

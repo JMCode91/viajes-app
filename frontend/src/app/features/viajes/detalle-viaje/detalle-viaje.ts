@@ -737,6 +737,44 @@ export class DetalleViaje implements OnDestroy {
     return indice >= 0 ? parte.slice(indice + 1).trim() : '';
   }
 
+  protected obtenerEmojiClima(condicion: string): string {
+    const texto = condicion.toLowerCase();
+    if (
+      texto.includes('despejado') ||
+      texto.includes('soleado') ||
+      texto.includes('sunny') ||
+      texto.includes('clear')
+    ) {
+      return '☀️';
+    }
+    if (
+      texto.includes('nublado') ||
+      texto.includes('nubes') ||
+      texto.includes('cloud')
+    ) {
+      return '☁️';
+    }
+    if (
+      texto.includes('lluvia') ||
+      texto.includes('llovizna') ||
+      texto.includes('rain')
+    ) {
+      return '🌧️';
+    }
+    if (
+      texto.includes('tormenta') ||
+      texto.includes('truenos') ||
+      texto.includes('storm') ||
+      texto.includes('thunder')
+    ) {
+      return '⛈️';
+    }
+    if (texto.includes('nieve') || texto.includes('snow')) {
+      return '❄️';
+    }
+    return '🌤️';
+  }
+
   protected abrirModalCompartir(): void {
     this.modalCompartirAbierto.set(true);
   }
