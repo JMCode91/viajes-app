@@ -1,5 +1,6 @@
 package com.app.viajes.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
@@ -24,8 +25,7 @@ public record DiaIaDTO(
 
         @NotNull(message = "Las actividades del dia son obligatorias")
         @NotEmpty(message = "El dia debe tener al menos una actividad")
-        List<@NotBlank(message = "Una actividad no puede estar vacia")
-             @Size(max = 255, message = "Una actividad no puede superar 255 caracteres")
-             String> actividades
+        @Valid
+        List<ActividadIaDTO> actividades
 ) {
 }

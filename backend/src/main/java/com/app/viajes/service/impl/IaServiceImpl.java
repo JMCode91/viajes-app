@@ -2,10 +2,12 @@ package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.request.ActividadIaDTO;
 import com.app.viajes.dto.request.DiaIaDTO;
 import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
 import com.app.viajes.dto.request.IaPromptRequestDTO;
 import com.app.viajes.dto.response.IaItinerarioResponseDTO;
+import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.IaException;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
@@ -29,6 +31,10 @@ import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -72,6 +78,7 @@ public class IaServiceImpl implements IaService {
         if (!StringUtils.hasText(apiKey)) {
             throw new IaException("El servicio de IA no esta configurado (falta gemini.api.key)");
         }
+        validarFechas(request.fechaInicio(), request.fechaFin());
 
         try {
             String prompt = construirPrompt(request);
@@ -143,13 +150,14 @@ public class IaServiceImpl implements IaService {
                 .orElseThrow(() -> new UsuarioNoEncontradoException(
                         "Usuario autenticado no encontrado"));
 
-        LocalDate fechaInicio = LocalDate.now();
-        int numDias = request.itinerario().size();
-        LocalDate fechaFin = fechaInicio.plusDays(numDias - 1L);
+        validarFechas(request.fechaInicio(), request.fechaFin());
 
-        // Crea el viaje y asocia al usuario autenticado como PROPIETARIO.
-        // ViajeService.crearViaje resuelve el usuario desde el SecurityContext
-        // (mismo usuario autenticado que se validó arriba por su id).
+        LocalDate fechaInicio = request.fechaInicio();
+        LocalDate fechaFin = request.fechaFin();
+
+        // Crea el viaje con las fechas reales del viajero y asocia al usuario
+        // autenticado como PROPIETARIO. ViajeService.crearViaje resuelve el usuario
+        // desde el SecurityContext (mismo usuario autenticado que se valido arriba).
         ViajeResponseDTO viajeCreado = viajeService.crearViaje(new ViajeRequestDTO(
                 "Viaje a " + request.destino() + " (IA)",
                 fechaInicio,
@@ -162,14 +170,18 @@ public class IaServiceImpl implements IaService {
         // Guarda una actividad por cada item del itinerario generado.
         for (DiaIaDTO dia : request.itinerario()) {
             LocalDate fecha = fechaInicio.plusDays(dia.dia() - 1L);
-            for (String texto : dia.actividades()) {
+            for (ActividadIaDTO item : dia.actividades()) {
                 Actividad actividad = new Actividad();
                 actividad.setViaje(viaje);
-                actividad.setTitulo(texto);
+                actividad.setTitulo(item.titulo());
                 actividad.setTipoActividad(TipoActividad.OTRO);
-                actividad.setFechaHoraInicio(fecha.atStartOfDay());
-                actividad.setFechaHoraFin(fecha.atTime(23, 59));
-                actividad.setNotas(dia.titulo());
+                LocalDateTime inicio = fecha.atTime(parseHoraActividad(item.hora()));
+                actividad.setFechaHoraInicio(inicio);
+                actividad.setFechaHoraFin(inicio.plusHours(1));
+                // El lugar exacto (nombre del sitio, ciudad y pais) alimenta el
+                // campo 'direccion', que el frontend geolocaliza en el mapa.
+                actividad.setDireccion(item.lugar());
+                actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
             }
         }
@@ -188,19 +200,54 @@ public class IaServiceImpl implements IaService {
     }
 
     private String construirPrompt(IaPromptRequestDTO request) {
+        long numDias = ChronoUnit.DAYS.between(request.fechaInicio(), request.fechaFin()) + 1;
+        String detallesAdicionales = request.detallesAdicionales();
+        String instruccionDetalles = "DETALLES IMPORTANTES DEL VIAJERO: "
+                + (detallesAdicionales == null || detallesAdicionales.isBlank()
+                        ? ""
+                        : detallesAdicionales.trim())
+                + ". (Si esta vacio, ignorarlo)";
+
         return """
                 Eres un experto planificador de viajes. Genera un itinerario de viaje \
-                para %s de %d dias con la tematica: %s.
+                para %s desde el %s hasta el %s (un total de %d dias) con la tematica: %s.
+
+                %s
 
                 Responde UNICAMENTE con un JSON valido, sin markdown, sin texto adicional \
                 y sin comentarios. El JSON debe ser un array con exactamente %d elementos \
                 (uno por dia), cada uno con esta estructura exacta:
-                [{"dia": 1, "titulo": "Titulo del dia", "actividades": ["Actividad 1", "Actividad 2"]}]
+                [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad, Pais (MUY IMPORTANTE PARA EL MAPA)", "descripcion": "Descripcion breve de la actividad"}]}]
 
-                Las actividades deben ser realistas, variadas y con horarios aproximados. \
-                Incluye siempre al menos 3 actividades por dia.
+                El campo 'hora' debe tener formato HH:MM (por ejemplo "09:30"). El campo \
+                'lugar' debe ser el nombre exacto del sitio seguido de la ciudad y el pais \
+                para que pueda geolocalizarse en el mapa. Las actividades deben ser \
+                realistas, variadas y con horarios aproximados. Incluye siempre al menos \
+                3 actividades por dia.
                 """.formatted(
-                request.destino(), request.dias(), request.tematica(), request.dias());
+                request.destino(),
+                request.fechaInicio(),
+                request.fechaFin(),
+                numDias,
+                request.tematica(),
+                instruccionDetalles,
+                numDias);
+    }
+
+    private void validarFechas(LocalDate fechaInicio, LocalDate fechaFin) {
+        if (fechaInicio != null && fechaFin != null && fechaFin.isBefore(fechaInicio)) {
+            throw new DatosInvalidosException(
+                    "La fecha de fin no puede ser anterior a la fecha de inicio");
+        }
+    }
+
+    private LocalTime parseHoraActividad(String hora) {
+        try {
+            return LocalTime.parse(hora);
+        } catch (DateTimeParseException | NullPointerException ex) {
+            log.warn("Hora invalida '{}' en el itinerario generado por IA; se usa 09:00", hora);
+            return LocalTime.of(9, 0);
+        }
     }
 
     private String limpiarJson(String texto) {
