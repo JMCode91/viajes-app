@@ -242,3 +242,11 @@ export interface RegisterRequest {
   email: string;
   password: string;
 }
+
+export interface Clima {
+  tempMax: number;
+  tempMin: number;
+  condicion: string;
+  icono: string;
+  esHistorico: boolean;
+}

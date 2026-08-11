@@ -5,10 +5,11 @@ import {
   inject,
   OnDestroy,
   signal,
+  untracked,
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { GoogleMap, MapAdvancedMarker, MapInfoWindow } from '@angular/google-maps';
@@ -32,10 +33,12 @@ import { TareaChecklistService } from '../../../core/services/tarea-checklist.se
 import { ViajeService } from '../../../core/services/viaje.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { GaleriaService } from '../../../core/services/galeria.service';
+import { ClimaService } from '../../../core/services/clima.service';
 import {
   Actividad,
   ActividadRequest,
   Album,
+  Clima,
   Documento,
   Foto,
   Participante,
@@ -82,6 +85,7 @@ export interface ResultadoBusqueda {
   selector: 'app-detalle-viaje',
   imports: [
     DatePipe,
+    DecimalPipe,
     ReactiveFormsModule,
     FormsModule,
     CustomTimePicker,
@@ -102,6 +106,12 @@ export class DetalleViaje implements OnDestroy {
   private readonly googleMapsService = inject(GoogleMapsService);
   private readonly authService = inject(AuthService);
   private readonly galeriaService = inject(GaleriaService);
+  private readonly climaService = inject(ClimaService);
+
+  private static readonly LAT_TOKIO = 35.6895;
+  private static readonly LON_TOKIO = 139.6917;
+
+  protected readonly climasPorDia = signal<Map<string, Clima>>(new Map());
 
   protected readonly viaje = this.viajeService.viajeDetalle;
   protected readonly actividades = this.actividadService.actividades;
@@ -410,6 +420,28 @@ export class DetalleViaje implements OnDestroy {
       const primerDia = this.dias()[0]?.valor;
       if (primerDia && !this.diaSeleccionado()) {
         this.diaSeleccionado.set(primerDia);
+      }
+    });
+
+    effect(() => {
+      const dias = this.dias();
+      const yaCargados = untracked(() => this.climasPorDia());
+      for (const dia of dias) {
+        if (yaCargados.has(dia.valor)) {
+          continue;
+        }
+        this.climaService
+          .getClima(DetalleViaje.LAT_TOKIO, DetalleViaje.LON_TOKIO, dia.valor)
+          .subscribe({
+            next: (clima) => {
+              this.climasPorDia.update((mapa) => {
+                const actualizado = new Map(mapa);
+                actualizado.set(dia.valor, clima);
+                return actualizado;
+              });
+            },
+            error: () => undefined,
+          });
       }
     });
 
