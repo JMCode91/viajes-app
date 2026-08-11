@@ -41,30 +41,41 @@ import java.util.UUID;
 
 /**
  * Implementacion del servicio de generacion de itinerarios con la API de Google Gemini
- * (modelo gemini-3.6-flash). La API key se inyecta desde la propiedad 'gemini.api.key'
- * (debe sobrescribirse via variable de entorno en produccion).
+ * (modelo gemini-3.6-flash). Al guardar el itinerario generado, cada actividad se
+ * enriquece con el {@code googlePlaceId} oficial via la API de Google Places (Text
+ * Search). Las API keys se inyectan desde las propiedades 'gemini.api.key' y
+ * 'google.places.api.key' (deben sobrescribirse via variable de entorno en produccion;
+ * la de Places reutiliza la de Gemini como fallback).
  */
 @Service
 public class IaServiceImpl implements IaService {
 
     private static final Logger log = LoggerFactory.getLogger(IaServiceImpl.class);
     private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
+    private static final String PLACES_FIND_TEXT_ENDPOINT = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json";
 
     private final String apiKey;
+    private final String googlePlacesApiKey;
     private final RestClient restClient;
+    private final RestClient placesRestClient;
     private final ViajeService viajeService;
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final ActividadRepository actividadRepository;
 
     public IaServiceImpl(@Value("${gemini.api.key:}") String apiKey,
+                         @Value("${google.places.api.key:}") String googlePlacesApiKey,
                          ViajeService viajeService,
                          ViajeRepository viajeRepository,
                          UsuarioRepository usuarioRepository,
                          ActividadRepository actividadRepository) {
         this.apiKey = apiKey;
+        this.googlePlacesApiKey = googlePlacesApiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(GEMINI_ENDPOINT)
+                .build();
+        this.placesRestClient = RestClient.builder()
+                .baseUrl(PLACES_FIND_TEXT_ENDPOINT)
                 .build();
         this.viajeService = viajeService;
         this.viajeRepository = viajeRepository;
@@ -199,6 +210,10 @@ public class IaServiceImpl implements IaService {
                 if (item.horario() != null && !item.horario().isBlank()) {
                     actividad.setHorarios(item.horario());
                 }
+                // Enriquece la actividad con el googlePlaceId oficial buscando el
+                // lugar en la API de Google Places (Text Search). Si la busqueda
+                // falla, la actividad se guarda igualmente como lugar custom.
+                actividad.setGooglePlaceId(buscarGooglePlaceId(item.lugar()));
                 actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
             }
@@ -272,6 +287,49 @@ public class IaServiceImpl implements IaService {
         } catch (DateTimeParseException | NullPointerException ex) {
             log.warn("Hora invalida '{}' en el itinerario generado por IA; se usa 09:00", hora);
             return LocalTime.of(9, 0);
+        }
+    }
+
+    /**
+     * Busca el {@code place_id} oficial de un lugar en la API de Google Places
+     * (Text Search: findplacefromtext). Devuelve el primer candidato o {@code null}
+     * si la busqueda falla, la API no esta configurada o el nombre del lugar esta
+     * vacio. Nunca lanza: cualquier error (HTTP o parsing) se maneja y devuelve
+     * {@code null} para que el guardado del viaje nunca se rompa.
+     */
+    @SuppressWarnings("unchecked")
+    private String buscarGooglePlaceId(String nombreLugar) {
+        if (!StringUtils.hasText(googlePlacesApiKey) || !StringUtils.hasText(nombreLugar)) {
+            return null;
+        }
+        try {
+            Map<String, Object> respuesta = placesRestClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("input", nombreLugar)
+                            .queryParam("inputtype", "textquery")
+                            .queryParam("fields", "place_id")
+                            .queryParam("key", googlePlacesApiKey)
+                            .build())
+                    .retrieve()
+                    .body(Map.class);
+
+            if (respuesta == null) {
+                log.warn("La API de Places devolvio una respuesta vacia para '{}'", nombreLugar);
+                return null;
+            }
+
+            List<Map<String, Object>> candidatos =
+                    (List<Map<String, Object>>) respuesta.get("candidates");
+            if (candidatos == null || candidatos.isEmpty()) {
+                return null;
+            }
+
+            Object placeId = candidatos.get(0).get("place_id");
+            return placeId != null ? placeId.toString() : null;
+        } catch (Exception ex) {
+            log.warn("No se pudo obtener el googlePlaceId para '{}': {}",
+                    nombreLugar, ex.getMessage());
+            return null;
         }
     }
 
