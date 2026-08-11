@@ -21,4 +21,8 @@ export class DivisaService {
       params,
     });
   }
+
+  obtenerMonedas(): Observable<Record<string, string>> {
+    return this.http.get<Record<string, string>>('/api/divisas/monedas');
+  }
 }

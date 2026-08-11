@@ -257,4 +257,5 @@ export interface DivisaResponseDTO {
   montoConvertido: number;
   monedaDestino: string;
   ratioCambio: number;
+  fechaActualizacion?: string;
 }
