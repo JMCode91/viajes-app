@@ -8,6 +8,7 @@ public record DivisaResponseDTO(
         String monedaOriginal,
         Double montoConvertido,
         String monedaDestino,
-        Double ratioCambio
+        Double ratioCambio,
+        String fechaActualizacion
 ) {
 }

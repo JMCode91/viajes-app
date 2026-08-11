@@ -2,6 +2,8 @@ package com.app.viajes.service;
 
 import com.app.viajes.dto.response.DivisaResponseDTO;
 
+import java.util.Map;
+
 /**
  * Servicio de conversion de divisas usando la API publica de Frankfurter.
  */
@@ -16,4 +18,12 @@ public interface DivisaService {
      * @return resultado de la conversion
      */
     DivisaResponseDTO convertir(Double monto, String from, String to);
+
+    /**
+     * Devuelve el catalogo de monedas soportadas por Frankfurter.
+     *
+     * @return mapa con el codigo ISO de cada moneda como clave y su nombre en
+     *         ingles como valor (ej. {@code {"AUD": "Australian Dollar"}})
+     */
+    Map<String, String> obtenerMonedas();
 }

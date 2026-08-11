@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * Controlador de conversion de divisas (API publica de Frankfurter).
  * Requiere JWT (cae bajo {@code anyRequest().authenticated()} de SecurityConfig).
@@ -28,5 +30,10 @@ public class DivisaController {
             @RequestParam(defaultValue = "EUR") String from,
             @RequestParam(defaultValue = "JPY") String to) {
         return ResponseEntity.ok(divisaService.convertir(amount, from, to));
+    }
+
+    @GetMapping("/monedas")
+    public ResponseEntity<Map<String, String>> monedas() {
+        return ResponseEntity.ok(divisaService.obtenerMonedas());
     }
 }

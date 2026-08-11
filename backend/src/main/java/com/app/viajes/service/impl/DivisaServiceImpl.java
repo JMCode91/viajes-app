@@ -58,6 +58,8 @@ public class DivisaServiceImpl implements DivisaService {
                         "No se encontro el tipo de cambio para la moneda " + monedaDestino);
             }
 
+            String fechaActualizacion = String.valueOf(respuesta.get("date"));
+
             Double montoConvertido = rates.get(monedaDestino).doubleValue();
             Double ratioCambio = montoConvertido / monto;
 
@@ -66,13 +68,36 @@ public class DivisaServiceImpl implements DivisaService {
                     monedaOrigen,
                     montoConvertido,
                     monedaDestino,
-                    ratioCambio);
+                    ratioCambio,
+                    fechaActualizacion);
         } catch (DivisaException ex) {
             throw ex;
         } catch (Exception ex) {
             log.error("Error al llamar a la API de Frankfurter", ex);
             throw new DivisaException(
                     "No se pudo realizar la conversion de divisas en este momento", ex);
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Map<String, String> obtenerMonedas() {
+        try {
+            Map<String, String> monedas = restClient.get()
+                    .uri("/currencies")
+                    .retrieve()
+                    .body(Map.class);
+
+            if (monedas == null) {
+                throw new DivisaException("La API de divisas no devolvio el catalogo de monedas");
+            }
+            return monedas;
+        } catch (DivisaException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Error al obtener el catalogo de monedas de Frankfurter", ex);
+            throw new DivisaException(
+                    "No se pudo obtener el catalogo de monedas en este momento", ex);
         }
     }
 }
