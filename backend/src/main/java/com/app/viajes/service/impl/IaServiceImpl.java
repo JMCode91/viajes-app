@@ -194,6 +194,11 @@ public class IaServiceImpl implements IaService {
                 if (item.rating() != null) {
                     actividad.setRating(item.rating());
                 }
+                // Si Gemini devuelve un horario comercial estimado, se persiste para
+                // que el frontend pueda mostrarlo en las tarjetas del itinerario.
+                if (item.horario() != null && !item.horario().isBlank()) {
+                    actividad.setHorarios(item.horario());
+                }
                 actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
             }
@@ -233,15 +238,16 @@ public class IaServiceImpl implements IaService {
                 Responde UNICAMENTE con un JSON valido, sin markdown, sin texto adicional \
                 y sin comentarios. El JSON debe ser un array con exactamente %d elementos \
                 (uno por dia), cada uno con esta estructura exacta:
-                [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad", "latitud": 35.6585, "longitud": 139.7454, "rating": 4.7, "descripcion": "Descripcion breve de la actividad"}]}]
+                [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad", "latitud": 35.6585, "longitud": 139.7454, "rating": 4.7, "horario": "Lunes a Domingo: 10:00 - 20:00", "descripcion": "Descripcion breve de la actividad"}]}]
 
                 El campo 'hora' debe tener formato HH:MM (por ejemplo "09:30"). El campo \
                 'lugar' debe ser el nombre exacto del sitio seguido de la ciudad y el pais \
                 para que pueda geolocalizarse en el mapa. Los campos 'latitud' y 'longitud' \
                 deben ser numericos y corresponder a las coordenadas GPS reales del lugar. \
                 Incluye un campo numerico para la valoracion (ej. 'rating') estimado entre \
-                1.0 y 5.0 basado en la popularidad real del lugar. Las actividades deben ser \
-                realistas, variadas y con horarios aproximados. Incluye siempre al menos \
+                1.0 y 5.0 basado en la popularidad real del lugar. Incluye un horario \
+                comercial estimado y resumido en el campo 'horario'. Las actividades deben \
+                ser realistas, variadas y con horarios aproximados. Incluye siempre al menos \
                 3 actividades por dia.
                 """.formatted(
                 request.destino(),
