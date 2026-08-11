@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
 import java.util.List;
@@ -49,6 +50,9 @@ public class IaServiceImpl implements IaService {
                     "contents", List.of(
                             Map.of("parts", List.of(Map.of("text", prompt)))));
 
+            log.info("Llamando a la API de Gemini con la API key enmascarada: {}",
+                    enmascararApiKey(apiKey));
+
             Map<String, Object> respuesta = restClient.post()
                     .uri(uriBuilder -> uriBuilder.queryParam("key", apiKey).build())
                     .contentType(MediaType.APPLICATION_JSON)
@@ -57,37 +61,59 @@ public class IaServiceImpl implements IaService {
                     .body(Map.class);
 
             if (respuesta == null) {
+                log.error("Gemini devolvio una respuesta vacia (body null)");
                 throw new IaException("Gemini no devolvio respuesta");
             }
 
             List<Map<String, Object>> candidatos =
                     (List<Map<String, Object>>) respuesta.get("candidates");
             if (candidatos == null || candidatos.isEmpty()) {
+                log.error("Gemini no devolvio candidatos. Cuerpo recibido: {}", respuesta);
                 throw new IaException("Gemini no devolvio candidatos");
             }
 
             Map<String, Object> contenido = (Map<String, Object>) candidatos.get(0).get("content");
             if (contenido == null) {
+                log.error("Gemini no devolvio contenido. Cuerpo recibido: {}", respuesta);
                 throw new IaException("Gemini no devolvio contenido");
             }
 
             List<Map<String, Object>> partes = (List<Map<String, Object>>) contenido.get("parts");
             if (partes == null || partes.isEmpty()) {
+                log.error("Gemini no devolvio partes de texto. Cuerpo recibido: {}", respuesta);
                 throw new IaException("Gemini no devolvio partes de texto");
             }
 
             Object texto = partes.get(0).get("text");
             if (texto == null) {
+                log.error("Gemini no devolvio texto. Cuerpo recibido: {}", respuesta);
                 throw new IaException("Gemini no devolvio texto");
             }
 
             return new IaItinerarioResponseDTO(limpiarJson(texto.toString()));
         } catch (IaException ex) {
             throw ex;
+        } catch (HttpStatusCodeException ex) {
+            log.error("Gemini devolvio un error HTTP {} ({}) al llamar a la API: {}",
+                    ex.getStatusCode().value(),
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString());
+            throw new IaException("No se pudo generar el itinerario en este momento", ex);
         } catch (Exception ex) {
-            log.error("Error al llamar a la API de Gemini", ex);
+            log.error("Error al llamar a la API de Gemini. Mensaje exacto: {}",
+                    ex.getMessage(), ex);
             throw new IaException("No se pudo generar el itinerario en este momento", ex);
         }
+    }
+
+    private String enmascararApiKey(String apiKey) {
+        if (apiKey == null || apiKey.isEmpty()) {
+            return "(vacia o null)";
+        }
+        if (apiKey.length() < 8) {
+            return apiKey.charAt(0) + "...";
+        }
+        return apiKey.substring(0, 4) + "...";
     }
 
     private String construirPrompt(IaPromptRequestDTO request) {
