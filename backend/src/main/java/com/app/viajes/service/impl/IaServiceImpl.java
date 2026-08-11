@@ -1,20 +1,37 @@
 package com.app.viajes.service.impl;
 
+import com.app.viajes.dto.ViajeRequestDTO;
+import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.request.DiaIaDTO;
+import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
 import com.app.viajes.dto.request.IaPromptRequestDTO;
 import com.app.viajes.dto.response.IaItinerarioResponseDTO;
 import com.app.viajes.exception.IaException;
+import com.app.viajes.exception.UsuarioNoEncontradoException;
+import com.app.viajes.exception.ViajeNoEncontradoException;
+import com.app.viajes.model.Actividad;
+import com.app.viajes.model.Viaje;
+import com.app.viajes.model.enums.TipoActividad;
+import com.app.viajes.repository.ActividadRepository;
+import com.app.viajes.repository.UsuarioRepository;
+import com.app.viajes.repository.ViajeRepository;
 import com.app.viajes.service.IaService;
+import com.app.viajes.service.ViajeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClient;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Implementacion del servicio de generacion de itinerarios con la API de Google Gemini
@@ -29,12 +46,24 @@ public class IaServiceImpl implements IaService {
 
     private final String apiKey;
     private final RestClient restClient;
+    private final ViajeService viajeService;
+    private final ViajeRepository viajeRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final ActividadRepository actividadRepository;
 
-    public IaServiceImpl(@Value("${gemini.api.key:}") String apiKey) {
+    public IaServiceImpl(@Value("${gemini.api.key:}") String apiKey,
+                         ViajeService viajeService,
+                         ViajeRepository viajeRepository,
+                         UsuarioRepository usuarioRepository,
+                         ActividadRepository actividadRepository) {
         this.apiKey = apiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(GEMINI_ENDPOINT)
                 .build();
+        this.viajeService = viajeService;
+        this.viajeRepository = viajeRepository;
+        this.usuarioRepository = usuarioRepository;
+        this.actividadRepository = actividadRepository;
     }
 
     @Override
@@ -104,6 +133,48 @@ public class IaServiceImpl implements IaService {
                     ex.getMessage(), ex);
             throw new IaException("No se pudo generar el itinerario en este momento", ex);
         }
+    }
+
+    @Override
+    @Transactional
+    public ViajeResponseDTO guardarViajeGenerado(IaGuardarViajeRequestDTO request, UUID usuarioId) {
+        // Verifica que el usuario autenticado exista en la base de datos.
+        usuarioRepository.findById(usuarioId)
+                .orElseThrow(() -> new UsuarioNoEncontradoException(
+                        "Usuario autenticado no encontrado"));
+
+        LocalDate fechaInicio = LocalDate.now();
+        int numDias = request.itinerario().size();
+        LocalDate fechaFin = fechaInicio.plusDays(numDias - 1L);
+
+        // Crea el viaje y asocia al usuario autenticado como PROPIETARIO.
+        // ViajeService.crearViaje resuelve el usuario desde el SecurityContext
+        // (mismo usuario autenticado que se validó arriba por su id).
+        ViajeResponseDTO viajeCreado = viajeService.crearViaje(new ViajeRequestDTO(
+                "Viaje a " + request.destino() + " (IA)",
+                fechaInicio,
+                fechaFin,
+                BigDecimal.ZERO));
+
+        Viaje viaje = viajeRepository.findById(viajeCreado.id())
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+
+        // Guarda una actividad por cada item del itinerario generado.
+        for (DiaIaDTO dia : request.itinerario()) {
+            LocalDate fecha = fechaInicio.plusDays(dia.dia() - 1L);
+            for (String texto : dia.actividades()) {
+                Actividad actividad = new Actividad();
+                actividad.setViaje(viaje);
+                actividad.setTitulo(texto);
+                actividad.setTipoActividad(TipoActividad.OTRO);
+                actividad.setFechaHoraInicio(fecha.atStartOfDay());
+                actividad.setFechaHoraFin(fecha.atTime(23, 59));
+                actividad.setNotas(dia.titulo());
+                actividadRepository.save(actividad);
+            }
+        }
+
+        return viajeCreado;
     }
 
     private String enmascararApiKey(String apiKey) {
