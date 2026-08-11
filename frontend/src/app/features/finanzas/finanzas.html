@@ -1,26 +1,20 @@
 <div class="min-h-screen bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
-  <header class="mb-6 flex items-center justify-between gap-4">
+  <header class="mb-6 flex items-center gap-3">
+    <button
+      type="button"
+      aria-label="Volver al viaje"
+      (click)="goBack()"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md active:scale-95"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+      </svg>
+    </button>
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Gastos</h1>
       <p class="text-sm text-gray-500 dark:text-gray-400">Controla tus gastos del viaje.</p>
     </div>
   </header>
-
-  <div class="mb-5 flex flex-col gap-2">
-    <label for="viaje" class="text-sm font-medium text-gray-700 dark:text-gray-300">Viaje</label>
-    <select
-      id="viaje"
-      [value]="viajeSeleccionado() ?? ''"
-      (change)="seleccionarViaje($any($event.target).value)"
-      class="h-14 w-full appearance-none rounded-2xl bg-white dark:bg-gray-800 px-4 text-gray-900 dark:text-white outline-none ring-1 ring-transparent focus:ring-2 focus:ring-blue-500"
-    >
-      @for (viaje of viajes(); track viaje.id) {
-        <option [value]="viaje.id">
-          {{ viaje.titulo }}
-        </option>
-      }
-    </select>
-  </div>
 
   <section class="mb-8 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-700 p-6 text-white shadow-xl shadow-blue-600/30">
     <div class="flex items-start justify-between gap-3">
@@ -166,7 +160,7 @@
   type="button"
   aria-label="Añadir gasto"
   (click)="abrirModal()"
-  class="fixed bottom-24 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/40 active:scale-95"
+  class="fixed bottom-6 right-6 z-20 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 text-white shadow-xl shadow-blue-600/40 active:scale-95"
 >
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.2" stroke="currentColor" class="h-8 w-8">
     <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />

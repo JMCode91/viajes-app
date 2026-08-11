@@ -22,9 +22,20 @@ export const routes: Routes = [
           ),
       },
       {
-        path: 'gastos',
+        path: 'ia',
+        data: { titulo: 'IA' },
         loadComponent: () =>
-          import('./features/finanzas/finanzas').then((m) => m.Finanzas),
+          import('./features/placeholder/placeholder').then(
+            (m) => m.Placeholder
+          ),
+      },
+      {
+        path: 'conversor',
+        data: { titulo: 'Conversor' },
+        loadComponent: () =>
+          import('./features/placeholder/placeholder').then(
+            (m) => m.Placeholder
+          ),
       },
       {
         path: 'perfil',
@@ -40,6 +51,12 @@ export const routes: Routes = [
       import('./features/viajes/crear-viaje/crear-viaje').then(
         (m) => m.CrearViaje
       ),
+  },
+  {
+    path: 'viajes/:id/gastos',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/finanzas/finanzas').then((m) => m.Finanzas),
   },
   {
     path: 'viajes/:id',

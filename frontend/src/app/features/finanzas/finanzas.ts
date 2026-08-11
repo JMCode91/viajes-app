@@ -1,7 +1,8 @@
-import { Component, computed, effect, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { CurrencyPipe } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { startWith } from 'rxjs';
 
 import { ViajeService } from '../../core/services/viaje.service';
@@ -15,7 +16,6 @@ import {
   TipoGasto,
   TipoDivision,
   UUID,
-  Viaje,
 } from '../../shared/types';
 
 @Component({
@@ -26,17 +26,21 @@ import {
 })
 export class Finanzas {
   private readonly fb = inject(FormBuilder);
+  private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly viajeService = inject(ViajeService);
   private readonly gastoService = inject(GastoService);
   private readonly authService = inject(AuthService);
 
-  protected readonly viajes = this.viajeService.viajes;
+  protected readonly viajeId: UUID | null = this.route.snapshot.paramMap.get(
+    'id'
+  ) as UUID | null;
+
   protected readonly gastos = this.gastoService.gastos;
   protected readonly balance = this.gastoService.balance;
   protected readonly participantes = this.viajeService.participantes;
   protected readonly usuario = this.authService.usuario;
 
-  protected readonly viajeSeleccionado = signal<UUID | null>(null);
   protected readonly vistaActiva = signal<'GRUPO' | 'PERSONAL'>('GRUPO');
   protected readonly modalAbierto = signal(false);
   protected readonly gastoEnEdicion = signal<Gasto | null>(null);
@@ -45,18 +49,6 @@ export class Finanzas {
   protected readonly errorBorrar = signal<string | null>(null);
   protected readonly porcentajes = signal<Partial<Record<UUID, number>>>({});
   protected readonly deudorSeleccionado = signal<UUID | null>(null);
-
-  protected readonly viajeActual = computed<Viaje | null>(() => {
-    const viajes = this.viajes();
-    const seleccion = this.viajeSeleccionado();
-    return (
-      viajes.find((viaje) => viaje.id === seleccion) ?? viajes[0] ?? null
-    );
-  });
-
-  protected readonly presupuestoBase = computed<number>(
-    () => this.viajeActual()?.presupuestoBase ?? 0
-  );
 
   protected readonly gastosVisibles = computed(() => {
     const tipo = this.vistaActiva() === 'GRUPO' ? 'COMPARTIDO' : 'PERSONAL';
@@ -78,7 +70,7 @@ export class Finanzas {
   protected readonly presupuestoVista = computed(() => {
     const balance = this.balance();
     if (this.vistaActiva() === 'GRUPO') {
-      return balance?.presupuestoGlobal ?? this.presupuestoBase();
+      return balance?.presupuestoGlobal ?? 0;
     }
     return balance?.presupuestoIndividualUsuario ?? 0;
   });
@@ -226,19 +218,19 @@ export class Finanzas {
   });
 
   constructor() {
-    this.viajeService.cargarMisViajes();
+    if (this.viajeId) {
+      this.gastoService.cargarGastos(this.viajeId);
+      this.gastoService.cargarBalance(this.viajeId);
+      this.viajeService.cargarParticipantes(this.viajeId);
+    }
+  }
 
-    effect(() => {
-      const viajes = this.viajes();
-      const seleccion = this.viajeSeleccionado();
-      const valido = viajes.some((viaje) => viaje.id === seleccion);
-      if (viajes.length > 0 && !valido) {
-        this.viajeSeleccionado.set(viajes[0].id);
-        this.gastoService.cargarGastos(viajes[0].id);
-        this.gastoService.cargarBalance(viajes[0].id);
-        this.viajeService.cargarParticipantes(viajes[0].id);
-      }
-    });
+  protected goBack(): void {
+    if (this.viajeId) {
+      void this.router.navigate(['/viajes', this.viajeId]);
+      return;
+    }
+    void this.router.navigate(['/dashboard']);
   }
 
   protected cambiarVista(vista: 'GRUPO' | 'PERSONAL'): void {
@@ -277,13 +269,6 @@ export class Finanzas {
       return { texto: 'pediste', importe: miDeuda.importe, color: 'text-orange-500' };
     }
     return { texto: 'no participas', importe: 0, color: 'text-gray-500' };
-  }
-
-  protected seleccionarViaje(id: string): void {
-    this.viajeSeleccionado.set(id);
-    this.gastoService.cargarGastos(id);
-    this.gastoService.cargarBalance(id);
-    this.viajeService.cargarParticipantes(id);
   }
 
   protected abrirModal(): void {
@@ -395,7 +380,7 @@ export class Finanzas {
 
   protected eliminarGasto(gasto: Gasto, $event: Event): void {
     $event.stopPropagation();
-    const viajeId = this.viajeSeleccionado();
+    const viajeId = this.viajeId;
     if (!viajeId) {
       return;
     }
@@ -470,7 +455,7 @@ export class Finanzas {
   }
 
   protected guardarGasto(): void {
-    const viajeId = this.viajeSeleccionado();
+    const viajeId = this.viajeId;
     if (!viajeId || !this.puedeGuardar()) {
       this.formGasto.markAllAsTouched();
       return;
