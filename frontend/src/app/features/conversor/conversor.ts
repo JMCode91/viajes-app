@@ -76,13 +76,24 @@ export class Conversor implements OnInit {
   }
 
   protected convertir(): void {
+    this.error.set(null);
     const monto = this.monto();
     if (!(monto > 0)) {
       this.error.set('Introduce una cantidad mayor que 0.');
       return;
     }
+    if (this.monedaOrigen() === this.monedaDestino()) {
+      this.resultado.set({
+        montoOriginal: monto,
+        monedaOriginal: this.monedaOrigen(),
+        montoConvertido: monto,
+        monedaDestino: this.monedaDestino(),
+        ratioCambio: 1,
+        fechaActualizacion: new Date().toISOString().slice(0, 10),
+      });
+      return;
+    }
     this.cargando.set(true);
-    this.error.set(null);
     this.divisaService
       .convertir(monto, this.monedaOrigen(), this.monedaDestino())
       .subscribe({
