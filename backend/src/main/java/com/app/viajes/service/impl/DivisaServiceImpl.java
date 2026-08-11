@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.time.LocalDate;
 import java.util.Map;
 
 /**
@@ -37,6 +38,16 @@ public class DivisaServiceImpl implements DivisaService {
         String monedaOrigen = from.toUpperCase();
         String monedaDestino = to.toUpperCase();
 
+        if (monedaOrigen.equals(monedaDestino)) {
+            return new DivisaResponseDTO(
+                    monto,
+                    monedaOrigen,
+                    monto,
+                    monedaDestino,
+                    1.0,
+                    LocalDate.now().toString());
+        }
+
         try {
             Map<String, Object> respuesta = restClient.get()
                     .uri(uriBuilder -> uriBuilder
@@ -52,7 +63,7 @@ public class DivisaServiceImpl implements DivisaService {
                 throw new DivisaException("La API de divisas no devolvio datos");
             }
 
-            Map<String, Number> rates = (Map<String, Number>) respuesta.get("rates");
+            Map<String, Object> rates = (Map<String, Object>) respuesta.get("rates");
             if (rates == null || !rates.containsKey(monedaDestino)) {
                 throw new DivisaException(
                         "No se encontro el tipo de cambio para la moneda " + monedaDestino);
@@ -60,7 +71,8 @@ public class DivisaServiceImpl implements DivisaService {
 
             String fechaActualizacion = String.valueOf(respuesta.get("date"));
 
-            Double montoConvertido = rates.get(monedaDestino).doubleValue();
+            Number rateNum = (Number) rates.get(monedaDestino);
+            Double montoConvertido = rateNum.doubleValue();
             Double ratioCambio = montoConvertido / monto;
 
             return new DivisaResponseDTO(
