@@ -52,7 +52,7 @@ public class IaServiceImpl implements IaService {
 
     private static final Logger log = LoggerFactory.getLogger(IaServiceImpl.class);
     private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
-    private static final String PLACES_TEXT_SEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json";
+    private static final String PLACES_FIND_TEXT_ENDPOINT = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json";
 
     private final String apiKey;
     private final String googlePlacesApiKey;
@@ -75,7 +75,7 @@ public class IaServiceImpl implements IaService {
                 .baseUrl(GEMINI_ENDPOINT)
                 .build();
         this.placesRestClient = RestClient.builder()
-                .baseUrl(PLACES_TEXT_SEARCH_ENDPOINT)
+                .baseUrl(PLACES_FIND_TEXT_ENDPOINT)
                 .build();
         this.viajeService = viajeService;
         this.viajeRepository = viajeRepository;
@@ -210,12 +210,11 @@ public class IaServiceImpl implements IaService {
                 if (item.horario() != null && !item.horario().isBlank()) {
                     actividad.setHorarios(item.horario());
                 }
-                // Enriquece la actividad con el googlePlaceId oficial buscando el
-                // lugar en la API de Google Places (Text Search), usando las
-                // coordenadas de la actividad para forzar la precision. Si la
-                // busqueda falla, la actividad se guarda igualmente como lugar custom.
-                actividad.setGooglePlaceId(buscarGooglePlaceId(
-                        item.lugar(), item.latitud(), item.longitud()));
+                // Enriquece la actividad con el googlePlaceId oficial confiando en el NLP
+                // de Google (findplacefromtext recibe la cadena completa del lugar
+                // generada por la IA). Si la busqueda falla, la actividad se guarda
+                // igualmente como lugar custom.
+                actividad.setGooglePlaceId(buscarGooglePlaceId(item.lugar()));
                 actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
             }
@@ -294,39 +293,23 @@ public class IaServiceImpl implements IaService {
 
     /**
      * Busca el {@code place_id} oficial de un lugar en la API de Google Places
-     * (Text Search: textsearch). Antes de consultar, se limpia el nombre generado
-     * por la IA con {@code split(",")[0]} (si "Akihabara Radio Kaikan, Tokio, Japon",
-     * solo se busca "Akihabara Radio Kaikan") y se acota la busqueda a 500 metros
-     * alrededor de las coordenadas de la actividad, mucho mas fiable que las
-     * traducciones ("Tokio", "Japon"). Devuelve el primer {@code result} o {@code null}
-     * si la busqueda falla, la API no esta configurada o el nombre esta vacio. Nunca
-     * lanza: cualquier error (HTTP o parsing) se maneja y devuelve {@code null} para
-     * que el guardado del viaje nunca se rompa.
+     * (findplacefromtext), enviando la cadena completa del lugar generada por la
+     * IA y confiando en el NLP de Google. Devuelve {@code candidates[0].place_id}
+     * o {@code null} si la busqueda falla, la API no esta configurada o el nombre
+     * esta vacio. Nunca lanza: cualquier error (HTTP o parsing) se maneja y
+     * devuelve {@code null} para que el guardado del viaje nunca se rompa.
      */
     @SuppressWarnings("unchecked")
-    private String buscarGooglePlaceId(String nombreLugar, Double latitud, Double longitud) {
+    private String buscarGooglePlaceId(String nombreLugar) {
         if (!StringUtils.hasText(googlePlacesApiKey) || !StringUtils.hasText(nombreLugar)) {
-            return null;
-        }
-        // Conserva solo la parte principal del nombre (antes de la primera coma)
-        // para evitar que la ciudad/pais con traducciones confunda al motor.
-        String nombreLimpio = nombreLugar.split(",")[0].trim();
-        if (!StringUtils.hasText(nombreLimpio)) {
             return null;
         }
         try {
             Map<String, Object> respuesta = placesRestClient.get()
                     .uri(uriBuilder -> {
-                        uriBuilder.queryParam("query", nombreLimpio);
-                        // Aplica el sesgo de ubicacion junto a las coordenadas
-                        // reales de la actividad (si Gemini las devolvio) para
-                        // acotar la zona. El radio (500 m) va integrado en el
-                        // formato circle:radio@lat,lng de 'locationbias'.
-                        if (latitud != null && longitud != null) {
-                            uriBuilder.queryParam(
-                                    "locationbias",
-                                    "circle:" + 500 + "@" + latitud + "," + longitud);
-                        }
+                        uriBuilder.queryParam("input", nombreLugar.trim());
+                        uriBuilder.queryParam("inputtype", "textquery");
+                        uriBuilder.queryParam("fields", "place_id");
                         return uriBuilder
                                 .queryParam("key", googlePlacesApiKey)
                                 .build();
@@ -335,21 +318,21 @@ public class IaServiceImpl implements IaService {
                     .body(Map.class);
 
             if (respuesta == null) {
-                log.warn("La API de Places devolvio una respuesta vacia para '{}'", nombreLimpio);
+                log.warn("La API de Places devolvio una respuesta vacia para '{}'", nombreLugar);
                 return null;
             }
 
-            List<Map<String, Object>> resultados =
-                    (List<Map<String, Object>>) respuesta.get("results");
-            if (resultados == null || resultados.isEmpty()) {
+            List<Map<String, Object>> candidatos =
+                    (List<Map<String, Object>>) respuesta.get("candidates");
+            if (candidatos == null || candidatos.isEmpty()) {
                 return null;
             }
 
-            Object placeId = resultados.get(0).get("place_id");
+            Object placeId = candidatos.get(0).get("place_id");
             return placeId != null ? placeId.toString() : null;
         } catch (Exception ex) {
             log.warn("No se pudo obtener el googlePlaceId para '{}': {}",
-                    nombreLimpio, ex.getMessage());
+                    nombreLugar, ex.getMessage());
             return null;
         }
     }
