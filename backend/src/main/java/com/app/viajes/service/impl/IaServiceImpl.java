@@ -6,6 +6,7 @@ import com.app.viajes.dto.request.ActividadIaDTO;
 import com.app.viajes.dto.request.DiaIaDTO;
 import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
 import com.app.viajes.dto.request.IaPromptRequestDTO;
+import com.app.viajes.dto.request.IaRegenerarActividadRequestDTO;
 import com.app.viajes.dto.response.IaItinerarioResponseDTO;
 import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.IaException;
@@ -19,6 +20,7 @@ import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.ViajeRepository;
 import com.app.viajes.service.IaService;
 import com.app.viajes.service.ViajeService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,6 +60,7 @@ public class IaServiceImpl implements IaService {
     private final String googlePlacesApiKey;
     private final RestClient restClient;
     private final RestClient placesRestClient;
+    private final ObjectMapper objectMapper;
     private final ViajeService viajeService;
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
@@ -65,6 +68,7 @@ public class IaServiceImpl implements IaService {
 
     public IaServiceImpl(@Value("${gemini.api.key:}") String apiKey,
                          @Value("${google.places.api.key:}") String googlePlacesApiKey,
+                         ObjectMapper objectMapper,
                          ViajeService viajeService,
                          ViajeRepository viajeRepository,
                          UsuarioRepository usuarioRepository,
@@ -77,6 +81,7 @@ public class IaServiceImpl implements IaService {
         this.placesRestClient = RestClient.builder()
                 .baseUrl(PLACES_TEXT_SEARCH_ENDPOINT)
                 .build();
+        this.objectMapper = objectMapper;
         this.viajeService = viajeService;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
@@ -223,6 +228,81 @@ public class IaServiceImpl implements IaService {
         return viajeCreado;
     }
 
+    @Override
+    @SuppressWarnings("unchecked")
+    public ActividadIaDTO regenerarActividad(IaRegenerarActividadRequestDTO request) {
+        if (!StringUtils.hasText(apiKey)) {
+            throw new IaException("El servicio de IA no esta configurado (falta gemini.api.key)");
+        }
+
+        try {
+            String prompt = construirPromptRegenerarActividad(request);
+            Map<String, Object> cuerpo = Map.of(
+                    "contents", List.of(
+                            Map.of("parts", List.of(Map.of("text", prompt)))));
+
+            log.info("Llamando a la API de Gemini con la API key enmascarada: {}",
+                    enmascararApiKey(apiKey));
+
+            Map<String, Object> respuesta = restClient.post()
+                    .uri(uriBuilder -> uriBuilder.queryParam("key", apiKey).build())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(cuerpo)
+                    .retrieve()
+                    .body(Map.class);
+
+            if (respuesta == null) {
+                log.error("Gemini devolvio una respuesta vacia (body null)");
+                throw new IaException("Gemini no devolvio respuesta");
+            }
+
+            List<Map<String, Object>> candidatos =
+                    (List<Map<String, Object>>) respuesta.get("candidates");
+            if (candidatos == null || candidatos.isEmpty()) {
+                log.error("Gemini no devolvio candidatos. Cuerpo recibido: {}", respuesta);
+                throw new IaException("Gemini no devolvio candidatos");
+            }
+
+            Map<String, Object> contenido = (Map<String, Object>) candidatos.get(0).get("content");
+            if (contenido == null) {
+                log.error("Gemini no devolvio contenido. Cuerpo recibido: {}", respuesta);
+                throw new IaException("Gemini no devolvio contenido");
+            }
+
+            List<Map<String, Object>> partes = (List<Map<String, Object>>) contenido.get("parts");
+            if (partes == null || partes.isEmpty()) {
+                log.error("Gemini no devolvio partes de texto. Cuerpo recibido: {}", respuesta);
+                throw new IaException("Gemini no devolvio partes de texto");
+            }
+
+            Object texto = partes.get(0).get("text");
+            if (texto == null) {
+                log.error("Gemini no devolvio texto. Cuerpo recibido: {}", respuesta);
+                throw new IaException("Gemini no devolvio texto");
+            }
+
+            String json = limpiarJson(texto.toString());
+            try {
+                return objectMapper.readValue(json, ActividadIaDTO.class);
+            } catch (Exception ex) {
+                log.error("No se pudo parsear la actividad generada. JSON recibido: {}", json);
+                throw new IaException("No se pudo interpretar la actividad generada", ex);
+            }
+        } catch (IaException ex) {
+            throw ex;
+        } catch (HttpStatusCodeException ex) {
+            log.error("Gemini devolvio un error HTTP {} ({}) al llamar a la API: {}",
+                    ex.getStatusCode().value(),
+                    ex.getStatusCode(),
+                    ex.getResponseBodyAsString());
+            throw new IaException("No se pudo regenerar la actividad en este momento", ex);
+        } catch (Exception ex) {
+            log.error("Error al llamar a la API de Gemini. Mensaje exacto: {}",
+                    ex.getMessage(), ex);
+            throw new IaException("No se pudo regenerar la actividad en este momento", ex);
+        }
+    }
+
     private String enmascararApiKey(String apiKey) {
         if (apiKey == null || apiKey.isEmpty()) {
             return "(vacia o null)";
@@ -275,6 +355,22 @@ public class IaServiceImpl implements IaService {
                 request.tematica(),
                 instruccionDetalles,
                 numDias);
+    }
+
+    private String construirPromptRegenerarActividad(IaRegenerarActividadRequestDTO request) {
+        return """
+                Eres un experto planificador. El viajero va a %s con temática %s. A las %s \
+                tenía planeado '%s', pero quiere una alternativa totalmente diferente para esa \
+                misma franja horaria. Devuelve ÚNICAMENTE un JSON, sin markdown, con este \
+                formato exacto: {"hora": "%s", "titulo": "Nuevo título", "lugar": "Nombre, \
+                Ciudad, País", "latitud": 0.0, "longitud": 0.0, "rating": 4.5, "horario": \
+                "HH:MM - HH:MM", "descripcion": "..."}
+                """.formatted(
+                request.destino(),
+                request.tematica(),
+                request.hora(),
+                request.actividadActual(),
+                request.hora());
     }
 
     private void validarFechas(LocalDate fechaInicio, LocalDate fechaFin) {

@@ -1,8 +1,10 @@
 package com.app.viajes.service;
 
 import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.request.ActividadIaDTO;
 import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
 import com.app.viajes.dto.request.IaPromptRequestDTO;
+import com.app.viajes.dto.request.IaRegenerarActividadRequestDTO;
 import com.app.viajes.dto.response.IaItinerarioResponseDTO;
 
 import java.util.UUID;
@@ -30,4 +32,15 @@ public interface IaService {
      * @return el viaje creado con sus datos y participantes
      */
     ViajeResponseDTO guardarViajeGenerado(IaGuardarViajeRequestDTO request, UUID usuarioId);
+
+    /**
+     * Regenera (sustituye) una unica actividad de un itinerario generado por IA
+     * para una franja horaria concreta, pidiendo a Gemini una alternativa
+     * totalmente diferente.
+     *
+     * @param request contexto del viaje (destino y tematica), la hora de la
+     *                franja y la actividad actual que se quiere cambiar
+     * @return la nueva actividad generada como alternativa
+     */
+    ActividadIaDTO regenerarActividad(IaRegenerarActividadRequestDTO request);
 }

@@ -1,8 +1,10 @@
 package com.app.viajes.controller;
 
 import com.app.viajes.dto.ViajeResponseDTO;
+import com.app.viajes.dto.request.ActividadIaDTO;
 import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
 import com.app.viajes.dto.request.IaPromptRequestDTO;
+import com.app.viajes.dto.request.IaRegenerarActividadRequestDTO;
 import com.app.viajes.dto.response.IaItinerarioResponseDTO;
 import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.model.Usuario;
@@ -46,6 +48,12 @@ public class IaController {
         Usuario usuario = obtenerUsuarioAutenticado();
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(iaService.guardarViajeGenerado(request, usuario.getId()));
+    }
+
+    @PostMapping("/regenerar-actividad")
+    public ResponseEntity<ActividadIaDTO> regenerarActividad(
+            @Valid @RequestBody IaRegenerarActividadRequestDTO request) {
+        return ResponseEntity.ok(iaService.regenerarActividad(request));
     }
 
     private Usuario obtenerUsuarioAutenticado() {
