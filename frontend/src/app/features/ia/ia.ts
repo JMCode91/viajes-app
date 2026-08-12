@@ -3,10 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
 import { DiaIaDTO, IaService } from '../../core/services/ia.service';
+import { CustomDatePicker } from '../../shared/components/custom-date-picker/custom-date-picker';
 
 @Component({
   selector: 'app-ia',
-  imports: [FormsModule],
+  imports: [FormsModule, CustomDatePicker],
   templateUrl: './ia.html',
 })
 export class Ia {

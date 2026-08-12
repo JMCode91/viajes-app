@@ -49,24 +49,14 @@
           <label class="mb-1 block text-sm font-semibold text-purple-100" for="fechaInicio">
             Fecha de inicio
           </label>
-          <input
-            id="fechaInicio"
-            type="date"
-            [(ngModel)]="fechaInicio"
-            class="w-full rounded-2xl border-0 bg-white/15 px-4 py-3 text-base font-semibold text-white outline-none backdrop-blur-sm focus:bg-white/20 [color-scheme:dark]"
-          />
+          <app-custom-date-picker [(ngModel)]="fechaInicio" id="fechaInicio" />
         </div>
 
         <div>
           <label class="mb-1 block text-sm font-semibold text-purple-100" for="fechaFin">
             Fecha de fin
           </label>
-          <input
-            id="fechaFin"
-            type="date"
-            [(ngModel)]="fechaFin"
-            class="w-full rounded-2xl border-0 bg-white/15 px-4 py-3 text-base font-semibold text-white outline-none backdrop-blur-sm focus:bg-white/20 [color-scheme:dark]"
-          />
+          <app-custom-date-picker [(ngModel)]="fechaFin" id="fechaFin" />
         </div>
       </div>
 
