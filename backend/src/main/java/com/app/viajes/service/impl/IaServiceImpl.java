@@ -52,7 +52,7 @@ public class IaServiceImpl implements IaService {
 
     private static final Logger log = LoggerFactory.getLogger(IaServiceImpl.class);
     private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
-    private static final String PLACES_FIND_TEXT_ENDPOINT = "https://maps.googleapis.com/maps/api/place/findplacefromtext/json";
+    private static final String PLACES_TEXT_SEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json";
 
     private final String apiKey;
     private final String googlePlacesApiKey;
@@ -75,7 +75,7 @@ public class IaServiceImpl implements IaService {
                 .baseUrl(GEMINI_ENDPOINT)
                 .build();
         this.placesRestClient = RestClient.builder()
-                .baseUrl(PLACES_FIND_TEXT_ENDPOINT)
+                .baseUrl(PLACES_TEXT_SEARCH_ENDPOINT)
                 .build();
         this.viajeService = viajeService;
         this.viajeRepository = viajeRepository;
@@ -210,10 +210,10 @@ public class IaServiceImpl implements IaService {
                 if (item.horario() != null && !item.horario().isBlank()) {
                     actividad.setHorarios(item.horario());
                 }
-                // Enriquece la actividad con el googlePlaceId oficial confiando en el NLP
-                // de Google (findplacefromtext recibe la cadena completa del lugar
-                // generada por la IA). Si la busqueda falla, la actividad se guarda
-                // igualmente como lugar custom.
+                // Enriquece la actividad con el googlePlaceId oficial confiando en el
+                // motor de busqueda real de Google (textsearch recibe la cadena completa
+                // del lugar generada por la IA como query). Si la busqueda falla, la
+                // actividad se guarda igualmente como lugar custom.
                 actividad.setGooglePlaceId(buscarGooglePlaceId(item.lugar()));
                 actividad.setNotas(item.descripcion());
                 actividadRepository.save(actividad);
@@ -293,11 +293,12 @@ public class IaServiceImpl implements IaService {
 
     /**
      * Busca el {@code place_id} oficial de un lugar en la API de Google Places
-     * (findplacefromtext), enviando la cadena completa del lugar generada por la
-     * IA y confiando en el NLP de Google. Devuelve {@code candidates[0].place_id}
-     * o {@code null} si la busqueda falla, la API no esta configurada o el nombre
-     * esta vacio. Nunca lanza: cualquier error (HTTP o parsing) se maneja y
-     * devuelve {@code null} para que el guardado del viaje nunca se rompa.
+     * (textsearch/json), enviando la cadena completa del lugar generada por la
+     * IA como {@code query} y confiando en el motor de busqueda real de Google.
+     * Devuelve {@code results[0].place_id} o {@code null} si la busqueda falla,
+     * la API no esta configurada o el nombre esta vacio. Nunca lanza: cualquier
+     * error (HTTP o parsing) se maneja y devuelve {@code null} para que el
+     * guardado del viaje nunca se rompa.
      */
     @SuppressWarnings("unchecked")
     private String buscarGooglePlaceId(String nombreLugar) {
@@ -308,14 +309,10 @@ public class IaServiceImpl implements IaService {
             log.info("🔍 Buscando Place ID en Google para: '{}'", nombreLugar);
 
             Map<String, Object> respuesta = placesRestClient.get()
-                    .uri(uriBuilder -> {
-                        uriBuilder.queryParam("input", nombreLugar.trim());
-                        uriBuilder.queryParam("inputtype", "textquery");
-                        uriBuilder.queryParam("fields", "place_id");
-                        return uriBuilder
-                                .queryParam("key", googlePlacesApiKey)
-                                .build();
-                    })
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("query", nombreLugar.trim())
+                            .queryParam("key", googlePlacesApiKey)
+                            .build())
                     .retrieve()
                     .body(Map.class);
 
@@ -324,14 +321,14 @@ public class IaServiceImpl implements IaService {
                 return null;
             }
 
-            List<Map<String, Object>> candidatos =
-                    (List<Map<String, Object>>) respuesta.get("candidates");
-            if (candidatos == null || candidatos.isEmpty()) {
+            List<Map<String, Object>> resultados =
+                    (List<Map<String, Object>>) respuesta.get("results");
+            if (resultados == null || resultados.isEmpty()) {
                 log.warn("⚠️ Google no encontró resultados para: '{}'", nombreLugar);
                 return null;
             }
 
-            Object placeId = candidatos.get(0).get("place_id");
+            Object placeId = resultados.get(0).get("place_id");
             log.info("✅ Place ID encontrado en Google: {}", placeId);
             return placeId != null ? placeId.toString() : null;
         } catch (Exception ex) {
