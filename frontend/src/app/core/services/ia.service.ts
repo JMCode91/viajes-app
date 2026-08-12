@@ -20,8 +20,18 @@ export interface ActividadIaDTO {
   hora: string;
   titulo: string;
   lugar: string;
+  latitud?: number;
+  longitud?: number;
   rating?: number;
+  horario?: string;
   descripcion: string;
+}
+
+export interface IaRegenerarActividadRequestDTO {
+  destino: string;
+  tematica: string;
+  hora: string;
+  actividadActual: string;
 }
 
 export interface DiaIaDTO {
@@ -47,5 +57,14 @@ export class IaService {
 
   guardarViaje(request: IaGuardarViajeRequest): Observable<Viaje> {
     return this.http.post<Viaje>('/api/ia/guardar', request);
+  }
+
+  regenerarActividad(
+    request: IaRegenerarActividadRequestDTO
+  ): Observable<ActividadIaDTO> {
+    return this.http.post<ActividadIaDTO>(
+      '/api/ia/regenerar-actividad',
+      request
+    );
   }
 }

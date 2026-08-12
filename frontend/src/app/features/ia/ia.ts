@@ -2,7 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { DiaIaDTO, IaService } from '../../core/services/ia.service';
+import { ActividadIaDTO, DiaIaDTO, IaService } from '../../core/services/ia.service';
 import { CustomDatePicker } from '../../shared/components/custom-date-picker/custom-date-picker';
 
 @Component({
@@ -21,6 +21,7 @@ export class Ia {
   protected readonly detallesAdicionales = signal('');
   protected readonly cargando = signal(false);
   protected readonly guardando = signal(false);
+  protected readonly regenerando = signal<string | null>(null);
   protected readonly itinerarioGenerado = signal<DiaIaDTO[]>([]);
   protected readonly error = signal<string | null>(null);
 
@@ -51,6 +52,50 @@ export class Ia {
           this.cargando.set(false);
           this.itinerarioGenerado.set([]);
           this.error.set('No se pudo generar el itinerario. Inténtalo de nuevo.');
+        },
+      });
+  }
+
+  protected regenerarPlan(
+    diaIndex: number,
+    actividadIndex: number,
+    actividad: ActividadIaDTO
+  ): void {
+    const itinerario = this.itinerarioGenerado();
+    const dia = itinerario[diaIndex];
+    if (!dia || !dia.actividades[actividadIndex]) {
+      return;
+    }
+
+    const key = `${diaIndex}-${actividadIndex}`;
+    this.regenerando.set(key);
+    this.error.set(null);
+
+    this.iaService
+      .regenerarActividad({
+        destino: this.destino().trim(),
+        tematica: this.tematica().trim(),
+        hora: actividad.hora,
+        actividadActual: actividad.titulo,
+      })
+      .subscribe({
+        next: (nuevaActividad) => {
+          this.regenerando.set(null);
+          const actualizado = itinerario.map((d, di) =>
+            di !== diaIndex
+              ? d
+              : {
+                  ...d,
+                  actividades: d.actividades.map((item, ai) =>
+                    ai === actividadIndex ? nuevaActividad : item
+                  ),
+                }
+          );
+          this.itinerarioGenerado.set(actualizado);
+        },
+        error: () => {
+          this.regenerando.set(null);
+          this.error.set('No se pudo regenerar la actividad. Inténtalo de nuevo.');
         },
       });
   }
