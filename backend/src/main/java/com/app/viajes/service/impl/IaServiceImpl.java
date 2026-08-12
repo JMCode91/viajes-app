@@ -305,6 +305,8 @@ public class IaServiceImpl implements IaService {
             return null;
         }
         try {
+            log.info("🔍 Buscando Place ID en Google para: '{}'", nombreLugar);
+
             Map<String, Object> respuesta = placesRestClient.get()
                     .uri(uriBuilder -> {
                         uriBuilder.queryParam("input", nombreLugar.trim());
@@ -318,21 +320,22 @@ public class IaServiceImpl implements IaService {
                     .body(Map.class);
 
             if (respuesta == null) {
-                log.warn("La API de Places devolvio una respuesta vacia para '{}'", nombreLugar);
+                log.warn("⚠️ Google no encontró resultados para: '{}'", nombreLugar);
                 return null;
             }
 
             List<Map<String, Object>> candidatos =
                     (List<Map<String, Object>>) respuesta.get("candidates");
             if (candidatos == null || candidatos.isEmpty()) {
+                log.warn("⚠️ Google no encontró resultados para: '{}'", nombreLugar);
                 return null;
             }
 
             Object placeId = candidatos.get(0).get("place_id");
+            log.info("✅ Place ID encontrado en Google: {}", placeId);
             return placeId != null ? placeId.toString() : null;
         } catch (Exception ex) {
-            log.warn("No se pudo obtener el googlePlaceId para '{}': {}",
-                    nombreLugar, ex.getMessage());
+            log.error("❌ Error HTTP/Parsing en llamada a Google Places: ", ex);
             return null;
         }
     }
