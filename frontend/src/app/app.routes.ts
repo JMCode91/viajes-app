@@ -34,6 +34,13 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'diccionario',
+        loadComponent: () =>
+          import('./features/diccionario/diccionario').then(
+            (m) => m.Diccionario
+          ),
+      },
+      {
         path: 'perfil',
         loadComponent: () =>
           import('./features/perfil/perfil').then((m) => m.Perfil),

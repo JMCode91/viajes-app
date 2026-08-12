@@ -1,0 +1,204 @@
+<div class="min-h-screen bg-gray-50 px-4 pb-28 pt-6 dark:bg-gray-950">
+  <header class="mb-6">
+    <h1 class="flex items-center gap-2 text-2xl font-bold text-gray-900 dark:text-white">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke-width="1.5"
+        stroke="currentColor"
+        class="h-7 w-7 text-blue-600 dark:text-blue-400"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"
+        />
+      </svg>
+      Diccionario
+    </h1>
+    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      Frases de supervivencia en inglés y japonés para tu viaje.
+    </p>
+  </header>
+
+  @if (error(); as mensaje) {
+    <p
+      class="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400"
+    >
+      {{ mensaje }}
+    </p>
+  }
+
+  @if (cargandoCategorias()) {
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <svg
+        class="h-8 w-8 animate-spin text-blue-600"
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+      >
+        <circle
+          class="opacity-25"
+          cx="12"
+          cy="12"
+          r="10"
+          stroke="currentColor"
+          stroke-width="4"
+        ></circle>
+        <path
+          class="opacity-75"
+          fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        ></path>
+      </svg>
+      <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+        Cargando categorías…
+      </p>
+    </div>
+  } @else if (categorias().length === 0) {
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <span class="text-4xl">📖</span>
+      <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+        Aún no hay categorías disponibles.
+      </p>
+    </div>
+  } @else {
+    <div class="grid grid-cols-2 gap-4">
+      @for (categoria of categorias(); track categoria.id) {
+        <button
+          type="button"
+          (click)="abrirCategoria(categoria)"
+          class="flex flex-col items-center justify-center gap-3 rounded-3xl border border-gray-100 bg-white px-6 py-7 text-center shadow-sm transition-transform active:scale-95 dark:border-gray-800 dark:bg-gray-800"
+        >
+          <span
+            class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-100 to-indigo-100 text-3xl dark:from-blue-500/20 dark:to-indigo-500/20"
+          >
+            {{ iconoEmoji(categoria.icono) }}
+          </span>
+          <span class="text-sm font-bold text-gray-800 dark:text-gray-100">
+            {{ categoria.nombre }}
+          </span>
+        </button>
+      }
+    </div>
+  }
+
+  @if (categoriaSeleccionada(); as categoria) {
+    <div
+      class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+      (click)="cerrarCategoria()"
+    >
+      <div
+        class="flex h-[85vh] w-full flex-col overflow-hidden rounded-t-3xl bg-white dark:bg-gray-900 sm:max-w-lg sm:rounded-3xl"
+        (click)="$event.stopPropagation()"
+      >
+        <header
+          class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-gray-800"
+        >
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">{{ iconoEmoji(categoria.icono) }}</span>
+            <div>
+              <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+                {{ categoria.nombre }}
+              </h2>
+              <p class="text-xs text-gray-500 dark:text-gray-400">
+                {{ frasesActuales().length }} frases
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            (click)="cerrarCategoria()"
+            aria-label="Cerrar"
+            class="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-500 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="h-5 w-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M6 18 18 6M6 6l12 12"
+              />
+            </svg>
+          </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto px-5 py-4">
+          @if (cargandoFrases()) {
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+              <svg
+                class="h-8 w-8 animate-spin text-blue-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                ></path>
+              </svg>
+              <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                Cargando frases…
+              </p>
+            </div>
+          } @else if (error()) {
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+              <span class="text-3xl">😕</span>
+              <p class="mt-3 text-sm text-red-600 dark:text-red-400">
+                {{ error() }}
+              </p>
+            </div>
+          } @else if (frasesActuales().length === 0) {
+            <div class="flex flex-col items-center justify-center py-16 text-center">
+              <span class="text-3xl">🗣️</span>
+              <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+                Esta categoría aún no tiene frases.
+              </p>
+            </div>
+          } @else {
+            <ul class="space-y-4 pb-4">
+              @for (frase of frasesActuales(); track frase.id) {
+                <li
+                  class="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-700/40"
+                >
+                  <p class="font-bold text-gray-900 dark:text-white">
+                    {{ frase.textoEspanol }}
+                  </p>
+                  <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                    {{ frase.textoIngles }}
+                  </p>
+                  <div
+                    class="mt-2 rounded-xl bg-blue-50 px-3 py-2 dark:bg-blue-500/10"
+                  >
+                    <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                      {{ frase.textoJapones }}
+                    </p>
+                    <p class="text-sm italic text-gray-500 dark:text-blue-300">
+                      {{ frase.textoJaponesRomaji }}
+                    </p>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </div>
+    </div>
+  }
+</div>
