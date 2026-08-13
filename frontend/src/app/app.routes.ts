@@ -27,13 +27,6 @@ export const routes: Routes = [
           import('./features/ia/ia').then((m) => m.Ia),
       },
       {
-        path: 'conversor',
-        loadComponent: () =>
-          import('./features/conversor/conversor').then(
-            (m) => m.Conversor
-          ),
-      },
-      {
         path: 'diccionario',
         loadComponent: () =>
           import('./features/diccionario/diccionario').then(

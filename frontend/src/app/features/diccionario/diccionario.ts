@@ -1,18 +1,24 @@
 import { Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import {
   CategoriaDiccionario,
   DiccionarioService,
   FraseDiccionario,
 } from '../../core/services/diccionario.service';
+import {
+  IaService,
+  TraduccionResponseDTO,
+} from '../../core/services/ia.service';
 
 @Component({
   selector: 'app-diccionario',
-  imports: [],
+  imports: [FormsModule],
   templateUrl: './diccionario.html',
 })
 export class Diccionario implements OnInit {
   private readonly diccionarioService = inject(DiccionarioService);
+  private readonly iaService = inject(IaService);
 
   protected readonly categorias = signal<CategoriaDiccionario[]>([]);
   protected readonly categoriaSeleccionada =
@@ -22,6 +28,13 @@ export class Diccionario implements OnInit {
   protected readonly cargandoFrases = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly idiomaDestino = signal<'ja' | 'en'>('ja');
+
+  protected readonly textoOrigen = signal('');
+  protected readonly idiomaTraduccion = signal<'ja' | 'en'>('ja');
+  protected readonly traduccion = signal<TraduccionResponseDTO | null>(null);
+  protected readonly traduciendo = signal(false);
+  protected readonly estaGrabando = signal(false);
+  protected readonly errorTraduccion = signal<string | null>(null);
 
   ngOnInit(): void {
     this.cargarCategorias();
@@ -73,6 +86,94 @@ export class Diccionario implements OnInit {
 
   protected setIdioma(idioma: 'ja' | 'en'): void {
     this.idiomaDestino.set(idioma);
+  }
+
+  protected cambiarIdiomaTraduccion(idioma: 'ja' | 'en'): void {
+    this.idiomaTraduccion.set(idioma);
+  }
+
+  protected iniciarDictado(): void {
+    const SpeechRecognition =
+      (window as any).webkitSpeechRecognition ||
+      (window as any).SpeechRecognition;
+
+    if (!SpeechRecognition) {
+      this.errorTraduccion.set(
+        'Tu navegador no soporta el reconocimiento de voz.'
+      );
+      return;
+    }
+
+    const reconocimiento = new SpeechRecognition();
+    reconocimiento.lang = 'es-ES';
+    reconocimiento.interimResults = false;
+    reconocimiento.maxAlternatives = 1;
+
+    reconocimiento.onstart = () => {
+      this.estaGrabando.set(true);
+    };
+
+    reconocimiento.onresult = (event: any) => {
+      const transcripcion = Array.from(event.results)
+        .map((resultado: any) => resultado[0].transcript)
+        .join(' ');
+      this.textoOrigen.set(transcripcion);
+    };
+
+    reconocimiento.onerror = () => {
+      this.estaGrabando.set(false);
+      this.errorTraduccion.set(
+        'No se pudo capturar tu voz. Inténtalo de nuevo.'
+      );
+    };
+
+    reconocimiento.onend = () => {
+      this.estaGrabando.set(false);
+    };
+
+    reconocimiento.start();
+  }
+
+  protected traducir(): void {
+    const texto = this.textoOrigen().trim();
+    if (!texto) {
+      this.errorTraduccion.set('Escribe o dicta un texto para traducir.');
+      return;
+    }
+
+    this.traduciendo.set(true);
+    this.errorTraduccion.set(null);
+
+    this.iaService
+      .traducirTexto({
+        texto,
+        idiomaDestino: this.idiomaTraduccion(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.traduccion.set(res);
+          this.traduciendo.set(false);
+        },
+        error: () => {
+          this.traduccion.set(null);
+          this.traduciendo.set(false);
+          this.errorTraduccion.set(
+            'No se pudo traducir el texto. Inténtalo de nuevo.'
+          );
+        },
+      });
+  }
+
+  protected reproducirAudio(): void {
+    const traduccion = this.traduccion();
+    const texto = traduccion?.textoTraducido;
+    if (!texto) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = this.idiomaTraduccion() === 'ja' ? 'ja-JP' : 'en-US';
+    window.speechSynthesis.speak(utterance);
   }
 
   protected iconoEmoji(icono: string): string {
