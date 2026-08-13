@@ -3,6 +3,7 @@ import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 import { DivisaService } from '../../core/services/divisa.service';
+import { IaService, TraduccionResponseDTO } from '../../core/services/ia.service';
 import { DivisaResponseDTO } from '../../shared/types';
 
 interface MonedaDisponible {
@@ -18,6 +19,7 @@ interface MonedaDisponible {
 })
 export class Conversor implements OnInit {
   private readonly divisaService = inject(DivisaService);
+  private readonly iaService = inject(IaService);
 
   protected readonly monto = signal(1);
   protected readonly monedaOrigen = signal('EUR');
@@ -26,6 +28,13 @@ export class Conversor implements OnInit {
   protected readonly resultado = signal<DivisaResponseDTO | null>(null);
   protected readonly cargando = signal(false);
   protected readonly error = signal<string | null>(null);
+
+  protected readonly textoOrigen = signal('');
+  protected readonly idiomaDestino = signal<'ja' | 'en'>('ja');
+  protected readonly traduccion = signal<TraduccionResponseDTO | null>(null);
+  protected readonly traduciendo = signal(false);
+  protected readonly estaGrabando = signal(false);
+  protected readonly errorTraduccion = signal<string | null>(null);
 
   ngOnInit(): void {
     this.convertir();
@@ -116,5 +125,93 @@ export class Conversor implements OnInit {
     this.monedaOrigen.set(this.monedaDestino());
     this.monedaDestino.set(origen);
     this.convertir();
+  }
+
+  protected cambiarIdiomaTraduccion(idioma: 'ja' | 'en'): void {
+    this.idiomaDestino.set(idioma);
+  }
+
+  protected iniciarDictado(): void {
+    const SpeechRecognition =
+      (window as any).webkitSpeechRecognition ||
+      (window as any).SpeechRecognition;
+
+    if (!SpeechRecognition) {
+      this.errorTraduccion.set(
+        'Tu navegador no soporta el reconocimiento de voz.'
+      );
+      return;
+    }
+
+    const reconocimiento = new SpeechRecognition();
+    reconocimiento.lang = 'es-ES';
+    reconocimiento.interimResults = false;
+    reconocimiento.maxAlternatives = 1;
+
+    reconocimiento.onstart = () => {
+      this.estaGrabando.set(true);
+    };
+
+    reconocimiento.onresult = (event: any) => {
+      const transcripcion = Array.from(event.results)
+        .map((resultado: any) => resultado[0].transcript)
+        .join(' ');
+      this.textoOrigen.set(transcripcion);
+    };
+
+    reconocimiento.onerror = () => {
+      this.estaGrabando.set(false);
+      this.errorTraduccion.set(
+        'No se pudo capturar tu voz. Inténtalo de nuevo.'
+      );
+    };
+
+    reconocimiento.onend = () => {
+      this.estaGrabando.set(false);
+    };
+
+    reconocimiento.start();
+  }
+
+  protected traducir(): void {
+    const texto = this.textoOrigen().trim();
+    if (!texto) {
+      this.errorTraduccion.set('Escribe o dicta un texto para traducir.');
+      return;
+    }
+
+    this.traduciendo.set(true);
+    this.errorTraduccion.set(null);
+
+    this.iaService
+      .traducirTexto({
+        texto,
+        idiomaDestino: this.idiomaDestino(),
+      })
+      .subscribe({
+        next: (res) => {
+          this.traduccion.set(res);
+          this.traduciendo.set(false);
+        },
+        error: () => {
+          this.traduccion.set(null);
+          this.traduciendo.set(false);
+          this.errorTraduccion.set(
+            'No se pudo traducir el texto. Inténtalo de nuevo.'
+          );
+        },
+      });
+  }
+
+  protected reproducirAudio(): void {
+    const traduccion = this.traduccion();
+    const texto = traduccion?.textoTraducido;
+    if (!texto) {
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(texto);
+    utterance.lang = this.idiomaDestino() === 'ja' ? 'ja-JP' : 'en-US';
+    window.speechSynthesis.speak(utterance);
   }
 }

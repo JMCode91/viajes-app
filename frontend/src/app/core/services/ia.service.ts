@@ -47,6 +47,16 @@ export interface IaGuardarViajeRequest {
   itinerario: DiaIaDTO[];
 }
 
+export interface TraduccionRequestDTO {
+  texto: string;
+  idiomaDestino: string;
+}
+
+export interface TraduccionResponseDTO {
+  textoTraducido: string;
+  pronunciacion: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IaService {
   private readonly http = inject(HttpClient);
@@ -66,5 +76,11 @@ export class IaService {
       '/api/ia/regenerar-actividad',
       request
     );
+  }
+
+  traducirTexto(
+    request: TraduccionRequestDTO
+  ): Observable<TraduccionResponseDTO> {
+    return this.http.post<TraduccionResponseDTO>('/api/ia/traducir', request);
   }
 }

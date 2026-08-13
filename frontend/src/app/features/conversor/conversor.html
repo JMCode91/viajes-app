@@ -160,4 +160,159 @@
       </p>
     }
   </section>
+
+  <section class="mt-8">
+    <div class="mb-4 flex items-center justify-between">
+      <div>
+        <h2 class="text-lg font-bold text-gray-900 dark:text-white">
+          Traductor
+        </h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          Escribe o dicta y traduce al instante.
+        </p>
+      </div>
+      <div
+        class="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800"
+      >
+        <button
+          type="button"
+          (click)="cambiarIdiomaTraduccion('ja')"
+          class="rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+          [class.bg-blue-600]="idiomaDestino() === 'ja'"
+          [class.text-white]="idiomaDestino() === 'ja'"
+          [class.bg-gray-200]="idiomaDestino() !== 'ja'"
+          [class.text-gray-700]="idiomaDestino() !== 'ja'"
+        >
+          Japonés 🇯🇵
+        </button>
+        <button
+          type="button"
+          (click)="cambiarIdiomaTraduccion('en')"
+          class="rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+          [class.bg-blue-600]="idiomaDestino() === 'en'"
+          [class.text-white]="idiomaDestino() === 'en'"
+          [class.bg-gray-200]="idiomaDestino() !== 'en'"
+          [class.text-gray-700]="idiomaDestino() !== 'en'"
+        >
+          Inglés 🇬🇧
+        </button>
+      </div>
+    </div>
+
+    <div
+      class="rounded-3xl bg-white p-6 shadow-lg dark:bg-gray-800"
+    >
+      <textarea
+        rows="5"
+        placeholder="Escribe aquí el texto en español…"
+        [(ngModel)]="textoOrigen"
+        class="w-full resize-none rounded-2xl border-0 bg-gray-100 px-4 py-3 text-base text-gray-900 outline-none focus:bg-gray-50 dark:bg-gray-700/40 dark:text-white dark:placeholder-gray-400 dark:focus:bg-gray-700/60"
+      ></textarea>
+
+      <div class="mt-4 flex items-center justify-center gap-4">
+        <button
+          type="button"
+          aria-label="Dictar texto"
+          title="Dictar texto"
+          (click)="iniciarDictado()"
+          class="flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform active:scale-95"
+          [class.bg-red-600]="estaGrabando()"
+          [class.text-white]="estaGrabando()"
+          [class.bg-gray-100]="!estaGrabando()"
+          [class.text-gray-700]="!estaGrabando()"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke-width="1.5"
+            stroke="currentColor"
+            class="h-7 w-7"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z"
+            />
+          </svg>
+        </button>
+        <button
+          type="button"
+          (click)="traducir()"
+          [disabled]="traduciendo()"
+          class="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-lg shadow-blue-600/30 transition-transform active:scale-95 disabled:opacity-60"
+        >
+          @if (traduciendo()) {
+            <svg
+              class="h-8 w-8 animate-spin"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              ></path>
+            </svg>
+          } @else {
+            <span class="text-2xl">✨</span>
+          }
+        </button>
+      </div>
+
+      @if (errorTraduccion(); as mensaje) {
+        <p
+          class="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-400"
+        >
+          {{ mensaje }}
+        </p>
+      }
+
+      @if (traduccion(); as traduccion) {
+        <div
+          class="relative mt-5 rounded-2xl bg-blue-50 px-5 py-4 dark:bg-blue-500/10"
+        >
+          <button
+            type="button"
+            aria-label="Escuchar traducción"
+            title="Escuchar traducción"
+            (click)="reproducirAudio()"
+            class="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white text-blue-600 shadow-md transition-transform active:scale-95 dark:bg-gray-800"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
+              stroke="currentColor"
+              class="h-5 w-5"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.009 9.009 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z"
+              />
+            </svg>
+          </button>
+          <p class="pr-12 text-2xl font-bold leading-snug text-gray-900 dark:text-white">
+            {{ traduccion.textoTraducido }}
+          </p>
+          @if (traduccion.pronunciacion) {
+            <p class="mt-2 text-sm italic text-gray-500 dark:text-blue-300">
+              {{ traduccion.pronunciacion }}
+            </p>
+          }
+        </div>
+      }
+    </div>
+  </section>
 </div>
