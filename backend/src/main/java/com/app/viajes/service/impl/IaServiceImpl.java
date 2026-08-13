@@ -57,11 +57,14 @@ public class IaServiceImpl implements IaService {
     private static final Logger log = LoggerFactory.getLogger(IaServiceImpl.class);
     private static final String GEMINI_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent";
     private static final String PLACES_TEXT_SEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json";
+    private static final String GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 
     private final String apiKey;
     private final String googlePlacesApiKey;
+    private final String googleApiKey;
     private final RestClient restClient;
     private final RestClient placesRestClient;
+    private final RestClient translateRestClient;
     private final ObjectMapper objectMapper;
     private final ViajeService viajeService;
     private final ViajeRepository viajeRepository;
@@ -70,6 +73,7 @@ public class IaServiceImpl implements IaService {
 
     public IaServiceImpl(@Value("${gemini.api.key:}") String apiKey,
                          @Value("${google.places.api.key:}") String googlePlacesApiKey,
+                         @Value("${google.api.key:}") String googleApiKey,
                          ObjectMapper objectMapper,
                          ViajeService viajeService,
                          ViajeRepository viajeRepository,
@@ -77,11 +81,15 @@ public class IaServiceImpl implements IaService {
                          ActividadRepository actividadRepository) {
         this.apiKey = apiKey;
         this.googlePlacesApiKey = googlePlacesApiKey;
+        this.googleApiKey = googleApiKey;
         this.restClient = RestClient.builder()
                 .baseUrl(GEMINI_ENDPOINT)
                 .build();
         this.placesRestClient = RestClient.builder()
                 .baseUrl(PLACES_TEXT_SEARCH_ENDPOINT)
+                .build();
+        this.translateRestClient = RestClient.builder()
+                .baseUrl(GOOGLE_TRANSLATE_ENDPOINT)
                 .build();
         this.objectMapper = objectMapper;
         this.viajeService = viajeService;
@@ -308,73 +316,61 @@ public class IaServiceImpl implements IaService {
     @Override
     @SuppressWarnings("unchecked")
     public TraduccionResponseDTO traducirTexto(TraduccionRequestDTO request) {
-        if (!StringUtils.hasText(apiKey)) {
-            throw new IaException("El servicio de IA no esta configurado (falta gemini.api.key)");
+        if (!StringUtils.hasText(googleApiKey)) {
+            throw new IaException("El servicio de traduccion no esta configurado (falta google.api.key)");
         }
 
         try {
-            String prompt = construirPromptTraduccion(request);
-            Map<String, Object> cuerpo = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(Map.of("text", prompt)))));
+            log.info("Llamando a la Google Cloud Translation API con la API key enmascarada: {}",
+                    enmascararApiKey(googleApiKey));
 
-            log.info("Llamando a la API de Gemini con la API key enmascarada: {}",
-                    enmascararApiKey(apiKey));
-
-            Map<String, Object> respuesta = restClient.post()
-                    .uri(uriBuilder -> uriBuilder.queryParam("key", apiKey).build())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(cuerpo)
+            Map<String, Object> respuesta = translateRestClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .queryParam("key", googleApiKey)
+                            .queryParam("q", request.texto())
+                            .queryParam("target", request.idiomaDestino())
+                            .queryParam("format", "text")
+                            .build())
                     .retrieve()
                     .body(Map.class);
 
             if (respuesta == null) {
-                log.error("Gemini devolvio una respuesta vacia (body null)");
-                throw new IaException("Gemini no devolvio respuesta");
+                log.error("Google Translation devolvio una respuesta vacia (body null)");
+                throw new IaException("No se pudo traducir el texto en este momento");
             }
 
-            List<Map<String, Object>> candidatos =
-                    (List<Map<String, Object>>) respuesta.get("candidates");
-            if (candidatos == null || candidatos.isEmpty()) {
-                log.error("Gemini no devolvio candidatos. Cuerpo recibido: {}", respuesta);
-                throw new IaException("Gemini no devolvio candidatos");
+            Map<String, Object> data = (Map<String, Object>) respuesta.get("data");
+            if (data == null) {
+                log.error("Google Translation no devolvio 'data'. Cuerpo recibido: {}", respuesta);
+                throw new IaException("No se pudo traducir el texto en este momento");
             }
 
-            Map<String, Object> contenido = (Map<String, Object>) candidatos.get(0).get("content");
-            if (contenido == null) {
-                log.error("Gemini no devolvio contenido. Cuerpo recibido: {}", respuesta);
-                throw new IaException("Gemini no devolvio contenido");
+            List<Map<String, Object>> traducciones =
+                    (List<Map<String, Object>>) data.get("translations");
+            if (traducciones == null || traducciones.isEmpty()) {
+                log.error("Google Translation no devolvio traducciones. Cuerpo recibido: {}", respuesta);
+                throw new IaException("No se pudo traducir el texto en este momento");
             }
 
-            List<Map<String, Object>> partes = (List<Map<String, Object>>) contenido.get("parts");
-            if (partes == null || partes.isEmpty()) {
-                log.error("Gemini no devolvio partes de texto. Cuerpo recibido: {}", respuesta);
-                throw new IaException("Gemini no devolvio partes de texto");
+            Object textoTraducido = traducciones.get(0).get("translatedText");
+            if (textoTraducido == null) {
+                log.error("Google Translation devolvio un translatedText nulo. Cuerpo recibido: {}", respuesta);
+                throw new IaException("No se pudo traducir el texto en este momento");
             }
 
-            Object texto = partes.get(0).get("text");
-            if (texto == null) {
-                log.error("Gemini no devolvio texto. Cuerpo recibido: {}", respuesta);
-                throw new IaException("Gemini no devolvio texto");
-            }
-
-            String json = limpiarJson(texto.toString());
-            try {
-                return objectMapper.readValue(json, TraduccionResponseDTO.class);
-            } catch (Exception ex) {
-                log.error("No se pudo parsear la traduccion generada. JSON recibido: {}", json);
-                throw new IaException("No se pudo interpretar la traduccion generada", ex);
-            }
+            // La Google Cloud Translation API no devuelve pronunciacion (romaji),
+            // por lo que el campo se deja como cadena vacia.
+            return new TraduccionResponseDTO(textoTraducido.toString(), "");
         } catch (IaException ex) {
             throw ex;
         } catch (HttpStatusCodeException ex) {
-            log.error("Gemini devolvio un error HTTP {} ({}) al llamar a la API: {}",
+            log.error("Google Translation devolvio un error HTTP {} ({}) al llamar a la API: {}",
                     ex.getStatusCode().value(),
                     ex.getStatusCode(),
                     ex.getResponseBodyAsString());
             throw new IaException("No se pudo traducir el texto en este momento", ex);
         } catch (Exception ex) {
-            log.error("Error al llamar a la API de Gemini. Mensaje exacto: {}",
+            log.error("Error al llamar a la Google Cloud Translation API. Mensaje exacto: {}",
                     ex.getMessage(), ex);
             throw new IaException("No se pudo traducir el texto en este momento", ex);
         }
@@ -448,27 +444,6 @@ public class IaServiceImpl implements IaService {
                 request.hora(),
                 request.actividadActual(),
                 request.hora());
-    }
-
-    /**
-     * Construye el prompt de sistema para traducir un texto con Gemini. Es
-     * estricto por diseno: exige que la respuesta sea UNICAMENTE un JSON valido
-     * sin bloques markdown con el formato exacto del {@code TraduccionResponseDTO},
-     * solicitando la pronunciacion fonetica (Romaji) cuando el idioma destino
-     * es el japones y dejandola vacia para alfabetos latinos.
-     */
-    private String construirPromptTraduccion(TraduccionRequestDTO request) {
-        return """
-                Eres un traductor experto. Traduce el siguiente texto al idioma con codigo '%s'. \
-                Devuelve UNICAMENTE un JSON valido sin bloques markdown (sin ```json) con este \
-                formato exacto: {"textoTraducido": "...", "pronunciacion": "..."}. Si el idioma \
-                destino es japones ('ja'), el campo 'textoTraducido' debe contener los caracteres \
-                reales (Kanji/Kana) y el campo 'pronunciacion' la transcripcion en Romaji. Si el \
-                idioma usa alfabeto latino (como el ingles), deja el campo 'pronunciacion' vacio.
-
-                TEXTO A TRADUCIR:
-                %s
-                """.formatted(request.idiomaDestino(), request.texto());
     }
 
     private void validarFechas(LocalDate fechaInicio, LocalDate fechaFin) {
