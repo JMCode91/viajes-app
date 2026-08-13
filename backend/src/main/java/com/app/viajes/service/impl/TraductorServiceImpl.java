@@ -59,7 +59,7 @@ public class TraductorServiceImpl implements TraductorService {
             }
 
             String textoTraducido = translations.get(0).get("text");
-            return new TraduccionResponseDTO(textoTraducido, request.idiomaDestino());
+            return new TraduccionResponseDTO(textoTraducido, null);
         } catch (TraduccionException ex) {
             throw ex;
         } catch (Exception ex) {

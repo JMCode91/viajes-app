@@ -1,5 +1,7 @@
 package com.app.viajes.controller;
 
+import com.app.viajes.dto.TraduccionRequestDTO;
+import com.app.viajes.dto.TraduccionResponseDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
 import com.app.viajes.dto.request.ActividadIaDTO;
 import com.app.viajes.dto.request.IaGuardarViajeRequestDTO;
@@ -54,6 +56,12 @@ public class IaController {
     public ResponseEntity<ActividadIaDTO> regenerarActividad(
             @Valid @RequestBody IaRegenerarActividadRequestDTO request) {
         return ResponseEntity.ok(iaService.regenerarActividad(request));
+    }
+
+    @PostMapping("/traducir")
+    public ResponseEntity<TraduccionResponseDTO> traducir(
+            @Valid @RequestBody TraduccionRequestDTO request) {
+        return ResponseEntity.ok(iaService.traducirTexto(request));
     }
 
     private Usuario obtenerUsuarioAutenticado() {
