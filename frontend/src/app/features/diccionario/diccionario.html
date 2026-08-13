@@ -172,6 +172,33 @@
               </p>
             </div>
           } @else {
+            <div
+              class="mb-4 flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800"
+            >
+              <button
+                type="button"
+                (click)="setIdioma('ja')"
+                class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                [class.bg-blue-600]="idiomaDestino() === 'ja'"
+                [class.text-white]="idiomaDestino() === 'ja'"
+                [class.bg-gray-200]="idiomaDestino() !== 'ja'"
+                [class.text-gray-700]="idiomaDestino() !== 'ja'"
+              >
+                Japonés 🇯🇵
+              </button>
+              <button
+                type="button"
+                (click)="setIdioma('en')"
+                class="flex-1 rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
+                [class.bg-blue-600]="idiomaDestino() === 'en'"
+                [class.text-white]="idiomaDestino() === 'en'"
+                [class.bg-gray-200]="idiomaDestino() !== 'en'"
+                [class.text-gray-700]="idiomaDestino() !== 'en'"
+              >
+                Inglés 🇬🇧
+              </button>
+            </div>
+
             <ul class="space-y-4 pb-4">
               @for (frase of frasesActuales(); track frase.id) {
                 <li
@@ -180,19 +207,26 @@
                   <p class="font-bold text-gray-900 dark:text-white">
                     {{ frase.textoEspanol }}
                   </p>
-                  <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
-                    {{ frase.textoIngles }}
-                  </p>
-                  <div
-                    class="mt-2 rounded-xl bg-blue-50 px-3 py-2 dark:bg-blue-500/10"
-                  >
-                    <p class="text-lg font-semibold text-gray-900 dark:text-white">
-                      {{ frase.textoJapones }}
-                    </p>
-                    <p class="text-sm italic text-gray-500 dark:text-blue-300">
-                      {{ frase.textoJaponesRomaji }}
-                    </p>
-                  </div>
+                  @if (idiomaDestino() === 'ja') {
+                    <div
+                      class="mt-2 rounded-xl bg-blue-50 px-3 py-2 dark:bg-blue-500/10"
+                    >
+                      <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                        {{ frase.textoJapones }}
+                      </p>
+                      <p class="text-sm italic text-gray-500 dark:text-blue-300">
+                        {{ frase.textoJaponesRomaji }}
+                      </p>
+                    </div>
+                  } @else {
+                    <div
+                      class="mt-2 rounded-xl bg-gray-100 px-3 py-2 dark:bg-gray-800"
+                    >
+                      <p class="text-lg font-semibold text-gray-900 dark:text-white">
+                        {{ frase.textoIngles }}
+                      </p>
+                    </div>
+                  }
                 </li>
               }
             </ul>

@@ -21,6 +21,7 @@ export class Diccionario implements OnInit {
   protected readonly cargandoCategorias = signal(false);
   protected readonly cargandoFrases = signal(false);
   protected readonly error = signal<string | null>(null);
+  protected readonly idiomaDestino = signal<'ja' | 'en'>('ja');
 
   ngOnInit(): void {
     this.cargarCategorias();
@@ -68,6 +69,10 @@ export class Diccionario implements OnInit {
     this.categoriaSeleccionada.set(null);
     this.frasesActuales.set([]);
     this.error.set(null);
+  }
+
+  protected setIdioma(idioma: 'ja' | 'en'): void {
+    this.idiomaDestino.set(idioma);
   }
 
   protected iconoEmoji(icono: string): string {
