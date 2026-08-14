@@ -61,8 +61,7 @@ public class TareaChecklistServiceImpl implements TareaChecklistService {
         verificarPertenencia(viajeId);
         Usuario creador = obtenerUsuarioAutenticado();
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViajeValidado(viajeId);
 
         TareaChecklist tarea = new TareaChecklist();
         tarea.setViaje(viaje);
@@ -115,6 +114,14 @@ public class TareaChecklistServiceImpl implements TareaChecklistService {
             throw new AccesoDenegadoException("La tarea no pertenece a este viaje");
         }
         return tarea;
+    }
+
+    /**
+     * Busca el viaje por su id o lanza la excepcion de dominio si no existe.
+     */
+    private Viaje obtenerViajeValidado(UUID viajeId) {
+        return viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
     }
 
     private Usuario resolverAsignado(UUID asignadoId, UUID viajeId) {
