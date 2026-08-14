@@ -27,7 +27,7 @@ import java.util.Map;
 public class DivisaServiceImpl implements DivisaService {
 
     private static final Logger log = LoggerFactory.getLogger(DivisaServiceImpl.class);
-    private static final String FRANKFURTER_ENDPOINT = "https://api.frankfurter.app";
+    private static final String FRANKFURTER_ENDPOINT = "https://api.frankfurter.dev";
     private static final int TIMEOUT_MILISEGUNDOS = 3000;
 
     private final RestClient restClient;
@@ -69,7 +69,7 @@ public class DivisaServiceImpl implements DivisaService {
             // Timeout, error de conexion o 5xx de la API externa: se traduce a
             // una excepcion controlada del dominio para que el manejador global
             // devuelva un error limpio al frontend.
-            log.error("Error al llamar a la API de Frankfurter", ex);
+            log.error("Fallo critico en la API externa de Divisas: {}", ex.getMessage(), ex);
             throw new DivisaException("Servicio de divisas temporalmente no disponible", ex);
         }
     }
@@ -79,7 +79,7 @@ public class DivisaServiceImpl implements DivisaService {
     public Map<String, String> obtenerMonedas() {
         try {
             Map<String, String> monedas = restClient.get()
-                    .uri("/currencies")
+                    .uri("/v1/currencies")
                     .retrieve()
                     .body(Map.class);
 
@@ -94,8 +94,7 @@ public class DivisaServiceImpl implements DivisaService {
         } catch (Exception ex) {
             // Timeout, error de conexion o 5xx de la API externa: se degrada al
             // catalogo estatico para que los desplegables nunca queden vacios.
-            log.error("Error al obtener el catalogo de monedas de Frankfurter, "
-                    + "usando fallback estatico", ex);
+            log.error("Fallo critico en la API externa de Divisas: {}", ex.getMessage(), ex);
             return monedasFallback();
         }
     }
@@ -108,7 +107,7 @@ public class DivisaServiceImpl implements DivisaService {
                                        Double monto,
                                        String monedaOrigen,
                                        String monedaDestino) {
-        return uriBuilder.path("/latest")
+        return uriBuilder.path("/v1/latest")
                 .queryParam("amount", monto)
                 .queryParam("from", monedaOrigen)
                 .queryParam("to", monedaDestino)
