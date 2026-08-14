@@ -46,6 +46,18 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 14/08/2026
+- **Completado en esta sesión (Resiliencia de Software — Bloque 5: Capa Service de Divisas `DivisaServiceImpl`):**
+  - **Fail-Fast (timeout estricto):** el `RestClient` de Frankfurter se construye con un `SimpleClientHttpRequestFactory` configurado con **`setConnectTimeout(3000)` + `setReadTimeout(3000)`** (máx. 3 segundos). Si la API externa va lenta o se cuelga, el hilo de Spring Boot deja de esperar y la petición se degrada en vez de quedar colgada hasta el timeout por defecto del servidor.
+  - **Fallback del catálogo de monedas (Plan B):** `obtenerMonedas()` ya NO lanza `DivisaException`. Ante CUALQUIER error (conexión, timeout, 5xx de la API, o respuesta vacía) captura la excepción y devuelve el **mapa estático `monedasFallback()`** con las divisas principales — EUR (Euro), JPY (Yen Japones), USD (Dolar Estadounidense), GBP (Libra Esterlina) + CHF, CAD, AUD, CNY, KRW y MXN — garantizando que **los desplegables de Angular nunca queden vacíos**. Logs: `log.warn` para la respuesta vacía y `log.error` para fallos de red/HTTP.
+  - **Fallback de la conversión (Plan B):** `convertir()` mantiene las validaciones de negocio (`monto <= 0`, misma moneda → identidad sin llamada HTTP) y, ante cualquier fallo de conexión/timeout/5xx, captura la excepción genérica y lanza **`DivisaException` ("Servicio de divisas temporalmente no disponible")** para que el `GlobalExceptionHandler` devuelva un 503 limpio al frontend.
+  - **Clean Code — helpers extraídos:**
+    - **`construirUriConversion(UriBuilder, monto, monedaOrigen, monedaDestino)`** → construye la URI de `/latest` con los query params (devuelve `URI`).
+    - **`parsearRespuestaConversion(respuesta, monto, origen, destino)`** → valida `respuesta != null` y delega en `extraerRates`; calcula `montoConvertido` y `ratioCambio` y construye el `DivisaResponseDTO` con `fechaActualizacion`.
+    - **`extraerRates(respuesta, monedaDestino)`** → extrae y valida el mapa `rates` (mensaje "No se encontro el tipo de cambio...").
+    - **`conversionMismaMoneda(monto, moneda)`** → identidad sin llamada externa.
+    - **`monedasFallback()`** → catálogo estático de salvavidas (`Map.ofEntries`).
+  - **Limpieza:** DI por constructor (RestClient configurado en el propio constructor, sin `@Autowired`); sin imports sin uso; sin `System.out` (solo SLF4J). Interfaz `DivisaService`, `DivisaResponseDTO` y controlador intactos.
+  - **Verificación:** `.\mvnw.cmd clean compile` (BUILD SUCCESS, 132 fuentes). Commit `0d3c5a9`: `feat(backend): make currency service resilient with strict timeout and static fallback catalog`.
 - **Completado en esta sesión (Refactorización Clean Code / SOLID — Bloque 4: Capa Service de Gastos y Checklist `GastoServiceImpl` + `TareaChecklistServiceImpl`):**
   - **Principio DRY — búsqueda y validación de `Gasto` unificadas:** el patrón `gastoRepository.findById(gastoId).orElseThrow(AccesoDenegado "Gasto no encontrado")` + chequeo de pertenencia (`"El gasto no pertenece a este viaje"`) se repetía 3 veces (`actualizarGasto`, `eliminarGasto`). Nuevo helper **`obtenerGastoValidado(UUID viajeId, UUID gastoId)`** (mismos mensajes, anti-IDOR intacto).
   - **Principio DRY — búsqueda del `Viaje` extraída:** **`obtenerViajeValidado(UUID viajeId)`** usado por `crearGasto`, `obtenerBalance` (Gastos) y `crearTarea` (Checklist) — mismo helper/mensaje que en los Bloques 2 y 3.
