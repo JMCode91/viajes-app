@@ -87,7 +87,7 @@ public class FotoServiceImpl implements FotoService {
 
         Usuario autor = obtenerUsuarioAutenticado();
 
-        String url = storageService.subirDocumento(archivo);
+        String url = storageService.subirImagen(archivo);
 
         Foto foto = new Foto();
         foto.setViaje(viaje);

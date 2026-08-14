@@ -4,10 +4,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.ModelAndView;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -64,6 +68,25 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DatosInvalidosException.class)
     public ResponseEntity<ApiError> handleDatosInvalidos(DatosInvalidosException ex) {
         return buildResponse(HttpStatus.BAD_REQUEST, ex.getMessage());
+    }
+
+    /**
+     * Captura peticiones a rutas sin controlador o recursos estaticos inexistentes
+     * (SPA embebida en los recursos de Spring Boot).
+     * - Si la URI NO pertenece a la API (/api/), se reenvia internamente al
+     *   index.html para que el enrutador de Angular resuelva la ruta del frontend.
+     * - Si la URI SI pertenece a la API, se devuelve el error estandar del proyecto
+     *   con HTTP 404 (Not Found).
+     */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public Object handleNotFoundResource(Exception ex, HttpServletRequest request) {
+        String uri = request.getRequestURI();
+        if (!uri.startsWith("/api/")) {
+            log.info("Ruta SPA sin recurso, reenviando a index.html: {}", uri);
+            return new ModelAndView("forward:/index.html");
+        }
+        log.warn("Recurso de la API no encontrado: {}", uri);
+        return buildResponse(HttpStatus.NOT_FOUND, "Recurso no encontrado");
     }
 
     @ExceptionHandler(BadCredentialsException.class)

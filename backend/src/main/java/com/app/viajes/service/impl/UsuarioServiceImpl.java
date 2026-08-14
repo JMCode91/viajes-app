@@ -49,7 +49,7 @@ public class UsuarioServiceImpl implements UsuarioService {
             storageService.eliminarDocumento(usuario.getAvatarUrl());
         }
 
-        String nuevaUrl = storageService.subirDocumento(archivo);
+        String nuevaUrl = storageService.subirImagen(archivo);
         usuario.setAvatarUrl(nuevaUrl);
         usuarioRepository.save(usuario);
 

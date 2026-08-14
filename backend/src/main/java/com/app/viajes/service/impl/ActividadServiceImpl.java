@@ -10,6 +10,7 @@ import com.app.viajes.model.Actividad;
 import com.app.viajes.model.Documento;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.Viaje;
+import com.app.viajes.model.enums.EstadoInvitacion;
 import com.app.viajes.repository.ActividadRepository;
 import com.app.viajes.repository.DocumentoRepository;
 import com.app.viajes.repository.UsuarioRepository;
@@ -204,12 +205,15 @@ public class ActividadServiceImpl implements ActividadService {
     }
 
     /**
-     * Valida que el usuario autenticado pertenece al viaje indicado.
+     * Valida que el usuario autenticado es un participante ACTIVO y ACEPTADO
+     * del viaje indicado (chequeo estricto anti-IDOR). Si el usuario con ese
+     * email no es propietario ni participante autorizado, se lanza un 403.
      */
     private void verificarPertenencia(UUID viajeId) {
         Usuario usuario = obtenerUsuarioAutenticado();
 
-        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
+        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeIdAndEstadoInvitacionAndActivoTrue(
+                usuario.getId(), viajeId, EstadoInvitacion.ACEPTADA)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
     }

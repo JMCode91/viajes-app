@@ -17,6 +17,14 @@ public interface UsuarioViajeRepository extends JpaRepository<UsuarioViaje, UUID
 
     boolean existsByUsuarioIdAndViajeId(UUID usuarioId, UUID viajeId);
 
+    /**
+     * Verifica que el usuario es un participante ACTIVO y ACEPTADO del viaje.
+     * Es el chequeo estricto anti-IDOR: excluye pertenencias PENDIENTES,
+     * RECHAZADAS o abandonadas (activo=false).
+     */
+    boolean existsByUsuarioIdAndViajeIdAndEstadoInvitacionAndActivoTrue(
+            UUID usuarioId, UUID viajeId, EstadoInvitacion estadoInvitacion);
+
     Optional<UsuarioViaje> findByUsuarioIdAndViajeId(UUID usuarioId, UUID viajeId);
 
     List<UsuarioViaje> findByViajeId(UUID viajeId);

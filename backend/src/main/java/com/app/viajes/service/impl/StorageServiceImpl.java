@@ -1,6 +1,6 @@
 package com.app.viajes.service.impl;
 
-import com.app.viajes.exception.AccesoDenegadoException;
+import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.StorageException;
 import com.app.viajes.service.StorageService;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +12,7 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -19,14 +20,29 @@ import java.util.UUID;
  * Implementacion del servicio de almacenamiento de documentos en Cloudflare R2.
  * Genera un UUID como nombre del archivo y lo sube al bucket usando el
  * cliente S3 configurado con {@link com.app.viajes.config.CloudflareR2Config}.
+ * <p>
+ * Seguridad anti web shell: antes de guardar se valida por Lista Blanca la
+ * extension del archivo Y su tipo MIME declarado (defensa en profundidad).
  */
 @Service
 public class StorageServiceImpl implements StorageService {
 
-    /** Extensiones permitidas (whitelist) de documentos de una actividad. */
-    private static final Set<String> EXTENSIONES_PERMITIDAS = Set.of(
-            "pdf", "jpg", "jpeg", "png", "gif", "webp",
-            "doc", "docx", "xls", "xlsx", "csv", "txt");
+    /** Extensiones permitidas para documentos (whitelist estricta). */
+    private static final Set<String> EXTENSIONES_DOCUMENTOS = Set.of(
+            "pdf", "jpg", "jpeg", "png");
+
+    /** Extensiones permitidas para imagenes de avatar, galeria y portada. */
+    private static final Set<String> EXTENSIONES_IMAGENES = Set.of(
+            "jpg", "jpeg", "png", "gif", "webp");
+
+    /** MIME oficial que debe declarar cada extension. */
+    private static final Map<String, String> MIME_POR_EXTENSION = Map.of(
+            "pdf", "application/pdf",
+            "jpg", "image/jpeg",
+            "jpeg", "image/jpeg",
+            "png", "image/png",
+            "gif", "image/gif",
+            "webp", "image/webp");
 
     private final S3Client s3Client;
     private final String bucket;
@@ -44,14 +60,33 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     public String subirDocumento(MultipartFile archivo) {
+        return subir(archivo, EXTENSIONES_DOCUMENTOS,
+                "Formato de archivo no permitido. Formatos validos: PDF, JPG, JPEG, PNG");
+    }
+
+    @Override
+    public String subirImagen(MultipartFile archivo) {
+        return subir(archivo, EXTENSIONES_IMAGENES,
+                "Formato de imagen no permitido. Formatos validos: JPG, JPEG, PNG, GIF, WEBP");
+    }
+
+    /**
+     * Valida el archivo contra una lista blanca (extension + MIME) y lo sube
+     * a Cloudflare R2. Si no cumple la validacion estricta lanza un 400.
+     */
+    private String subir(MultipartFile archivo, Set<String> extensionesPermitidas, String mensajeError) {
         if (archivo == null || archivo.isEmpty()) {
-            throw new AccesoDenegadoException("El archivo esta vacio");
+            throw new DatosInvalidosException("El archivo esta vacio");
         }
 
         String extension = obtenerExtension(archivo.getOriginalFilename());
-        if (!EXTENSIONES_PERMITIDAS.contains(extension)) {
-            throw new AccesoDenegadoException(
-                    "Tipo de archivo no permitido. Extensiones validas: " + EXTENSIONES_PERMITIDAS);
+        String contentType = obtenerContentType(archivo.getContentType());
+
+        // Validacion estricta: la extension debe estar en la lista blanca Y
+        // el MIME declarado debe corresponderse con esa extension.
+        if (!extensionesPermitidas.contains(extension)
+                || !MIME_POR_EXTENSION.getOrDefault(extension, "").equals(contentType)) {
+            throw new DatosInvalidosException(mensajeError);
         }
 
         String nombreGenerado = UUID.randomUUID() + "." + extension;
@@ -60,11 +95,11 @@ public class StorageServiceImpl implements StorageService {
             PutObjectRequest request = PutObjectRequest.builder()
                     .bucket(bucket)
                     .key(nombreGenerado)
-                    .contentType(archivo.getContentType())
+                    .contentType(contentType)
                     .build();
             s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(
                     archivo.getInputStream(), archivo.getSize()));
-} catch (IOException ex) {
+        } catch (IOException ex) {
             throw new StorageException("No se pudo leer el documento para subir a Cloudflare R2");
         } catch (Exception ex) {
             throw new StorageException("No se pudo subir el documento a Cloudflare R2");
@@ -103,5 +138,9 @@ public class StorageServiceImpl implements StorageService {
         }
         String extension = StringUtils.getFilenameExtension(nombreOriginal);
         return extension == null ? "" : extension.toLowerCase();
+    }
+
+    private String obtenerContentType(String contentType) {
+        return contentType == null ? "" : contentType.trim().toLowerCase();
     }
 }

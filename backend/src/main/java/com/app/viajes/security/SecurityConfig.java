@@ -17,11 +17,6 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-/**
- * Configuracion central de Spring Security.
- * Define el PasswordEncoder (BCrypt), el AuthenticationManager,
- * el filtro JWT y la politica de seguridad sin estado (STATELESS).
- */
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
@@ -48,11 +43,20 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
+                // Ciberseguridad: Evita que incrusten tu web en iframes falsos (Clickjacking)
+                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        // 1. El login y registro siempre son públicos
                         .requestMatchers("/api/auth/**").permitAll()
-                        .anyRequest().authenticated())
+                        
+                        // 2. BLINDAJE DEL BACKEND: Cualquier llamada a tu API requiere token JWT
+                        .requestMatchers("/api/**").authenticated()
+                        
+                        // 3. ENRUTAMIENTO FRONTEND: Dejamos pasar todo lo demás (estáticos y rutas virtuales)
+                        // Así evitamos el 403 y permitimos que SpaErrorController devuelva el index.html
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -61,10 +65,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        
+        // Ciberseguridad: Al usar AllowCredentials(true), NUNCA se debe usar "*". 
+        // Solo autorizamos tu dominio de producción y tu entorno local.
+        configuration.setAllowedOrigins(List.of(
+                "https://viajes.javier-moreno.dev",
+                "http://localhost:4200"
+        ));
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
+        
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;

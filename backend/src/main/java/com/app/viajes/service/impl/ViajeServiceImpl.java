@@ -290,7 +290,8 @@ public class ViajeServiceImpl implements ViajeService {
     public List<ParticipanteResponseDTO> obtenerParticipantes(UUID viajeId) {
         Usuario usuario = obtenerUsuarioAutenticado();
 
-        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
+        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeIdAndEstadoInvitacionAndActivoTrue(
+                usuario.getId(), viajeId, EstadoInvitacion.ACEPTADA)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
 
@@ -340,7 +341,7 @@ public class ViajeServiceImpl implements ViajeService {
         // Cloudflare R2 antes de subir la nueva (evita archivos huerfanos).
         storageService.eliminarDocumento(viaje.getFotoPortada());
 
-        String url = storageService.subirDocumento(archivo);
+        String url = storageService.subirImagen(archivo);
         viaje.setFotoPortada(url);
         viajeRepository.save(viaje);
 
@@ -374,10 +375,11 @@ public class ViajeServiceImpl implements ViajeService {
             UUID viajeId, BigDecimal presupuesto) {
         Usuario usuario = obtenerUsuarioAutenticado();
 
-        // Seguridad por propiedad de recursos: solo un participante activo
-        // de este viaje puede actualizar su propio presupuesto individual.
+        // Seguridad por propiedad de recursos: solo un participante activo y
+        // ACEPTADO de este viaje puede actualizar su propio presupuesto individual.
         UsuarioViaje pertenencia = usuarioViajeRepository
                 .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .filter(p -> p.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA && p.isActivo())
                 .orElseThrow(() -> new AccesoDenegadoException(
                         "No tiene acceso a este viaje"));
 
