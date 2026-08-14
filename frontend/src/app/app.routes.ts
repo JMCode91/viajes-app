@@ -34,6 +34,11 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'conversor',
+        loadComponent: () =>
+          import('./features/conversor/conversor').then((m) => m.Conversor),
+      },
+      {
         path: 'perfil',
         loadComponent: () =>
           import('./features/perfil/perfil').then((m) => m.Perfil),
