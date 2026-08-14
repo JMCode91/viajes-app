@@ -63,8 +63,7 @@ public class AlbumServiceImpl implements AlbumService {
     public AlbumResponseDTO crearAlbum(UUID viajeId, AlbumRequestDTO dto) {
         verificarPertenencia(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViajeValidado(viajeId);
 
         Album album = new Album();
         album.setViaje(viaje);
@@ -79,6 +78,27 @@ public class AlbumServiceImpl implements AlbumService {
     public void eliminarAlbum(UUID viajeId, UUID albumId) {
         verificarPertenencia(viajeId);
 
+        Album album = obtenerAlbumValidado(viajeId, albumId);
+
+        // Las fotos no se borran al eliminar el album: se desasocian (album
+        // nullable) y pasan a la galeria "sin album".
+        desasociarFotosDelAlbum(albumId);
+
+        albumRepository.delete(album);
+    }
+
+    /**
+     * Busca el viaje por su id o lanza la excepcion de dominio si no existe.
+     */
+    private Viaje obtenerViajeValidado(UUID viajeId) {
+        return viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+    }
+
+    /**
+     * Busca un album y verifica que pertenece al viaje indicado (anti-IDOR).
+     */
+    private Album obtenerAlbumValidado(UUID viajeId, UUID albumId) {
         Album album = albumRepository.findById(albumId)
                 .orElseThrow(() -> new AccesoDenegadoException("Album no encontrado"));
 
@@ -86,17 +106,19 @@ public class AlbumServiceImpl implements AlbumService {
             throw new AccesoDenegadoException("El album no pertenece a este viaje");
         }
 
-        // Las fotos no se borran al eliminar el album: se desasocian (album
-        // nullable) y pasan a la galeria "sin album".
+        return album;
+    }
+
+    /**
+     * Desasocia las fotos de un album (album nullable) para que pasen a la
+     * galeria "sin album" en lugar de borrarse junto al album.
+     */
+    private void desasociarFotosDelAlbum(UUID albumId) {
         List<Foto> fotos = fotoRepository.findByAlbumId(albumId);
-        for (Foto foto : fotos) {
-            foto.setAlbum(null);
-        }
+        fotos.forEach(foto -> foto.setAlbum(null));
         if (!fotos.isEmpty()) {
             fotoRepository.saveAll(fotos);
         }
-
-        albumRepository.delete(album);
     }
 
     private void verificarPertenencia(UUID viajeId) {

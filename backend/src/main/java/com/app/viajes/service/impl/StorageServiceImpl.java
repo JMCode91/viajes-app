@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
+import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
@@ -75,6 +76,21 @@ public class StorageServiceImpl implements StorageService {
      * a Cloudflare R2. Si no cumple la validacion estricta lanza un 400.
      */
     private String subir(MultipartFile archivo, Set<String> extensionesPermitidas, String mensajeError) {
+        String contentType = validarArchivo(archivo, extensionesPermitidas, mensajeError);
+
+        String nombreGenerado = generarNombreUnico(obtenerExtension(archivo.getOriginalFilename()));
+        subirAlBucket(nombreGenerado, contentType, archivo);
+
+        return publicUrlPrefix + "/" + nombreGenerado;
+    }
+
+    /**
+     * Valida el archivo contra la whitelist: extension permitida Y MIME
+     * declarado acorde a esa extension. Devuelve el contentType normalizado.
+     */
+    private String validarArchivo(MultipartFile archivo,
+                                  Set<String> extensionesPermitidas,
+                                  String mensajeError) {
         if (archivo == null || archivo.isEmpty()) {
             throw new DatosInvalidosException("El archivo esta vacio");
         }
@@ -89,23 +105,34 @@ public class StorageServiceImpl implements StorageService {
             throw new DatosInvalidosException(mensajeError);
         }
 
-        String nombreGenerado = UUID.randomUUID() + "." + extension;
+        return contentType;
+    }
 
+    /**
+     * Genera el nombre unico del objeto R2 a partir de un UUID y la extension
+     * ya normalizada en minusculas.
+     */
+    private String generarNombreUnico(String extension) {
+        return UUID.randomUUID() + "." + extension;
+    }
+
+    /**
+     * Sube el archivo al bucket de Cloudflare R2 con el nombre y MIME dados.
+     */
+    private void subirAlBucket(String nombreGenerado, String contentType, MultipartFile archivo) {
         try {
             PutObjectRequest request = PutObjectRequest.builder()
                     .bucket(bucket)
                     .key(nombreGenerado)
                     .contentType(contentType)
                     .build();
-            s3Client.putObject(request, software.amazon.awssdk.core.sync.RequestBody.fromInputStream(
+            s3Client.putObject(request, RequestBody.fromInputStream(
                     archivo.getInputStream(), archivo.getSize()));
         } catch (IOException ex) {
             throw new StorageException("No se pudo leer el documento para subir a Cloudflare R2");
         } catch (Exception ex) {
             throw new StorageException("No se pudo subir el documento a Cloudflare R2");
         }
-
-        return publicUrlPrefix + "/" + nombreGenerado;
     }
 
     @Override
@@ -114,13 +141,25 @@ public class StorageServiceImpl implements StorageService {
             return;
         }
 
-        // La clave del objeto R2 es el nombre generado (idioma UUID.ext),
-        // que es el ultimo segmento de la URL publica.
+        eliminarDelBucket(extraerClaveUrl(urlArchivo));
+    }
+
+    /**
+     * Extrae la clave del objeto R2 desde la URL publica: es el ultimo
+     * segmento (el nombre generado, idioma UUID.ext).
+     */
+    private String extraerClaveUrl(String urlArchivo) {
         String clave = urlArchivo.substring(urlArchivo.lastIndexOf('/') + 1);
         if (clave.isEmpty()) {
             throw new StorageException("No se pudo determinar el archivo a eliminar de Cloudflare R2");
         }
+        return clave;
+    }
 
+    /**
+     * Borra fisicamente el objeto de Cloudflare R2.
+     */
+    private void eliminarDelBucket(String clave) {
         try {
             DeleteObjectRequest request = DeleteObjectRequest.builder()
                     .bucket(bucket)

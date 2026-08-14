@@ -77,8 +77,7 @@ public class FotoServiceImpl implements FotoService {
     public FotoResponseDTO subirFoto(UUID viajeId, UUID albumId, MultipartFile archivo) {
         verificarPertenencia(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViajeValidado(viajeId);
 
         Album album = null;
         if (albumId != null) {
@@ -104,6 +103,25 @@ public class FotoServiceImpl implements FotoService {
     public void eliminarFoto(UUID viajeId, UUID fotoId) {
         verificarPertenencia(viajeId);
 
+        Foto foto = obtenerFotoValidada(viajeId, fotoId);
+
+        // Borrado inteligente: primero Cloudflare R2, despues el registro.
+        storageService.eliminarDocumento(foto.getUrl());
+        fotoRepository.delete(foto);
+    }
+
+    /**
+     * Busca el viaje por su id o lanza la excepcion de dominio si no existe.
+     */
+    private Viaje obtenerViajeValidado(UUID viajeId) {
+        return viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+    }
+
+    /**
+     * Busca una foto y verifica que pertenece al viaje indicado (anti-IDOR).
+     */
+    private Foto obtenerFotoValidada(UUID viajeId, UUID fotoId) {
         Foto foto = fotoRepository.findById(fotoId)
                 .orElseThrow(() -> new AccesoDenegadoException("Foto no encontrada"));
 
@@ -111,9 +129,7 @@ public class FotoServiceImpl implements FotoService {
             throw new AccesoDenegadoException("La foto no pertenece a este viaje");
         }
 
-        // Borrado inteligente: primero Cloudflare R2, despues el registro.
-        storageService.eliminarDocumento(foto.getUrl());
-        fotoRepository.delete(foto);
+        return foto;
     }
 
     /**
