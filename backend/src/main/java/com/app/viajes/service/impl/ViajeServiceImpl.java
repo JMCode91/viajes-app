@@ -25,10 +25,9 @@ import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.StorageService;
 import com.app.viajes.service.ViajeService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -60,6 +59,7 @@ public class ViajeServiceImpl implements ViajeService {
     private final FotoRepository fotoRepository;
     private final AlbumRepository albumRepository;
     private final StorageService storageService;
+    private final SecurityUtils securityUtils;
 
     public ViajeServiceImpl(ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
@@ -71,7 +71,8 @@ public class ViajeServiceImpl implements ViajeService {
                             DocumentoRepository documentoRepository,
                             FotoRepository fotoRepository,
                             AlbumRepository albumRepository,
-                            StorageService storageService) {
+                            StorageService storageService,
+                            SecurityUtils securityUtils) {
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
@@ -83,12 +84,13 @@ public class ViajeServiceImpl implements ViajeService {
         this.fotoRepository = fotoRepository;
         this.albumRepository = albumRepository;
         this.storageService = storageService;
+        this.securityUtils = securityUtils;
     }
 
     @Override
     @Transactional
     public ViajeResponseDTO crearViaje(ViajeRequestDTO request) {
-        Usuario creador = obtenerUsuarioAutenticado();
+        Usuario creador = securityUtils.getUsuarioAutenticado();
 
         Viaje viaje = new Viaje();
         viaje.setTitulo(request.titulo());
@@ -105,7 +107,7 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional(readOnly = true)
     public List<ViajeResponseDTO> obtenerMisViajes() {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
 
         return usuarioViajeRepository.findByUsuarioIdAndEstadoInvitacion(
                         usuario.getId(), EstadoInvitacion.ACEPTADA)
@@ -138,7 +140,7 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional
     public void responderInvitacion(UUID viajeId, boolean aceptar) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
 
         Optional<UsuarioViaje> pertenenciaOpt = usuarioViajeRepository
                 .findByUsuarioIdAndViajeId(usuario.getId(), viajeId);
@@ -272,7 +274,7 @@ public class ViajeServiceImpl implements ViajeService {
         verificarOrganizador(viajeId);
 
         // Un organizador no puede expulsarse a si mismo por esta via.
-        Usuario autenticado = obtenerUsuarioAutenticado();
+        Usuario autenticado = securityUtils.getUsuarioAutenticado();
         if (autenticado.getId().equals(usuarioId)) {
             throw new AccesoDenegadoException(
                     "El organizador no puede expulsarse a si mismo");
@@ -301,21 +303,13 @@ public class ViajeServiceImpl implements ViajeService {
         return toParticipanteDTO(pertenencia);
     }
 
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
-    }
-
     private Viaje obtenerViaje(UUID viajeId) {
         return viajeRepository.findById(viajeId)
                 .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
     }
 
     private UsuarioViaje obtenerPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         return usuarioViajeRepository
                 .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
                 .orElseThrow(() -> new AccesoDenegadoException(
@@ -323,7 +317,7 @@ public class ViajeServiceImpl implements ViajeService {
     }
 
     private UsuarioViaje obtenerPertenenciaActiva(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         return usuarioViajeRepository
                 .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
                 .filter(pertenencia ->

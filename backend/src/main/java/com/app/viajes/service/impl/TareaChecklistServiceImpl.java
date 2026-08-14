@@ -12,9 +12,8 @@ import com.app.viajes.repository.TareaChecklistRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.TareaChecklistService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,22 +32,25 @@ public class TareaChecklistServiceImpl implements TareaChecklistService {
     private final ViajeRepository viajeRepository;
     private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final SecurityUtils securityUtils;
 
     public TareaChecklistServiceImpl(TareaChecklistRepository tareaRepository,
                                      ViajeRepository viajeRepository,
                                      UsuarioRepository usuarioRepository,
-                                     UsuarioViajeRepository usuarioViajeRepository) {
+                                     UsuarioViajeRepository usuarioViajeRepository,
+                                     SecurityUtils securityUtils) {
         this.tareaRepository = tareaRepository;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<TareaChecklistResponseDTO> obtenerTareas(UUID viajeId) {
         verificarPertenencia(viajeId);
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         return tareaRepository.findVisiblesPorViajeYUsuario(viajeId, usuario.getId())
                 .stream()
                 .map(this::toResponseDTO)
@@ -59,7 +61,7 @@ public class TareaChecklistServiceImpl implements TareaChecklistService {
     @Transactional
     public TareaChecklistResponseDTO crearTarea(UUID viajeId, TareaChecklistRequestDTO dto) {
         verificarPertenencia(viajeId);
-        Usuario creador = obtenerUsuarioAutenticado();
+        Usuario creador = securityUtils.getUsuarioAutenticado();
 
         Viaje viaje = obtenerViajeValidado(viajeId);
 
@@ -136,18 +138,10 @@ public class TareaChecklistServiceImpl implements TareaChecklistService {
     }
 
     private void verificarPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
     }
 
     private TareaChecklistResponseDTO toResponseDTO(TareaChecklist tarea) {

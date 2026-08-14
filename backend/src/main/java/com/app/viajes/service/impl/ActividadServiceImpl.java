@@ -4,7 +4,6 @@ import com.app.viajes.dto.ActividadRequestDTO;
 import com.app.viajes.dto.ActividadResponseDTO;
 import com.app.viajes.dto.DocumentoDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
-import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Actividad;
 import com.app.viajes.model.Documento;
@@ -13,13 +12,11 @@ import com.app.viajes.model.Viaje;
 import com.app.viajes.model.enums.EstadoInvitacion;
 import com.app.viajes.repository.ActividadRepository;
 import com.app.viajes.repository.DocumentoRepository;
-import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.ActividadService;
 import com.app.viajes.service.StorageService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,23 +35,23 @@ public class ActividadServiceImpl implements ActividadService {
 
     private final ActividadRepository actividadRepository;
     private final ViajeRepository viajeRepository;
-    private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
     private final DocumentoRepository documentoRepository;
     private final StorageService storageService;
+    private final SecurityUtils securityUtils;
 
     public ActividadServiceImpl(ActividadRepository actividadRepository,
                                 ViajeRepository viajeRepository,
-                                UsuarioRepository usuarioRepository,
                                 UsuarioViajeRepository usuarioViajeRepository,
                                 DocumentoRepository documentoRepository,
-                                StorageService storageService) {
+                                StorageService storageService,
+                                SecurityUtils securityUtils) {
         this.actividadRepository = actividadRepository;
         this.viajeRepository = viajeRepository;
-        this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
         this.documentoRepository = documentoRepository;
         this.storageService = storageService;
+        this.securityUtils = securityUtils;
     }
 
     @Override
@@ -168,20 +165,12 @@ public class ActividadServiceImpl implements ActividadService {
      * email no es propietario ni participante autorizado, se lanza un 403.
      */
     private void verificarPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
 
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeIdAndEstadoInvitacionAndActivoTrue(
                 usuario.getId(), viajeId, EstadoInvitacion.ACEPTADA)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
     }
 
     /**

@@ -1,16 +1,13 @@
 package com.app.viajes.service.impl;
 
 import com.app.viajes.exception.AccesoDenegadoException;
-import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.model.Usuario;
-import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.ArchivoService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -38,15 +35,15 @@ public class ArchivoServiceImpl implements ArchivoService {
             "doc", "docx", "xls", "xlsx", "csv", "txt");
 
     private final Path directorioRaiz;
-    private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final SecurityUtils securityUtils;
 
     public ArchivoServiceImpl(@Value("${app.upload.dir}") String directorioRaiz,
-                              UsuarioRepository usuarioRepository,
-                              UsuarioViajeRepository usuarioViajeRepository) {
+                              UsuarioViajeRepository usuarioViajeRepository,
+                              SecurityUtils securityUtils) {
         this.directorioRaiz = Paths.get(directorioRaiz).toAbsolutePath().normalize();
-        this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Override
@@ -116,11 +113,7 @@ public class ArchivoServiceImpl implements ArchivoService {
     }
 
     private void verificarPertenencia(UUID viajeId) {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        Usuario usuario = usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }

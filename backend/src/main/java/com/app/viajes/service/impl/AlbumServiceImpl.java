@@ -3,7 +3,6 @@ package com.app.viajes.service.impl;
 import com.app.viajes.dto.AlbumRequestDTO;
 import com.app.viajes.dto.AlbumResponseDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
-import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Album;
 import com.app.viajes.model.Foto;
@@ -11,12 +10,10 @@ import com.app.viajes.model.Usuario;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.repository.AlbumRepository;
 import com.app.viajes.repository.FotoRepository;
-import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.AlbumService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,19 +30,19 @@ public class AlbumServiceImpl implements AlbumService {
     private final AlbumRepository albumRepository;
     private final FotoRepository fotoRepository;
     private final ViajeRepository viajeRepository;
-    private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
+    private final SecurityUtils securityUtils;
 
     public AlbumServiceImpl(AlbumRepository albumRepository,
                             FotoRepository fotoRepository,
                             ViajeRepository viajeRepository,
-                            UsuarioRepository usuarioRepository,
-                            UsuarioViajeRepository usuarioViajeRepository) {
+                            UsuarioViajeRepository usuarioViajeRepository,
+                            SecurityUtils securityUtils) {
         this.albumRepository = albumRepository;
         this.fotoRepository = fotoRepository;
         this.viajeRepository = viajeRepository;
-        this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Override
@@ -122,18 +119,10 @@ public class AlbumServiceImpl implements AlbumService {
     }
 
     private void verificarPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
     }
 
     private AlbumResponseDTO toResponseDTO(Album album) {

@@ -4,13 +4,11 @@ import com.app.viajes.dto.UsuarioResponseDTO;
 import com.app.viajes.dto.request.CambiarPasswordRequest;
 import com.app.viajes.dto.request.PreferenciasNotificacionRequest;
 import com.app.viajes.exception.DatosInvalidosException;
-import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.repository.UsuarioRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.StorageService;
 import com.app.viajes.service.UsuarioService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,25 +27,26 @@ public class UsuarioServiceImpl implements UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final StorageService storageService;
     private final PasswordEncoder passwordEncoder;
+    private final SecurityUtils securityUtils;
 
     public UsuarioServiceImpl(UsuarioRepository usuarioRepository,
                               StorageService storageService,
-                              PasswordEncoder passwordEncoder) {
+                              PasswordEncoder passwordEncoder,
+                              SecurityUtils securityUtils) {
         this.usuarioRepository = usuarioRepository;
         this.storageService = storageService;
         this.passwordEncoder = passwordEncoder;
+        this.securityUtils = securityUtils;
     }
 
     @Override
     @Transactional
     public UsuarioResponseDTO actualizarAvatar(MultipartFile archivo) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
 
         // Borrado inteligente: purga el avatar anterior de R2 para no dejar
         // archivos huerfanos en el bucket (no-op si aun no habia avatar).
-        if (StringUtils.hasText(usuario.getAvatarUrl())) {
-            storageService.eliminarDocumento(usuario.getAvatarUrl());
-        }
+        borrarAvatarAnterior(usuario);
 
         String nuevaUrl = storageService.subirImagen(archivo);
         usuario.setAvatarUrl(nuevaUrl);
@@ -58,18 +57,15 @@ public class UsuarioServiceImpl implements UsuarioService {
 
     @Override
     public UsuarioResponseDTO obtenerPerfil() {
-        return toResponseDTO(obtenerUsuarioAutenticado());
+        return toResponseDTO(securityUtils.getUsuarioAutenticado());
     }
 
     @Override
     @Transactional
     public void cambiarPassword(CambiarPasswordRequest request) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
 
-        // Verifica que la contrasena actual coincide con la almacenada (BCrypt).
-        if (!passwordEncoder.matches(request.passwordActual(), usuario.getPassword())) {
-            throw new DatosInvalidosException("La contrasena actual no es correcta");
-        }
+        validarPasswordActual(usuario, request.passwordActual());
 
         usuario.setPassword(passwordEncoder.encode(request.nuevaPassword()));
         usuarioRepository.save(usuario);
@@ -78,19 +74,29 @@ public class UsuarioServiceImpl implements UsuarioService {
     @Override
     @Transactional
     public UsuarioResponseDTO actualizarPreferencias(PreferenciasNotificacionRequest request) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         usuario.setNotificacionesGastos(request.notificacionesGastos());
         usuario.setNotificacionesPlanes(request.notificacionesPlanes());
         usuarioRepository.save(usuario);
         return toResponseDTO(usuario);
     }
 
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
+    /**
+     * Purga el avatar anterior de Cloudflare R2 (no-op si aun no habia avatar).
+     */
+    private void borrarAvatarAnterior(Usuario usuario) {
+        if (StringUtils.hasText(usuario.getAvatarUrl())) {
+            storageService.eliminarDocumento(usuario.getAvatarUrl());
+        }
+    }
+
+    /**
+     * Verifica que la contrasena actual coincide con la almacenada (BCrypt).
+     */
+    private void validarPasswordActual(Usuario usuario, String passwordActual) {
+        if (!passwordEncoder.matches(passwordActual, usuario.getPassword())) {
+            throw new DatosInvalidosException("La contrasena actual no es correcta");
+        }
     }
 
     private UsuarioResponseDTO toResponseDTO(Usuario usuario) {

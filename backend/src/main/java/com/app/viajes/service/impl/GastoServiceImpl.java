@@ -23,9 +23,8 @@ import com.app.viajes.repository.GastoRepository;
 import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.GastoService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,17 +56,20 @@ public class GastoServiceImpl implements GastoService {
     private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
     private final DeudaGastoRepository deudaGastoRepository;
+    private final SecurityUtils securityUtils;
 
     public GastoServiceImpl(GastoRepository gastoRepository,
                             ViajeRepository viajeRepository,
                             UsuarioRepository usuarioRepository,
                             UsuarioViajeRepository usuarioViajeRepository,
-                            DeudaGastoRepository deudaGastoRepository) {
+                            DeudaGastoRepository deudaGastoRepository,
+                            SecurityUtils securityUtils) {
         this.gastoRepository = gastoRepository;
         this.viajeRepository = viajeRepository;
         this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
         this.deudaGastoRepository = deudaGastoRepository;
+        this.securityUtils = securityUtils;
     }
 
     @Override
@@ -140,7 +142,7 @@ public class GastoServiceImpl implements GastoService {
     public BalanceResponseDTO obtenerBalance(UUID viajeId) {
         verificarPertenencia(viajeId);
 
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         Viaje viaje = obtenerViajeValidado(viajeId);
 
         // Presupuesto individual del usuario dentro del viaje.
@@ -497,18 +499,10 @@ public class GastoServiceImpl implements GastoService {
     }
 
     private void verificarPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
     }
 
     private GastoResponseDTO toResponseDTO(Gasto gasto, List<DeudaGasto> deudas) {

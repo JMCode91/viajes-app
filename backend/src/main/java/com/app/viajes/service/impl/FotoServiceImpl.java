@@ -2,7 +2,6 @@ package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.FotoResponseDTO;
 import com.app.viajes.exception.AccesoDenegadoException;
-import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Album;
 import com.app.viajes.model.Foto;
@@ -10,13 +9,11 @@ import com.app.viajes.model.Usuario;
 import com.app.viajes.model.Viaje;
 import com.app.viajes.repository.AlbumRepository;
 import com.app.viajes.repository.FotoRepository;
-import com.app.viajes.repository.UsuarioRepository;
 import com.app.viajes.repository.UsuarioViajeRepository;
 import com.app.viajes.repository.ViajeRepository;
+import com.app.viajes.security.SecurityUtils;
 import com.app.viajes.service.FotoService;
 import com.app.viajes.service.StorageService;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -35,22 +32,22 @@ public class FotoServiceImpl implements FotoService {
     private final FotoRepository fotoRepository;
     private final AlbumRepository albumRepository;
     private final ViajeRepository viajeRepository;
-    private final UsuarioRepository usuarioRepository;
     private final UsuarioViajeRepository usuarioViajeRepository;
     private final StorageService storageService;
+    private final SecurityUtils securityUtils;
 
     public FotoServiceImpl(FotoRepository fotoRepository,
                            AlbumRepository albumRepository,
                            ViajeRepository viajeRepository,
-                           UsuarioRepository usuarioRepository,
                            UsuarioViajeRepository usuarioViajeRepository,
-                           StorageService storageService) {
+                           StorageService storageService,
+                           SecurityUtils securityUtils) {
         this.fotoRepository = fotoRepository;
         this.albumRepository = albumRepository;
         this.viajeRepository = viajeRepository;
-        this.usuarioRepository = usuarioRepository;
         this.usuarioViajeRepository = usuarioViajeRepository;
         this.storageService = storageService;
+        this.securityUtils = securityUtils;
     }
 
     @Override
@@ -84,7 +81,7 @@ public class FotoServiceImpl implements FotoService {
             album = verificarAlbumDelViaje(viajeId, albumId);
         }
 
-        Usuario autor = obtenerUsuarioAutenticado();
+        Usuario autor = securityUtils.getUsuarioAutenticado();
 
         String url = storageService.subirImagen(archivo);
 
@@ -145,18 +142,10 @@ public class FotoServiceImpl implements FotoService {
     }
 
     private void verificarPertenencia(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
         if (!usuarioViajeRepository.existsByUsuarioIdAndViajeId(usuario.getId(), viajeId)) {
             throw new AccesoDenegadoException("No tiene acceso a este viaje");
         }
-    }
-
-    private Usuario obtenerUsuarioAutenticado() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        String email = authentication.getName();
-        return usuarioRepository.findByEmail(email)
-                .orElseThrow(() -> new UsuarioNoEncontradoException(
-                        "Usuario autenticado no encontrado"));
     }
 
     private FotoResponseDTO toResponseDTO(Foto foto) {

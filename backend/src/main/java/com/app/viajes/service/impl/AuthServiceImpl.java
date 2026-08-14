@@ -52,8 +52,7 @@ public class AuthServiceImpl implements AuthService {
 
         usuarioRepository.save(usuario);
 
-        String token = jwtUtil.generateToken(usuario.getEmail());
-        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
+        return construirRespuestaLogin(usuario);
     }
 
     @Override
@@ -66,7 +65,16 @@ public class AuthServiceImpl implements AuthService {
         Usuario usuario = usuarioRepository.findByEmail(request.email())
                 .orElseThrow(() -> new BadCredentialsException("Credenciales invalidas"));
 
+        return construirRespuestaLogin(usuario);
+    }
+
+    /**
+     * Genera el token JWT y construye la respuesta de autenticacion con los
+     * datos publicos del usuario. Se reutiliza en el registro y el login.
+     */
+    private AuthResponseDTO construirRespuestaLogin(Usuario usuario) {
         String token = jwtUtil.generateToken(usuario.getEmail());
-        return new AuthResponseDTO(token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
+        return new AuthResponseDTO(
+                token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
     }
 }
