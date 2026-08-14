@@ -62,24 +62,11 @@ public class ActividadServiceImpl implements ActividadService {
     public ActividadResponseDTO crearActividad(UUID viajeId, ActividadRequestDTO dto) {
         verificarPertenencia(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViajeValidado(viajeId);
 
         Actividad actividad = new Actividad();
         actividad.setViaje(viaje);
-        actividad.setTitulo(dto.titulo());
-        actividad.setGooglePlaceId(dto.googlePlaceId());
-        actividad.setRating(dto.rating());
-        actividad.setHorarios(dto.horarios());
-        actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
-        actividad.setDescripcionGoogle(dto.descripcionGoogle());
-        actividad.setTipoActividad(dto.tipoActividad());
-        actividad.setFechaHoraInicio(dto.fechaHoraInicio());
-        actividad.setFechaHoraFin(dto.fechaHoraFin());
-        actividad.setLatitud(dto.latitud());
-        actividad.setLongitud(dto.longitud());
-        actividad.setDireccion(dto.direccion());
-        actividad.setNotas(dto.notas());
+        aplicarDatosActividad(actividad, dto);
         actividadRepository.save(actividad);
 
         return toResponseDTO(actividad);
@@ -90,26 +77,8 @@ public class ActividadServiceImpl implements ActividadService {
     public ActividadResponseDTO actualizarActividad(UUID viajeId, UUID actividadId, ActividadRequestDTO dto) {
         verificarPertenencia(viajeId);
 
-        Actividad actividad = actividadRepository.findById(actividadId)
-                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
-
-        if (!actividad.getViaje().getId().equals(viajeId)) {
-            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
-        }
-
-        actividad.setTitulo(dto.titulo());
-        actividad.setGooglePlaceId(dto.googlePlaceId());
-        actividad.setRating(dto.rating());
-        actividad.setHorarios(dto.horarios());
-        actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
-        actividad.setDescripcionGoogle(dto.descripcionGoogle());
-        actividad.setTipoActividad(dto.tipoActividad());
-        actividad.setFechaHoraInicio(dto.fechaHoraInicio());
-        actividad.setFechaHoraFin(dto.fechaHoraFin());
-        actividad.setLatitud(dto.latitud());
-        actividad.setLongitud(dto.longitud());
-        actividad.setDireccion(dto.direccion());
-        actividad.setNotas(dto.notas());
+        Actividad actividad = obtenerActividadValidada(viajeId, actividadId);
+        aplicarDatosActividad(actividad, dto);
         actividadRepository.save(actividad);
 
         return toResponseDTO(actividad);
@@ -145,13 +114,7 @@ public class ActividadServiceImpl implements ActividadService {
     public void eliminarActividad(UUID viajeId, UUID actividadId) {
         verificarPertenencia(viajeId);
 
-        Actividad actividad = actividadRepository.findById(actividadId)
-                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
-
-        // Verifica que la actividad pertenezca al viaje indicado.
-        if (!actividad.getViaje().getId().equals(viajeId)) {
-            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
-        }
+        Actividad actividad = obtenerActividadValidada(viajeId, actividadId);
 
         // Borrado inteligente en cascada: se borran fisicamente de Cloudflare R2
         // todos los documentos de la actividad antes de eliminar el registro.
@@ -168,12 +131,7 @@ public class ActividadServiceImpl implements ActividadService {
                                                  String nombreOriginal, String urlArchivo) {
         verificarPertenencia(viajeId);
 
-        Actividad actividad = actividadRepository.findById(actividadId)
-                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
-
-        if (!actividad.getViaje().getId().equals(viajeId)) {
-            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
-        }
+        Actividad actividad = obtenerActividadValidada(viajeId, actividadId);
 
         Documento documento = new Documento();
         documento.setActividad(actividad);
@@ -226,6 +184,56 @@ public class ActividadServiceImpl implements ActividadService {
                         "Usuario autenticado no encontrado"));
     }
 
+    /**
+     * Busca el viaje por su id o lanza la excepcion de dominio si no existe.
+     */
+    private Viaje obtenerViajeValidado(UUID viajeId) {
+        return viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+    }
+
+    /**
+     * Busca una actividad y verifica que pertenece al viaje indicado,
+     * evitando el acceso a actividades de otros viajes (anti-IDOR).
+     */
+    private Actividad obtenerActividadValidada(UUID viajeId, UUID actividadId) {
+        Actividad actividad = actividadRepository.findById(actividadId)
+                .orElseThrow(() -> new AccesoDenegadoException("Actividad no encontrada"));
+
+        if (!actividad.getViaje().getId().equals(viajeId)) {
+            throw new AccesoDenegadoException("La actividad no pertenece a este viaje");
+        }
+
+        return actividad;
+    }
+
+    /**
+     * Copia los campos del DTO de peticion sobre la entidad Actividad.
+     * Se reutiliza en la creacion y la actualizacion para evitar duplicados.
+     */
+    private void aplicarDatosActividad(Actividad actividad, ActividadRequestDTO dto) {
+        actividad.setTitulo(dto.titulo());
+        actividad.setGooglePlaceId(dto.googlePlaceId());
+        actividad.setRating(dto.rating());
+        actividad.setHorarios(dto.horarios());
+        actividad.setUrlGoogleMaps(dto.urlGoogleMaps());
+        actividad.setDescripcionGoogle(dto.descripcionGoogle());
+        actividad.setTipoActividad(dto.tipoActividad());
+        actividad.setFechaHoraInicio(dto.fechaHoraInicio());
+        actividad.setFechaHoraFin(dto.fechaHoraFin());
+        actividad.setLatitud(dto.latitud());
+        actividad.setLongitud(dto.longitud());
+        actividad.setDireccion(dto.direccion());
+        actividad.setNotas(dto.notas());
+    }
+
+    private DocumentoDTO toDocumentoDTO(Documento documento) {
+        return new DocumentoDTO(
+                documento.getId(),
+                documento.getNombreOriginal(),
+                documento.getUrlArchivo());
+    }
+
     private ActividadResponseDTO toResponseDTO(Actividad actividad) {
         return new ActividadResponseDTO(
                 actividad.getId(),
@@ -244,10 +252,7 @@ public class ActividadServiceImpl implements ActividadService {
                 actividad.getDireccion(),
                 actividad.getNotas(),
                 actividad.getDocumentos().stream()
-                        .map(documento -> new DocumentoDTO(
-                                documento.getId(),
-                                documento.getNombreOriginal(),
-                                documento.getUrlArchivo()))
+                        .map(this::toDocumentoDTO)
                         .toList());
     }
 }
