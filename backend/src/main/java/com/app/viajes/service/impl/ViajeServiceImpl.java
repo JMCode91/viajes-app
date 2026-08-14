@@ -97,23 +97,9 @@ public class ViajeServiceImpl implements ViajeService {
         viaje.setPresupuestoBase(request.presupuestoBase());
         viajeRepository.save(viaje);
 
-        UsuarioViaje pertenencia = new UsuarioViaje();
-        pertenencia.setUsuario(creador);
-        pertenencia.setViaje(viaje);
-        pertenencia.setEstadoInvitacion(EstadoInvitacion.ACEPTADA);
-        pertenencia.setRolEnViaje(ROL_PROPIETARIO);
-        usuarioViajeRepository.save(pertenencia);
+        crearPertenencia(creador, viaje, EstadoInvitacion.ACEPTADA, ROL_PROPIETARIO);
 
-        return new ViajeResponseDTO(
-                viaje.getId(),
-                viaje.getTitulo(),
-                viaje.getFechaInicio(),
-                viaje.getFechaFin(),
-                viaje.getPresupuestoBase(),
-                viaje.getPresupuestoGlobal(),
-                ROL_PROPIETARIO,
-                viaje.getFotoPortada(),
-                obtenerParticipantesDTO(viaje));
+        return toResponseDTO(viaje, ROL_PROPIETARIO);
     }
 
     @Override
@@ -134,20 +120,9 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional
     public void invitarUsuario(UUID viajeId, InvitacionRequestDTO request) {
-        Usuario usuarioAutenticado = obtenerUsuarioAutenticado();
+        verificarOrganizador(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
-
-        // Solo el PROPIETARIO puede invitar.
-        UsuarioViaje pertenenciaAutenticado = usuarioViajeRepository
-                .findByUsuarioIdAndViajeId(usuarioAutenticado.getId(), viajeId)
-                .orElseThrow(() -> new AccesoDenegadoException(
-                        "No tiene acceso a este viaje"));
-        if (!ROL_PROPIETARIO.equals(pertenenciaAutenticado.getRolEnViaje())) {
-            throw new AccesoDenegadoException(
-                    "Solo el propietario del viaje puede enviar invitaciones");
-        }
+        Viaje viaje = obtenerViaje(viajeId);
 
         Usuario invitado = usuarioRepository.findByEmail(request.emailInvitado())
                 .orElseThrow(() -> new UsuarioNoEncontradoException(
@@ -157,12 +132,7 @@ public class ViajeServiceImpl implements ViajeService {
             throw new AccesoDenegadoException("El usuario ya esta vinculado a este viaje");
         }
 
-        UsuarioViaje nuevaPertenencia = new UsuarioViaje();
-        nuevaPertenencia.setUsuario(invitado);
-        nuevaPertenencia.setViaje(viaje);
-        nuevaPertenencia.setEstadoInvitacion(EstadoInvitacion.PENDIENTE);
-        nuevaPertenencia.setRolEnViaje(ROL_INVITADO);
-        usuarioViajeRepository.save(nuevaPertenencia);
+        crearPertenencia(invitado, viaje, EstadoInvitacion.PENDIENTE, ROL_INVITADO);
     }
 
     @Override
@@ -177,15 +147,8 @@ public class ViajeServiceImpl implements ViajeService {
         // usuario autenticado puede unirse utilizando el codigo (id del viaje)
         // compartido por el propietario, aun sin haber sido invitado antes.
         if (pertenenciaOpt.isEmpty() && aceptar) {
-            Viaje viaje = viajeRepository.findById(viajeId)
-                    .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
-
-            UsuarioViaje nuevaPertenencia = new UsuarioViaje();
-            nuevaPertenencia.setUsuario(usuario);
-            nuevaPertenencia.setViaje(viaje);
-            nuevaPertenencia.setEstadoInvitacion(EstadoInvitacion.ACEPTADA);
-            nuevaPertenencia.setRolEnViaje(ROL_INVITADO);
-            usuarioViajeRepository.save(nuevaPertenencia);
+            Viaje viaje = obtenerViaje(viajeId);
+            crearPertenencia(usuario, viaje, EstadoInvitacion.ACEPTADA, ROL_INVITADO);
             return;
         }
 
@@ -217,12 +180,8 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional
     public void abandonarViaje(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
+        UsuarioViaje pertenencia = obtenerPertenencia(viajeId);
 
-        UsuarioViaje pertenencia = usuarioViajeRepository
-                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
-                .orElseThrow(() -> new AccesoDenegadoException(
-                        "No tiene acceso a este viaje"));
         if (ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
             throw new AccesoDenegadoException(
                     "El propietario no puede abandonar el viaje");
@@ -237,50 +196,20 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional
     public void eliminarViaje(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
-
         // Solo el PROPIETARIO puede eliminar el viaje.
-        UsuarioViaje pertenencia = usuarioViajeRepository
-                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
-                .orElseThrow(() -> new AccesoDenegadoException(
-                        "No tiene acceso a este viaje"));
-        if (!ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
-            throw new AccesoDenegadoException(
-                    "Solo el propietario del viaje puede eliminarlo");
-        }
+        verificarOrganizador(viajeId);
 
         // Borrado en cascada manual: los hijos mapean @ManyToOne -> Viaje
         // sin colecciones @OneToMany (no hay OrphanRemoval), por lo que se
         // eliminan explicitamente para evitar violacion de Clave Foranea.
-        //
-        // Borrado inteligente: primero se purgan fisicamente de Cloudflare R2
-        // todos los documentos asociados al viaje y luego se eliminan las filas.
+        // El orden preserva las dependencias: checklist, gastos, documentos
+        // y actividades antes que pertenencias; fotos antes que albumes.
         tareaChecklistRepository.deleteByViajeId(viajeId);
-        // Borrado en cascada de gastos: por cada gasto del viaje se purgan
-        // primero sus DeudaGasto asociados y despues se elimina el Gasto.
-        // Asi se evitan violaciones de clave foranea y registros huerfanos.
-        List<Gasto> gastos = gastoRepository.findByViajeIdOrderByFechaDesc(viajeId);
-        for (Gasto gasto : gastos) {
-            deudaGastoRepository.deleteByGastoId(gasto.getId());
-            gastoRepository.delete(gasto);
-        }
-
-        List<Documento> documentos = documentoRepository.findByActividadViajeId(viajeId);
-        for (Documento documento : documentos) {
-            storageService.eliminarDocumento(documento.getUrlArchivo());
-        }
-        documentoRepository.deleteByViajeId(viajeId);
+        purgarGastosYDeudas(viajeId);
+        purgarDocumentosDelViaje(viajeId);
         actividadRepository.deleteByViajeId(viajeId);
         usuarioViajeRepository.deleteByViajeId(viajeId);
-
-        // Galeria multimedia: primero se purgan fisicamente las fotos de
-        // Cloudflare R2 y luego se eliminan las filas (fotos -> albumes).
-        List<Foto> fotos = fotoRepository.findByViajeId(viajeId);
-        for (Foto foto : fotos) {
-            storageService.eliminarDocumento(foto.getUrl());
-        }
-        fotoRepository.deleteByViajeId(viajeId);
-        albumRepository.deleteByViajeId(viajeId);
+        purgarFotosYAlbumes(viajeId);
 
         viajeRepository.deleteById(viajeId);
     }
@@ -288,23 +217,14 @@ public class ViajeServiceImpl implements ViajeService {
     @Override
     @Transactional(readOnly = true)
     public List<ParticipanteResponseDTO> obtenerParticipantes(UUID viajeId) {
-        Usuario usuario = obtenerUsuarioAutenticado();
-
-        if (!usuarioViajeRepository.existsByUsuarioIdAndViajeIdAndEstadoInvitacionAndActivoTrue(
-                usuario.getId(), viajeId, EstadoInvitacion.ACEPTADA)) {
-            throw new AccesoDenegadoException("No tiene acceso a este viaje");
-        }
+        // Seguridad por propiedad de recursos: solo un participante activo y
+        // ACEPTADO de este viaje puede listar a los demas.
+        obtenerPertenenciaActiva(viajeId);
 
         return usuarioViajeRepository.findByViajeId(viajeId).stream()
                 .filter(pertenencia ->
                         pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
-                .map(pertenencia -> new ParticipanteResponseDTO(
-                        pertenencia.getUsuario().getId(),
-                        pertenencia.getUsuario().getNombre(),
-                        pertenencia.getUsuario().getEmail(),
-                        pertenencia.getRolEnViaje(),
-                        pertenencia.getUsuario().getAvatarUrl(),
-                        pertenencia.getPresupuestoIndividual()))
+                .map(this::toParticipanteDTO)
                 .toList();
     }
 
@@ -313,8 +233,7 @@ public class ViajeServiceImpl implements ViajeService {
     public ViajeResponseDTO actualizarViaje(UUID viajeId, ViajeUpdateDTO request) {
         verificarOrganizador(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViaje(viajeId);
 
         viaje.setTitulo(request.titulo());
         viaje.setFechaInicio(request.fechaInicio());
@@ -334,8 +253,7 @@ public class ViajeServiceImpl implements ViajeService {
     public ViajeResponseDTO actualizarFotoPortada(UUID viajeId, MultipartFile archivo) {
         verificarOrganizador(viajeId);
 
-        Viaje viaje = viajeRepository.findById(viajeId)
-                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+        Viaje viaje = obtenerViaje(viajeId);
 
         // Borrado inteligente: si ya habia portada, se purga fisicamente de
         // Cloudflare R2 antes de subir la nueva (evita archivos huerfanos).
@@ -373,26 +291,14 @@ public class ViajeServiceImpl implements ViajeService {
     @Transactional
     public ParticipanteResponseDTO actualizarPresupuestoIndividual(
             UUID viajeId, BigDecimal presupuesto) {
-        Usuario usuario = obtenerUsuarioAutenticado();
-
         // Seguridad por propiedad de recursos: solo un participante activo y
-        // ACEPTADO de este viaje puede actualizar su propio presupuesto individual.
-        UsuarioViaje pertenencia = usuarioViajeRepository
-                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
-                .filter(p -> p.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA && p.isActivo())
-                .orElseThrow(() -> new AccesoDenegadoException(
-                        "No tiene acceso a este viaje"));
+        // ACEPTADO de este viaje puede actualizar su propio presupuesto.
+        UsuarioViaje pertenencia = obtenerPertenenciaActiva(viajeId);
 
         pertenencia.setPresupuestoIndividual(presupuesto);
         usuarioViajeRepository.save(pertenencia);
 
-        return new ParticipanteResponseDTO(
-                pertenencia.getUsuario().getId(),
-                pertenencia.getUsuario().getNombre(),
-                pertenencia.getUsuario().getEmail(),
-                pertenencia.getRolEnViaje(),
-                pertenencia.getUsuario().getAvatarUrl(),
-                pertenencia.getPresupuestoIndividual());
+        return toParticipanteDTO(pertenencia);
     }
 
     private Usuario obtenerUsuarioAutenticado() {
@@ -403,12 +309,32 @@ public class ViajeServiceImpl implements ViajeService {
                         "Usuario autenticado no encontrado"));
     }
 
-    private UsuarioViaje verificarOrganizador(UUID viajeId) {
+    private Viaje obtenerViaje(UUID viajeId) {
+        return viajeRepository.findById(viajeId)
+                .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
+    }
+
+    private UsuarioViaje obtenerPertenencia(UUID viajeId) {
         Usuario usuario = obtenerUsuarioAutenticado();
-        UsuarioViaje pertenencia = usuarioViajeRepository
+        return usuarioViajeRepository
                 .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
                 .orElseThrow(() -> new AccesoDenegadoException(
                         "No tiene acceso a este viaje"));
+    }
+
+    private UsuarioViaje obtenerPertenenciaActiva(UUID viajeId) {
+        Usuario usuario = obtenerUsuarioAutenticado();
+        return usuarioViajeRepository
+                .findByUsuarioIdAndViajeId(usuario.getId(), viajeId)
+                .filter(pertenencia ->
+                        pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA
+                                && pertenencia.isActivo())
+                .orElseThrow(() -> new AccesoDenegadoException(
+                        "No tiene acceso a este viaje"));
+    }
+
+    private UsuarioViaje verificarOrganizador(UUID viajeId) {
+        UsuarioViaje pertenencia = obtenerPertenencia(viajeId);
         if (!ROL_PROPIETARIO.equals(pertenencia.getRolEnViaje())) {
             throw new AccesoDenegadoException(
                     "Solo el organizador del viaje puede realizar esta accion");
@@ -416,32 +342,68 @@ public class ViajeServiceImpl implements ViajeService {
         return pertenencia;
     }
 
+    private void crearPertenencia(Usuario usuario, Viaje viaje,
+                                  EstadoInvitacion estado, String rol) {
+        UsuarioViaje pertenencia = new UsuarioViaje();
+        pertenencia.setUsuario(usuario);
+        pertenencia.setViaje(viaje);
+        pertenencia.setEstadoInvitacion(estado);
+        pertenencia.setRolEnViaje(rol);
+        usuarioViajeRepository.save(pertenencia);
+    }
+
+    private void purgarGastosYDeudas(UUID viajeId) {
+        // Borrado en cascada de gastos: por cada gasto del viaje se purgan
+        // primero sus DeudaGasto asociados y despues se elimina el Gasto.
+        // Asi se evitan violaciones de clave foranea y registros huerfanos.
+        List<Gasto> gastos = gastoRepository.findByViajeIdOrderByFechaDesc(viajeId);
+        for (Gasto gasto : gastos) {
+            deudaGastoRepository.deleteByGastoId(gasto.getId());
+            gastoRepository.delete(gasto);
+        }
+    }
+
+    private void purgarDocumentosDelViaje(UUID viajeId) {
+        // Borrado inteligente: primero se purgan fisicamente de Cloudflare R2
+        // todos los documentos asociados al viaje y luego se eliminan las filas.
+        List<Documento> documentos = documentoRepository.findByActividadViajeId(viajeId);
+        for (Documento documento : documentos) {
+            storageService.eliminarDocumento(documento.getUrlArchivo());
+        }
+        documentoRepository.deleteByViajeId(viajeId);
+    }
+
+    private void purgarFotosYAlbumes(UUID viajeId) {
+        // Galeria multimedia: primero se purgan fisicamente las fotos de
+        // Cloudflare R2 y luego se eliminan las filas (fotos -> albumes).
+        List<Foto> fotos = fotoRepository.findByViajeId(viajeId);
+        for (Foto foto : fotos) {
+            storageService.eliminarDocumento(foto.getUrl());
+        }
+        fotoRepository.deleteByViajeId(viajeId);
+        albumRepository.deleteByViajeId(viajeId);
+    }
+
     private List<ParticipanteResponseDTO> obtenerParticipantesDTO(Viaje viaje) {
         return usuarioViajeRepository.findByViajeId(viaje.getId()).stream()
                 .filter(pertenencia ->
                         pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
-                .map(pertenencia -> new ParticipanteResponseDTO(
-                        pertenencia.getUsuario().getId(),
-                        pertenencia.getUsuario().getNombre(),
-                        pertenencia.getUsuario().getEmail(),
-                        pertenencia.getRolEnViaje(),
-                        pertenencia.getUsuario().getAvatarUrl(),
-                        pertenencia.getPresupuestoIndividual()))
+                .map(this::toParticipanteDTO)
                 .toList();
     }
 
-    private ViajeResponseDTO toResponseDTO(UsuarioViaje pertenencia) {
-        Viaje viaje = pertenencia.getViaje();
-        return new ViajeResponseDTO(
-                viaje.getId(),
-                viaje.getTitulo(),
-                viaje.getFechaInicio(),
-                viaje.getFechaFin(),
-                viaje.getPresupuestoBase(),
-                viaje.getPresupuestoGlobal(),
+    private ParticipanteResponseDTO toParticipanteDTO(UsuarioViaje pertenencia) {
+        return new ParticipanteResponseDTO(
+                pertenencia.getUsuario().getId(),
+                pertenencia.getUsuario().getNombre(),
+                pertenencia.getUsuario().getEmail(),
                 pertenencia.getRolEnViaje(),
-                viaje.getFotoPortada(),
-                obtenerParticipantesDTO(viaje));
+                pertenencia.getUsuario().getAvatarUrl(),
+                pertenencia.getPresupuestoIndividual());
+    }
+
+    private ViajeResponseDTO toResponseDTO(UsuarioViaje pertenencia) {
+        return toResponseDTO(pertenencia.getViaje(), pertenencia.getRolEnViaje());
     }
 
     private ViajeResponseDTO toResponseDTO(Viaje viaje, String rolEnViaje) {
