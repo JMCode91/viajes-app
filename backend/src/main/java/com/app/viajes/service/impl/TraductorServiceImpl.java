@@ -2,7 +2,9 @@ package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.TraduccionRequestDTO;
 import com.app.viajes.dto.TraduccionResponseDTO;
+import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.TraduccionException;
+import com.app.viajes.model.enums.IdiomaDestino;
 import com.app.viajes.service.TraductorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 
@@ -56,10 +60,15 @@ public class TraductorServiceImpl implements TraductorService {
                     "El servicio de traduccion no esta configurado (falta deepl.api.key)");
         }
 
+        // Valida y normaliza el idioma destino (incluye Español/es). El idioma de
+        // origen NO se envia en la peticion: DeepL lo autodetecta, lo que permite
+        // la traduccion bidireccional (ej. Japones -> Español).
+        IdiomaDestino idiomaDestino = resolverIdiomaDestino(request.idiomaDestino());
+
         try {
             Map<String, Object> response = restClient.post()
                     .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                    .body(construirCuerpoTraduccion(request))
+                    .body(construirCuerpoTraduccion(request, idiomaDestino))
                     .retrieve()
                     .body(Map.class);
 
@@ -76,11 +85,28 @@ public class TraductorServiceImpl implements TraductorService {
     }
 
     /**
-     * Construye el cuerpo de la peticion (form-urlencoded) con el texto a
-     * traducir y el idioma destino.
+     * Resuelve y valida el idioma destino contra los soportados (Español, Inglés,
+     * Japonés). Un codigo no soportado se traduce a un error 400.
      */
-    private String construirCuerpoTraduccion(TraduccionRequestDTO request) {
-        return "text=" + request.texto() + "&target_lang=" + request.idiomaDestino();
+    private IdiomaDestino resolverIdiomaDestino(String idiomaDestino) {
+        try {
+            return IdiomaDestino.desdeCodigo(idiomaDestino);
+        } catch (IllegalArgumentException ex) {
+            throw new DatosInvalidosException(ex.getMessage());
+        }
+    }
+
+    /**
+     * Construye el cuerpo de la peticion (form-urlencoded, con codificacion
+     * automatica de Spring) con el texto a traducir y el idioma destino. El
+     * idioma de origen se deja fuera para que la API lo autodetecte.
+     */
+    private MultiValueMap<String, String> construirCuerpoTraduccion(
+            TraduccionRequestDTO request, IdiomaDestino idiomaDestino) {
+        MultiValueMap<String, String> cuerpo = new LinkedMultiValueMap<>();
+        cuerpo.add("text", request.texto());
+        cuerpo.add("target_lang", idiomaDestino.codigoDeepL());
+        return cuerpo;
     }
 
     /**

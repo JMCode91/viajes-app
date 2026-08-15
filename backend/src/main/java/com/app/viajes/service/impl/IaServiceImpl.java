@@ -17,6 +17,7 @@ import com.app.viajes.exception.UsuarioNoEncontradoException;
 import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Actividad;
 import com.app.viajes.model.Viaje;
+import com.app.viajes.model.enums.IdiomaDestino;
 import com.app.viajes.model.enums.TipoActividad;
 import com.app.viajes.repository.ActividadRepository;
 import com.app.viajes.repository.UsuarioRepository;
@@ -235,6 +236,17 @@ public class IaServiceImpl implements IaService {
             throw new IaException("El servicio de traduccion no esta configurado (falta google.api.key)");
         }
 
+        // Valida y normaliza el idioma destino (incluye Español/es). El idioma de
+        // origen NO se envia como query param 'source': la Google Cloud
+        // Translation API lo autodetecta, permitiendo la traduccion bidireccional
+        // (ej. escuchar Japones y pasarlo a Español).
+        IdiomaDestino idiomaDestino;
+        try {
+            idiomaDestino = IdiomaDestino.desdeCodigo(request.idiomaDestino());
+        } catch (IllegalArgumentException ex) {
+            throw new DatosInvalidosException(ex.getMessage());
+        }
+
         try {
             log.info("Llamando a la Google Cloud Translation API con la API key enmascarada: {}",
                     enmascararApiKey(googleApiKey));
@@ -243,7 +255,7 @@ public class IaServiceImpl implements IaService {
                     .uri(uriBuilder -> uriBuilder
                             .queryParam("key", googleApiKey)
                             .queryParam("q", request.texto())
-                            .queryParam("target", request.idiomaDestino())
+                            .queryParam("target", idiomaDestino.getCodigo())
                             .queryParam("format", "text")
                             .build())
                     .retrieve()
