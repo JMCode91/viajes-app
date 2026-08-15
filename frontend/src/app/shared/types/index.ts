@@ -44,6 +44,16 @@ export interface PreferenciasNotificacionRequest {
   notificacionesPlanes: boolean;
 }
 
+export interface ParadaViaje {
+  id?: number;
+  nombreCiudad: string;
+  latitud: number | null;
+  longitud: number | null;
+  fechaLlegada: string;
+  fechaSalida: string;
+  orden: number;
+}
+
 export interface Viaje {
   id: UUID;
   titulo: string;
@@ -53,6 +63,7 @@ export interface Viaje {
   rolEnViaje: string;
   fotoPortada: string | null;
   participantes: Participante[];
+  paradas: ParadaViaje[];
 }
 
 export interface ViajeUpdateRequest {
@@ -80,6 +91,7 @@ export interface ViajeRequest {
   fechaInicio: string;
   fechaFin: string;
   presupuestoBase: number;
+  paradas?: ParadaViaje[];
 }
 
 export interface Documento {
