@@ -1,5 +1,6 @@
 package com.app.viajes.service.impl;
 
+import com.app.viajes.dto.ParadaViajeDTO;
 import com.app.viajes.dto.TraduccionRequestDTO;
 import com.app.viajes.dto.TraduccionResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
@@ -39,6 +40,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -59,7 +61,8 @@ public class IaServiceImpl implements IaService {
     private static final String PLACES_TEXT_SEARCH_ENDPOINT = "https://maps.googleapis.com/maps/api/place/textsearch/json";
     private static final String GOOGLE_TRANSLATE_ENDPOINT = "https://translation.googleapis.com/language/translate/v2";
 
-    /** Plantilla del prompt que pide a Gemini el itinerario estructurado por dias. */
+    /** Plantilla del prompt que pide a Gemini el itinerario estructurado por dias
+     *  junto con las paradas (ciudades/destinos) geolocalizadas de la ruta. */
     private static final String PROMPT_ITINERARIO = """
             Eres un experto planificador de viajes. Genera un itinerario de viaje \
             para %s desde el %s hasta el %s (un total de %d dias) con la tematica: %s.
@@ -67,11 +70,26 @@ public class IaServiceImpl implements IaService {
             %s
 
             ACTUA COMO UN GEOCODER: Es OBLIGATORIO incluir la latitud y longitud GPS \
-            real y precisa de cada lugar en grados decimales (por ejemplo 35.6585, 139.7454).
+            real y precisa en grados decimales (por ejemplo 35.6585, 139.7454).
 
             Responde UNICAMENTE con un JSON valido, sin markdown, sin texto adicional \
-            y sin comentarios. El JSON debe ser un array con exactamente %d elementos \
-            (uno por dia), cada uno con esta estructura exacta:
+            y sin comentarios. El JSON debe ser un objeto con exactamente dos claves, \
+            'paradas' e 'itinerario', con esta estructura exacta:
+            {"paradas": [{"nombreCiudad": "Tokio", "latitud": 35.6762, "longitud": 139.6503, "fechaLlegada": "2026-09-01", "fechaSalida": "2026-09-05"}], "itinerario": [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad", "latitud": 35.6585, "longitud": 139.7454, "rating": 4.7, "horario": "10:00 - 20:00", "descripcion": "Descripcion breve de la actividad"}]}]}
+
+            El array 'paradas' debe tener UNA entrada por cada ciudad o destino de la \
+            ruta, en orden de visita. Cada entrada con estos campos: 'nombreCiudad' \
+            (nombre de la ciudad), 'latitud' y 'longitud' (coordenadas GPS aproximadas \
+            del centro de la ciudad en grados decimales, por ejemplo Tokio 35.6762, \
+            139.6503) y 'fechaLlegada'/'fechaSalida' en formato ISO 8601 (YYYY-MM-DD) \
+            dentro del rango del viaje. Distribuye las fechas segun los detalles del \
+            viajero: la primera parada comienza el %s, la ultima termina el %s y las \
+            paradas intermedias se suceden sin huecos ni solapamientos (la fecha de \
+            salida de una ciudad coincide o precede a la fecha de llegada de la \
+            siguiente).
+
+            El array 'itinerario' debe tener exactamente %d elementos (uno por dia), \
+            cada uno con esta estructura exacta:
             [{"dia": 1, "titulo": "Titulo del dia", "actividades": [{"hora": "09:00", "titulo": "Titulo de la actividad", "lugar": "Nombre exacto del sitio, Ciudad", "latitud": 35.6585, "longitud": 139.7454, "rating": 4.7, "horario": "10:00 - 20:00", "descripcion": "Descripcion breve de la actividad"}]}]
 
             El campo 'hora' debe tener formato HH:MM (por ejemplo "09:30"). El campo \
@@ -155,19 +173,37 @@ public class IaServiceImpl implements IaService {
                 .orElseThrow(() -> new UsuarioNoEncontradoException(
                         "Usuario autenticado no encontrado"));
 
-        validarFechas(request.fechaInicio(), request.fechaFin());
+        List<ParadaViajeDTO> paradas = request.paradas();
 
+        // Las fechas globales del viaje se derivan de las paradas geolocalizadas
+        // (minimo de llegadas, maximo de salidas), igual que hace el frontend en
+        // la creacion manual. Sin paradas, se conservan las fechas del viajero.
         LocalDate fechaInicio = request.fechaInicio();
+        LocalDate fechaFin = request.fechaFin();
+        if (paradas != null && !paradas.isEmpty()) {
+            fechaInicio = paradas.stream()
+                    .map(ParadaViajeDTO::fechaLlegada)
+                    .min(Comparator.naturalOrder())
+                    .orElse(fechaInicio);
+            fechaFin = paradas.stream()
+                    .map(ParadaViajeDTO::fechaSalida)
+                    .max(Comparator.naturalOrder())
+                    .orElse(fechaFin);
+        }
+        validarFechas(fechaInicio, fechaFin);
 
         // Crea el viaje con las fechas reales del viajero y asocia al usuario
         // autenticado como PROPIETARIO. ViajeService.crearViaje resuelve el usuario
         // desde el SecurityContext (mismo usuario autenticado que se valido arriba).
+        // Las paradas viajan en el request: ViajeService las mapea a ParadaViaje,
+        // vincula cada una al viaje (parada.setViaje) y las persiste en cascada
+        // junto al viaje (cascade ALL).
         ViajeResponseDTO viajeCreado = viajeService.crearViaje(new ViajeRequestDTO(
                 "Viaje a " + request.destino() + " (IA)",
                 fechaInicio,
-                request.fechaFin(),
+                fechaFin,
                 BigDecimal.ZERO,
-                null));
+                paradas));
 
         Viaje viaje = viajeRepository.findById(viajeCreado.id())
                 .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
@@ -424,6 +460,8 @@ public class IaServiceImpl implements IaService {
                 numDias,
                 request.tematica(),
                 construirInstruccionDetalles(request.detallesAdicionales()),
+                request.fechaInicio(),
+                request.fechaFin(),
                 numDias);
     }
 
