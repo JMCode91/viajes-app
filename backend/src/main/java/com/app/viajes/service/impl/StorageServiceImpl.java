@@ -13,7 +13,6 @@ import software.amazon.awssdk.services.s3.model.DeleteObjectRequest;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import java.io.IOException;
-import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,14 +35,13 @@ public class StorageServiceImpl implements StorageService {
     private static final Set<String> EXTENSIONES_IMAGENES = Set.of(
             "jpg", "jpeg", "png", "gif", "webp");
 
-    /** MIME oficial que debe declarar cada extension. */
-    private static final Map<String, String> MIME_POR_EXTENSION = Map.of(
-            "pdf", "application/pdf",
-            "jpg", "image/jpeg",
-            "jpeg", "image/jpeg",
-            "png", "image/png",
-            "gif", "image/gif",
-            "webp", "image/webp");
+    /** Prefijos MIME aceptados para documentos (imagenes + PDF). */
+    private static final Set<String> PREFIJOS_MIME_DOCUMENTOS = Set.of(
+            "image/", "application/pdf");
+
+    /** Prefijos MIME aceptados para imagenes. */
+    private static final Set<String> PREFIJOS_MIME_IMAGENES = Set.of(
+            "image/");
 
     private final S3Client s3Client;
     private final String bucket;
@@ -61,22 +59,23 @@ public class StorageServiceImpl implements StorageService {
 
     @Override
     public String subirDocumento(MultipartFile archivo) {
-        return subir(archivo, EXTENSIONES_DOCUMENTOS,
+        return subir(archivo, EXTENSIONES_DOCUMENTOS, PREFIJOS_MIME_DOCUMENTOS,
                 "Formato de archivo no permitido. Formatos validos: PDF, JPG, JPEG, PNG");
     }
 
     @Override
     public String subirImagen(MultipartFile archivo) {
-        return subir(archivo, EXTENSIONES_IMAGENES,
+        return subir(archivo, EXTENSIONES_IMAGENES, PREFIJOS_MIME_IMAGENES,
                 "Formato de imagen no permitido. Formatos validos: JPG, JPEG, PNG, GIF, WEBP");
     }
 
     /**
-     * Valida el archivo contra una lista blanca (extension + MIME) y lo sube
-     * a Cloudflare R2. Si no cumple la validacion estricta lanza un 400.
+     * Valida el archivo contra una lista blanca (extension + prefijo MIME) y lo
+     * sube a Cloudflare R2. Si no cumple la validacion lanza un 400.
      */
-    private String subir(MultipartFile archivo, Set<String> extensionesPermitidas, String mensajeError) {
-        String contentType = validarArchivo(archivo, extensionesPermitidas, mensajeError);
+    private String subir(MultipartFile archivo, Set<String> extensionesPermitidas,
+                         Set<String> prefijosMime, String mensajeError) {
+        String contentType = validarArchivo(archivo, extensionesPermitidas, prefijosMime, mensajeError);
 
         String nombreGenerado = generarNombreUnico(obtenerExtension(archivo.getOriginalFilename()));
         subirAlBucket(nombreGenerado, contentType, archivo);
@@ -85,11 +84,12 @@ public class StorageServiceImpl implements StorageService {
     }
 
     /**
-     * Valida el archivo contra la whitelist: extension permitida Y MIME
-     * declarado acorde a esa extension. Devuelve el contentType normalizado.
+     * Valida el archivo contra la whitelist: extension permitida Y prefijo MIME
+     * declarado acorde a esa familia. Devuelve el contentType normalizado.
      */
     private String validarArchivo(MultipartFile archivo,
                                   Set<String> extensionesPermitidas,
+                                  Set<String> prefijosMime,
                                   String mensajeError) {
         if (archivo == null || archivo.isEmpty()) {
             throw new DatosInvalidosException("El archivo esta vacio");
@@ -98,10 +98,13 @@ public class StorageServiceImpl implements StorageService {
         String extension = obtenerExtension(archivo.getOriginalFilename());
         String contentType = obtenerContentType(archivo.getContentType());
 
-        // Validacion estricta: la extension debe estar en la lista blanca Y
-        // el MIME declarado debe corresponderse con esa extension.
+        // Validacion relajada: la extension debe estar en la lista blanca Y el
+        // MIME declarado debe empezar por uno de los prefijos permitidos. No se
+        // compara el MIME exacto, de modo que variaciones como image/jpg (que
+        // algunos navegadores/SO envian en lugar de image/jpeg) no rechazan una
+        // subida valida.
         if (!extensionesPermitidas.contains(extension)
-                || !MIME_POR_EXTENSION.getOrDefault(extension, "").equals(contentType)) {
+                || prefijosMime.stream().noneMatch(contentType::startsWith)) {
             throw new DatosInvalidosException(mensajeError);
         }
 
