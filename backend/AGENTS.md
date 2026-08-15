@@ -46,6 +46,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 15/08/2026
+- **Completado en esta sesión (Auditoría del 500 en subida de fondo — sin cambios de código):**
+  - **Mapeo de parámetros correcto:** el controlador expone `@RequestParam("file")` y el frontend envía `FormData.append('file', ...)`; coinciden exactamente.
+  - **Lógica de storage correcta:** `actualizarFondoPantalla` obtiene el usuario autenticado vía `SecurityUtils` y delega en `StorageServiceImpl.subirImagen` (UUID, whitelist de extensiones/MIME, sin relación con ID de viaje). No hay ruta que requiera un ID de viaje en el perfil.
+  - **Conclusión:** un Error 500 real provendría de Cloudflare R2 (credenciales, bucket o red) mapeado como `StorageException`, no del código de mapeo/storage. Verificación: `.\mvnw.cmd clean compile` (BUILD SUCCESS, sin cambios).
 - **Completado en esta sesión (Endpoint para que cada usuario suba su fondo de pantalla personalizado — `fondoPantallaUrl` en `Usuario`):**
   - **`Usuario` ampliado** (tabla `usuarios`): nuevo campo **`fondoPantallaUrl`** (`String`, `@Column(name = "fondo_pantalla_url", length = 500)`, nullable) — misma convención que `avatar_url`. El esquema se actualiza solo (`ddl-auto=update`).
   - **`UsuarioResponseDTO` ampliado:** nuevo campo **`fondoPantallaUrl`** entre `avatarUrl` y las preferencias — `GET /api/usuarios/me` y el resto de respuestas de perfil lo exponen ya (constructor actualizado en `toResponseDTO`).
