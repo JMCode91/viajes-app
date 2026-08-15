@@ -131,8 +131,7 @@ public class StorageServiceImpl implements StorageService {
                     .key(nombreGenerado)
                     .contentType(contentType)
                     .build();
-            s3Client.putObject(request, RequestBody.fromInputStream(
-                    archivo.getInputStream(), archivo.getSize()));
+            s3Client.putObject(request, RequestBody.fromBytes(archivo.getBytes()));
         } catch (IOException ex) {
             throw new StorageException("No se pudo leer el documento para subir a Cloudflare R2");
         } catch (Exception ex) {

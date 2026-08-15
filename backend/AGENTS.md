@@ -46,6 +46,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 15/08/2026
+- **Completado en esta sesión (Fix `IllegalStateException: Content input stream does not support mark/reset` al subir a R2):**
+  - **`StorageServiceImpl.subirAlBucket` — subida por bytes:** `RequestBody.fromInputStream(archivo.getInputStream(), archivo.getSize())` se sustituye por **`RequestBody.fromBytes(archivo.getBytes())`**. El SDK de AWS exige rebobinar el stream para firmar el payload (AWS V4 Signature) y el `InputStream` de un `MultipartFile` no soporta `mark/reset`, provocando la `IllegalStateException`. Al pasar los bytes completos se elimina el problema (memoria: archivos de máx 5MB por configuración).
+  - **Manejo de excepciones intacto:** `archivo.getBytes()` lanza `IOException` (lectura del multipart), que sigue siendo capturada por el `catch (IOException ex)` existente → `StorageException` "No se pudo leer el documento para subir a Cloudflare R2". El `catch (Exception ex)` con `log.error` se conserva para el resto de fallos de R2.
+  - **Verificación:** `.\mvnw.cmd clean compile` (BUILD SUCCESS). Commit: `fix(backend): replace fromInputStream with fromBytes in S3 upload to resolve mark/reset IllegalStateException`.
 - **Completado en esta sesión (Logging explícito de errores R2 en `StorageServiceImpl`):**
   - **`@Slf4j` añadido** (`lombok.extern.slf4j.Slf4j`) en `StorageServiceImpl` — genera el logger `log` de Lombok, sustituyendo el silencio que provocaba el `@ResponseStatus` de `StorageException` (que ocultaba el error real en la consola de Spring Boot).
   - **Traza en subida:** en `subirAlBucket`, el `catch (Exception ex)` registra **`log.error("Fallo critico al subir a Cloudflare R2: ", ex)`** (con la excepción como argumento, imprimiendo stack trace completo) justo antes de lanzar la `StorageException`. El `catch (IOException)` de lectura se mantiene sin cambio.
