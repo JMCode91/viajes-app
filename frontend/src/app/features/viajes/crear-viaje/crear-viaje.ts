@@ -40,6 +40,20 @@ interface ValorParada {
   orden: number;
 }
 
+function sumarUnDia(fecha: string): string {
+  const [anio, mes, dia] = fecha.split('-').map(Number);
+  const siguiente = new Date(Date.UTC(anio, mes - 1, dia + 1));
+  return siguiente.toISOString().slice(0, 10);
+}
+
+function esParadaCompleta(parada: Partial<ValorParada>): parada is ValorParada {
+  return (
+    (parada.nombreCiudad ?? '').trim() !== '' &&
+    !!parada.fechaLlegada &&
+    !!parada.fechaSalida
+  );
+}
+
 @Component({
   selector: 'app-crear-viaje',
   imports: [ReactiveFormsModule, CustomDatePicker],
@@ -66,10 +80,22 @@ export class CrearViaje implements OnDestroy {
     {
       titulo: ['', [Validators.required, Validators.maxLength(200)]],
       presupuestoBase: [0, [Validators.required, Validators.min(0)]],
-      paradas: this.fb.array([this.crearParada(1)]),
+      paradas: this.fb.array([this.crearParada(1)], this.validarRutaContinua),
     },
     { validators: this.validarParadasPresentes }
   );
+
+  protected get paradas(): FormArray {
+    return this.form.get('paradas') as FormArray;
+  }
+
+  protected hayErrorRuta(): boolean {
+    return (
+      this.paradas.hasError('fechasIncoherentes') ||
+      this.paradas.hasError('solapamiento') ||
+      this.paradas.hasError('huecoFechas')
+    );
+  }
 
   private readonly suscripcionBusqueda = this.busquedaParada$
     .pipe(
@@ -97,10 +123,6 @@ export class CrearViaje implements OnDestroy {
       });
     });
 
-  protected get paradas(): FormArray {
-    return this.form.get('paradas') as FormArray;
-  }
-
   protected goBack(): void {
     void this.router.navigate(['/dashboard']);
   }
@@ -114,7 +136,7 @@ export class CrearViaje implements OnDestroy {
 
   protected errorParada(
     index: number,
-    error: 'fechasObligatorias' | 'ciudadObligatoria'
+    error: 'fechasObligatorias' | 'ciudadObligatoria' | 'fechasIncoherentes'
   ): boolean {
     const grupo = this.paradas.at(index) as FormGroup;
     return !!grupo.getError(error) && (grupo.dirty || grupo.touched);
@@ -246,6 +268,43 @@ export class CrearViaje implements OnDestroy {
     if ((llegada || salida) && !ciudad) {
       errores['ciudadObligatoria'] = true;
     }
+    if (llegada && salida && salida < llegada) {
+      errores['fechasIncoherentes'] = true;
+    }
+    return Object.keys(errores).length > 0 ? errores : null;
+  }
+
+  private validarRutaContinua(
+    paradas: AbstractControl
+  ): ValidationErrors | null {
+    const completas = (paradas as FormArray).controls
+      .map((control) => control.value as Partial<ValorParada>)
+      .filter(esParadaCompleta);
+
+    const errores: ValidationErrors = {};
+
+    for (const parada of completas) {
+      if (parada.fechaSalida < parada.fechaLlegada) {
+        errores['fechasIncoherentes'] = true;
+        break;
+      }
+    }
+
+    const cronologicas = [...completas].sort((a, b) =>
+      a.fechaLlegada.localeCompare(b.fechaLlegada)
+    );
+
+    for (let i = 1; i < cronologicas.length; i++) {
+      const previa = cronologicas[i - 1];
+      const actual = cronologicas[i];
+      if (actual.fechaLlegada < previa.fechaSalida) {
+        errores['solapamiento'] = true;
+      }
+      if (actual.fechaLlegada > sumarUnDia(previa.fechaSalida)) {
+        errores['huecoFechas'] = true;
+      }
+    }
+
     return Object.keys(errores).length > 0 ? errores : null;
   }
 

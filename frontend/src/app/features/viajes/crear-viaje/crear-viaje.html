@@ -148,6 +148,10 @@
             @if (errorParada(i, 'fechasObligatorias')) {
               <span class="mt-2 block text-xs text-red-600">Si añades la ciudad, indica las fechas de llegada y salida.</span>
             }
+
+            @if (errorParada(i, 'fechasIncoherentes')) {
+              <span class="mt-2 block text-xs text-red-600">La fecha de salida debe ser posterior o igual a la de llegada.</span>
+            }
           </div>
         }
       </div>
@@ -163,6 +167,14 @@
         Añadir nueva parada/ciudad
       </button>
 
+      @if (paradas.hasError('solapamiento')) {
+        <span class="text-xs text-red-600">Las fechas de las ciudades se solapan.</span>
+      }
+
+      @if (paradas.hasError('huecoFechas')) {
+        <span class="text-xs text-red-600">Hay días intermedios sin ciudad asignada.</span>
+      }
+
       @if (form.getError('paradasVacio') && (form.touched || form.dirty)) {
         <span class="text-xs text-red-600">Añade al menos una parada completa (ciudad y fechas de llegada y salida).</span>
       }
@@ -170,7 +182,8 @@
 
     <button
       type="submit"
-      class="mt-2 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700"
+      [disabled]="hayErrorRuta()"
+      class="mt-2 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-[0.98] active:bg-blue-700 disabled:opacity-50 disabled:shadow-none disabled:active:scale-100"
     >
       Crear viaje
     </button>
