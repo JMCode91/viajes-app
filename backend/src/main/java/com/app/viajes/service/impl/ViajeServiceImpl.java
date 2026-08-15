@@ -226,7 +226,9 @@ public class ViajeServiceImpl implements ViajeService {
         // ACEPTADO de este viaje puede listar a los demas.
         obtenerPertenenciaActiva(viajeId);
 
-        return usuarioViajeRepository.findByViajeId(viajeId).stream()
+        // La query ya excluye los abandonados (activo=false); aqui solo se
+        // conservan las pertenencias ACEPTADAS (las PENDIENTES no son participantes).
+        return usuarioViajeRepository.findByViajeIdAndActivoTrue(viajeId).stream()
                 .filter(pertenencia ->
                         pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
                 .map(this::toParticipanteDTO)
@@ -382,7 +384,7 @@ public class ViajeServiceImpl implements ViajeService {
     }
 
     private List<ParticipanteResponseDTO> obtenerParticipantesDTO(Viaje viaje) {
-        return usuarioViajeRepository.findByViajeId(viaje.getId()).stream()
+        return usuarioViajeRepository.findByViajeIdAndActivoTrue(viaje.getId()).stream()
                 .filter(pertenencia ->
                         pertenencia.getEstadoInvitacion() == EstadoInvitacion.ACEPTADA)
                 .map(this::toParticipanteDTO)

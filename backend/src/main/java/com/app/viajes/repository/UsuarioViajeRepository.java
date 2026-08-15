@@ -29,6 +29,12 @@ public interface UsuarioViajeRepository extends JpaRepository<UsuarioViaje, UUID
 
     List<UsuarioViaje> findByViajeId(UUID viajeId);
 
+    /**
+     * Todos los vinculos de un viaje que siguen ACTIVOS (excluye los
+     * abandonados: {@code activo = false}).
+     */
+    List<UsuarioViaje> findByViajeIdAndActivoTrue(UUID viajeId);
+
     List<UsuarioViaje> findByUsuarioIdAndEstadoInvitacion(UUID usuarioId, EstadoInvitacion estadoInvitacion);
 
     /**
