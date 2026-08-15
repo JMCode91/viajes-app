@@ -42,6 +42,13 @@ public class UsuarioController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping(value = "/me/fondo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UsuarioResponseDTO> subirFondoPantalla(
+            @RequestParam("file") MultipartFile file) {
+        UsuarioResponseDTO response = usuarioService.actualizarFondoPantalla(file);
+        return ResponseEntity.ok(response);
+    }
+
     @PutMapping("/me/password")
     public ResponseEntity<Void> cambiarPassword(@Valid @RequestBody CambiarPasswordRequest request) {
         usuarioService.cambiarPassword(request);

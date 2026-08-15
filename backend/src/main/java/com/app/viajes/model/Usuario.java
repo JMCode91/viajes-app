@@ -44,6 +44,9 @@ public class Usuario {
     @Column(name = "avatar_url", length = 500)
     private String avatarUrl;
 
+    @Column(name = "fondo_pantalla_url", length = 500)
+    private String fondoPantallaUrl;
+
     @Column(name = "notificaciones_gastos", nullable = false, columnDefinition = "boolean default true")
     private boolean notificacionesGastos = true;
 

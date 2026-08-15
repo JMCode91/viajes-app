@@ -11,6 +11,7 @@ public record UsuarioResponseDTO(
         String email,
         String nombre,
         String avatarUrl,
+        String fondoPantallaUrl,
         boolean notificacionesGastos,
         boolean notificacionesPlanes
 ) {

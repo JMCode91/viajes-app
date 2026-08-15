@@ -56,6 +56,22 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     @Override
+    @Transactional
+    public UsuarioResponseDTO actualizarFondoPantalla(MultipartFile archivo) {
+        Usuario usuario = securityUtils.getUsuarioAutenticado();
+
+        // Borrado inteligente: purga el fondo anterior de R2 para no dejar
+        // archivos huerfanos en el bucket (no-op si aun no habia fondo).
+        borrarFondoAnterior(usuario);
+
+        String nuevaUrl = storageService.subirImagen(archivo);
+        usuario.setFondoPantallaUrl(nuevaUrl);
+        usuarioRepository.save(usuario);
+
+        return toResponseDTO(usuario);
+    }
+
+    @Override
     public UsuarioResponseDTO obtenerPerfil() {
         return toResponseDTO(securityUtils.getUsuarioAutenticado());
     }
@@ -91,6 +107,15 @@ public class UsuarioServiceImpl implements UsuarioService {
     }
 
     /**
+     * Purga el fondo de pantalla anterior de Cloudflare R2 (no-op si aun no habia fondo).
+     */
+    private void borrarFondoAnterior(Usuario usuario) {
+        if (StringUtils.hasText(usuario.getFondoPantallaUrl())) {
+            storageService.eliminarDocumento(usuario.getFondoPantallaUrl());
+        }
+    }
+
+    /**
      * Verifica que la contrasena actual coincide con la almacenada (BCrypt).
      */
     private void validarPasswordActual(Usuario usuario, String passwordActual) {
@@ -105,6 +130,7 @@ public class UsuarioServiceImpl implements UsuarioService {
                 usuario.getEmail(),
                 usuario.getNombre(),
                 usuario.getAvatarUrl(),
+                usuario.getFondoPantallaUrl(),
                 usuario.isNotificacionesGastos(),
                 usuario.isNotificacionesPlanes());
     }

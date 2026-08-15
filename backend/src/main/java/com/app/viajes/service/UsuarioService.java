@@ -21,6 +21,16 @@ public interface UsuarioService {
     UsuarioResponseDTO actualizarAvatar(MultipartFile archivo);
 
     /**
+     * Actualiza el fondo de pantalla personalizado del usuario autenticado.
+     * Si ya existia un fondo previo, borra la imagen antigua de Cloudflare R2
+     * antes de guardar la nueva (evita archivos huerfanos en el bucket).
+     *
+     * @param archivo imagen nueva (multipart, max 5MB configurado)
+     * @return datos publicos del usuario con la {@code fondoPantallaUrl} actualizada
+     */
+    UsuarioResponseDTO actualizarFondoPantalla(MultipartFile archivo);
+
+    /**
      * Devuelve los datos del usuario autenticado obtenidos del contexto de seguridad.
      *
      * @return datos publicos del usuario autenticado
