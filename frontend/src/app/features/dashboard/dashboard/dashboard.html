@@ -82,11 +82,11 @@
           </div>
 
           <div
-            class="flex items-center justify-between gap-3 rounded-2xl px-4 py-3"
+            class="flex items-center justify-between gap-3 px-4 py-3"
             [ngClass]="
               viaje.fotoPortada
-                ? 'bg-black/30 ring-1 ring-white/15 backdrop-blur-sm'
-                : 'bg-gray-50 dark:bg-gray-900'
+                ? 'bg-black/30 backdrop-blur-sm'
+                : ''
             "
           >
             @if (viaje.participantes.length > 0) {
@@ -102,7 +102,7 @@
                     [title]="participante.nombre"
                   >
                     @if (participante.avatarUrl) {
-                      <img [src]="participante.avatarUrl" [alt]="participante.nombre" class="h-full w-full object-cover" />
+                      <img [src]="participante.avatarUrl" [alt]="participante.nombre" class="h-full w-full rounded-full object-cover" />
                     } @else {
                       {{ inicialParticipante(participante.nombre) }}
                     }
