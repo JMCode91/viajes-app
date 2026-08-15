@@ -1,6 +1,7 @@
 package com.app.viajes.service.impl;
 
 import com.app.viajes.dto.InvitacionRequestDTO;
+import com.app.viajes.dto.ParadaViajeDTO;
 import com.app.viajes.dto.ParticipanteResponseDTO;
 import com.app.viajes.dto.ViajeRequestDTO;
 import com.app.viajes.dto.ViajeResponseDTO;
@@ -11,6 +12,7 @@ import com.app.viajes.exception.ViajeNoEncontradoException;
 import com.app.viajes.model.Documento;
 import com.app.viajes.model.Foto;
 import com.app.viajes.model.Gasto;
+import com.app.viajes.model.ParadaViaje;
 import com.app.viajes.model.Usuario;
 import com.app.viajes.model.UsuarioViaje;
 import com.app.viajes.model.Viaje;
@@ -97,6 +99,7 @@ public class ViajeServiceImpl implements ViajeService {
         viaje.setFechaInicio(request.fechaInicio());
         viaje.setFechaFin(request.fechaFin());
         viaje.setPresupuestoBase(request.presupuestoBase());
+        aplicarParadas(viaje, request.paradas());
         viajeRepository.save(viaje);
 
         crearPertenencia(creador, viaje, EstadoInvitacion.ACEPTADA, ROL_PROPIETARIO);
@@ -396,6 +399,42 @@ public class ViajeServiceImpl implements ViajeService {
                 pertenencia.getPresupuestoIndividual());
     }
 
+    private void aplicarParadas(Viaje viaje, List<ParadaViajeDTO> paradas) {
+        if (paradas == null) {
+            return;
+        }
+        for (ParadaViajeDTO dto : paradas) {
+            ParadaViaje parada = new ParadaViaje();
+            parada.setNombreCiudad(dto.nombreCiudad());
+            parada.setLatitud(dto.latitud());
+            parada.setLongitud(dto.longitud());
+            parada.setFechaLlegada(dto.fechaLlegada());
+            parada.setFechaSalida(dto.fechaSalida());
+            parada.setOrden(dto.orden());
+            // Vinculo bidireccional: cada parada apunta al viaje y la coleccion
+            // cascada de Viaje la persiste automaticamente (cascade ALL).
+            parada.setViaje(viaje);
+            viaje.getParadas().add(parada);
+        }
+    }
+
+    private List<ParadaViajeDTO> toParadasDTO(Viaje viaje) {
+        return viaje.getParadas().stream()
+                .map(this::toParadaDTO)
+                .toList();
+    }
+
+    private ParadaViajeDTO toParadaDTO(ParadaViaje parada) {
+        return new ParadaViajeDTO(
+                parada.getId(),
+                parada.getNombreCiudad(),
+                parada.getLatitud(),
+                parada.getLongitud(),
+                parada.getFechaLlegada(),
+                parada.getFechaSalida(),
+                parada.getOrden());
+    }
+
     private ViajeResponseDTO toResponseDTO(UsuarioViaje pertenencia) {
         return toResponseDTO(pertenencia.getViaje(), pertenencia.getRolEnViaje());
     }
@@ -410,6 +449,7 @@ public class ViajeServiceImpl implements ViajeService {
                 viaje.getPresupuestoGlobal(),
                 rolEnViaje,
                 viaje.getFotoPortada(),
-                obtenerParticipantesDTO(viaje));
+                obtenerParticipantesDTO(viaje),
+                toParadasDTO(viaje));
     }
 }

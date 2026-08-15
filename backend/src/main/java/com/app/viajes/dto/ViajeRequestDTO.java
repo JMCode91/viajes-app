@@ -1,5 +1,6 @@
 package com.app.viajes.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -7,9 +8,12 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
- * DTO de entrada para la creacion de un viaje.
+ * DTO de entrada para la creacion de un viaje. Incluye la lista opcional de
+ * paradas (ciudades/destinos) que define la ruta multidestino; si no viaja
+ * en el request, el viaje se crea sin paradas.
  */
 public record ViajeRequestDTO(
         @NotBlank(message = "El titulo es obligatorio")
@@ -24,6 +28,8 @@ public record ViajeRequestDTO(
 
         @NotNull(message = "El presupuesto base es obligatorio")
         @DecimalMin(value = "0.0", message = "El presupuesto no puede ser negativo")
-        BigDecimal presupuestoBase
+        BigDecimal presupuestoBase,
+
+        List<@Valid ParadaViajeDTO> paradas
 ) {
 }

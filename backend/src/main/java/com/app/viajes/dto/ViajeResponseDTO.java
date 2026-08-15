@@ -7,8 +7,9 @@ import java.util.UUID;
 
 /**
  * DTO de respuesta con los datos de un viaje, el rol del usuario
- * autenticado dentro del mismo, la foto de portada y la lista de
- * participantes con sus roles.
+ * autenticado dentro del mismo, la foto de portada, la lista de
+ * participantes con sus roles y las paradas (ciudades) de la ruta
+ * multidestino.
  */
 public record ViajeResponseDTO(
         UUID id,
@@ -19,6 +20,7 @@ public record ViajeResponseDTO(
         BigDecimal presupuestoGlobal,
         String rolEnViaje,
         String fotoPortada,
-        List<ParticipanteResponseDTO> participantes
+        List<ParticipanteResponseDTO> participantes,
+        List<ParadaViajeDTO> paradas
 ) {
 }

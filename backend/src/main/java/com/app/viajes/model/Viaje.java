@@ -1,10 +1,12 @@
 package com.app.viajes.model;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -13,6 +15,8 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -58,4 +62,13 @@ public class Viaje {
      */
     @Column(name = "foto_portada", length = 500)
     private String fotoPortada;
+
+    /**
+     * Lista ordenada de paradas (ciudades/destinos) del viaje multidestino.
+     * La relacion 1:N se gestiona desde esta coleccion: las paradas se
+     * persisten, actualizan y eliminan en cascada junto al viaje (la entidad
+     * hija {@link ParadaViaje} mapea el lado propietario con {@code @ManyToOne}).
+     */
+    @OneToMany(mappedBy = "viaje", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ParadaViaje> paradas = new ArrayList<>();
 }

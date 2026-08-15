@@ -166,7 +166,8 @@ public class IaServiceImpl implements IaService {
                 "Viaje a " + request.destino() + " (IA)",
                 fechaInicio,
                 request.fechaFin(),
-                BigDecimal.ZERO));
+                BigDecimal.ZERO,
+                null));
 
         Viaje viaje = viajeRepository.findById(viajeCreado.id())
                 .orElseThrow(() -> new ViajeNoEncontradoException("Viaje no encontrado"));
