@@ -110,9 +110,6 @@ export class DetalleViaje implements OnDestroy {
   private readonly galeriaService = inject(GaleriaService);
   private readonly climaService = inject(ClimaService);
 
-  private static readonly LAT_TOKIO = 35.6895;
-  private static readonly LON_TOKIO = 139.6917;
-
   protected readonly climasPorDia = signal<Map<string, Clima>>(new Map());
 
   protected readonly viaje = this.viajeService.viajeDetalle;
@@ -432,8 +429,12 @@ export class DetalleViaje implements OnDestroy {
         if (yaCargados.has(dia.valor)) {
           continue;
         }
+        const coords = this.coordenadasDeParadaPara(dia.valor);
+        if (!coords) {
+          continue;
+        }
         this.climaService
-          .getClima(DetalleViaje.LAT_TOKIO, DetalleViaje.LON_TOKIO, dia.valor)
+          .getClima(coords.lat, coords.lon, dia.valor)
           .subscribe({
             next: (clima) => {
               this.climasPorDia.update((mapa) => {
@@ -1626,6 +1627,21 @@ export class DetalleViaje implements OnDestroy {
       bounds.extend({ lat: punto.latitud ?? 0, lng: punto.longitud ?? 0 });
     }
     mapa.fitBounds(bounds, 56);
+  }
+
+  private coordenadasDeParadaPara(
+    dia: string
+  ): { lat: number; lon: number } | null {
+    const paradas = this.viaje()?.paradas ?? [];
+    for (const parada of paradas) {
+      if (parada.latitud == null || parada.longitud == null) {
+        continue;
+      }
+      if (dia >= parada.fechaLlegada && dia <= parada.fechaSalida) {
+        return { lat: parada.latitud, lon: parada.longitud };
+      }
+    }
+    return null;
   }
 
   private generarDias(inicio: string, fin: string): Dia[] {

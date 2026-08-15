@@ -62,13 +62,14 @@ export class CrearViaje implements OnDestroy {
   >(new Map());
   protected readonly buscandoParada = signal<Set<number>>(new Set());
 
-  protected readonly form = this.fb.nonNullable.group({
-    titulo: ['', [Validators.required, Validators.maxLength(200)]],
-    fechaInicio: ['', Validators.required],
-    fechaFin: ['', Validators.required],
-    presupuestoBase: [0, [Validators.required, Validators.min(0)]],
-    paradas: this.fb.array([this.crearParada(1)]),
-  });
+  protected readonly form = this.fb.nonNullable.group(
+    {
+      titulo: ['', [Validators.required, Validators.maxLength(200)]],
+      presupuestoBase: [0, [Validators.required, Validators.min(0)]],
+      paradas: this.fb.array([this.crearParada(1)]),
+    },
+    { validators: this.validarParadasPresentes }
+  );
 
   private readonly suscripcionBusqueda = this.busquedaParada$
     .pipe(
@@ -105,7 +106,7 @@ export class CrearViaje implements OnDestroy {
   }
 
   protected hasError(
-    field: 'titulo' | 'fechaInicio' | 'fechaFin' | 'presupuestoBase'
+    field: 'titulo' | 'presupuestoBase'
   ): boolean {
     const control = this.form.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
@@ -186,13 +187,8 @@ export class CrearViaje implements OnDestroy {
       return;
     }
 
-    const {
-      titulo,
-      fechaInicio,
-      fechaFin,
-      presupuestoBase,
-      paradas: paradasRaw,
-    } = this.form.getRawValue();
+    const { titulo, presupuestoBase, paradas: paradasRaw } =
+      this.form.getRawValue();
 
     const paradas: ParadaViaje[] = (paradasRaw as ValorParada[])
       .filter((p) => (p.nombreCiudad ?? '').trim() !== '')
@@ -204,6 +200,15 @@ export class CrearViaje implements OnDestroy {
         fechaSalida: p.fechaSalida,
         orden: i + 1,
       }));
+
+    const fechaInicio = paradas.reduce(
+      (min, p) => (p.fechaLlegada < min ? p.fechaLlegada : min),
+      paradas[0]?.fechaLlegada ?? ''
+    );
+    const fechaFin = paradas.reduce(
+      (max, p) => (p.fechaSalida > max ? p.fechaSalida : max),
+      paradas[0]?.fechaSalida ?? ''
+    );
 
     this.viajeService
       .crearViaje({ titulo, fechaInicio, fechaFin, presupuestoBase, paradas })
@@ -242,6 +247,21 @@ export class CrearViaje implements OnDestroy {
       errores['ciudadObligatoria'] = true;
     }
     return Object.keys(errores).length > 0 ? errores : null;
+  }
+
+  private validarParadasPresentes(
+    form: AbstractControl
+  ): ValidationErrors | null {
+    const paradas = form.get('paradas') as FormArray | null;
+    if (!paradas || paradas.controls.length === 0) {
+      return { paradasVacio: true };
+    }
+    const hayCompleta = paradas.controls.some((control) => {
+      const valores = control.value as Partial<ValorParada>;
+      const ciudad = (valores.nombreCiudad ?? '').trim();
+      return !!ciudad && !!valores.fechaLlegada && !!valores.fechaSalida;
+    });
+    return hayCompleta ? null : { paradasVacio: true };
   }
 
   private reordenarParadas(): void {
