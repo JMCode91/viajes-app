@@ -2,7 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 
-import { ActividadIaDTO, DiaIaDTO, IaService } from '../../core/services/ia.service';
+import { ActividadIaDTO, DiaIaDTO, GenerarItinerarioResponse, IaService, ParadaIa } from '../../core/services/ia.service';
+import { ParadaViaje } from '../../shared/types';
 import { CustomDatePicker } from '../../shared/components/custom-date-picker/custom-date-picker';
 
 @Component({
@@ -23,6 +24,7 @@ export class Ia {
   protected readonly guardando = signal(false);
   protected readonly regenerando = signal<string | null>(null);
   protected readonly itinerarioGenerado = signal<DiaIaDTO[]>([]);
+  protected readonly paradasGeneradas = signal<ParadaIa[]>([]);
   protected readonly error = signal<string | null>(null);
 
   protected generarItinerario(): void {
@@ -39,18 +41,32 @@ export class Ia {
       })
       .subscribe({
         next: (res) => {
-          this.cargando.set(false);
           try {
-            this.itinerarioGenerado.set(JSON.parse(res.rawJson) as DiaIaDTO[]);
+            const generado = JSON.parse(res.rawJson) as GenerarItinerarioResponse | DiaIaDTO[];
+            if (Array.isArray(generado)) {
+              this.itinerarioGenerado.set(generado);
+              this.paradasGeneradas.set([]);
+            } else if (Array.isArray(generado.itinerario)) {
+              this.itinerarioGenerado.set(generado.itinerario);
+              this.paradasGeneradas.set(
+                Array.isArray(generado.paradas) ? generado.paradas : []
+              );
+            } else {
+              throw new Error('Formato de respuesta inesperado');
+            }
           } catch (ex) {
             console.error('Error al parsear el itinerario de Gemini', ex);
-            alert('No se pudo interpretar la respuesta de la IA. Inténtalo de nuevo.');
+            this.error.set('No se pudo interpretar la respuesta de la IA. Inténtalo de nuevo.');
             this.itinerarioGenerado.set([]);
+            this.paradasGeneradas.set([]);
+          } finally {
+            this.cargando.set(false);
           }
         },
         error: () => {
           this.cargando.set(false);
           this.itinerarioGenerado.set([]);
+          this.paradasGeneradas.set([]);
           this.error.set('No se pudo generar el itinerario. Inténtalo de nuevo.');
         },
       });
@@ -106,6 +122,17 @@ export class Ia {
       return;
     }
 
+    // Las paradas que devolvió la IA se envían con el orden de ruta (1..n)
+    // que exige el ParadaViajeDTO del backend antes de persistir.
+    const paradas: ParadaViaje[] = this.paradasGeneradas().map((parada, index) => ({
+      nombreCiudad: parada.nombreCiudad,
+      latitud: parada.latitud ?? null,
+      longitud: parada.longitud ?? null,
+      fechaLlegada: parada.fechaLlegada,
+      fechaSalida: parada.fechaSalida,
+      orden: index + 1,
+    }));
+
     this.guardando.set(true);
     this.error.set(null);
 
@@ -115,6 +142,7 @@ export class Ia {
         fechaInicio: this.fechaInicio(),
         fechaFin: this.fechaFin(),
         itinerario,
+        paradas,
       })
       .subscribe({
         next: (viaje) => {

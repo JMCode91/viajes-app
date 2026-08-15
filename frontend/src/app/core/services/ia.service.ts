@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { Viaje } from '../../shared/types';
+import { ParadaViaje, Viaje } from '../../shared/types';
 
 export interface IaPrompt {
   destino: string;
@@ -40,11 +40,27 @@ export interface DiaIaDTO {
   actividades: ActividadIaDTO[];
 }
 
+/** Parada (ciudad/destino) geolocalizada devuelta por la IA dentro del rawJson. */
+export interface ParadaIa {
+  nombreCiudad: string;
+  latitud: number | null;
+  longitud: number | null;
+  fechaLlegada: string;
+  fechaSalida: string;
+}
+
+/** Respuesta parseada del rawJson de /api/ia/generar (objeto, no array). */
+export interface GenerarItinerarioResponse {
+  paradas: ParadaIa[];
+  itinerario: DiaIaDTO[];
+}
+
 export interface IaGuardarViajeRequest {
   destino: string;
   fechaInicio: string;
   fechaFin: string;
   itinerario: DiaIaDTO[];
+  paradas: ParadaViaje[];
 }
 
 export interface TraduccionRequestDTO {
