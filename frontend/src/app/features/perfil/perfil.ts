@@ -33,12 +33,16 @@ export class Perfil implements OnInit {
 
   protected panelCuenta = false;
   protected panelNotificaciones = false;
+  protected panelApariencia = false;
   protected guardandoPassword = false;
   protected errorPassword: string | null = null;
   protected passwordOk = false;
 
   protected guardandoPreferencias = false;
   protected errorPreferencias: string | null = null;
+
+  protected subiendoFondo = false;
+  protected errorFondo: string | null = null;
 
   protected readonly formPassword = this.fb.nonNullable.group({
     passwordActual: ['', [Validators.required]],
@@ -89,6 +93,7 @@ export class Perfil implements OnInit {
     this.panelCuenta = !this.panelCuenta;
     if (this.panelCuenta) {
       this.panelNotificaciones = false;
+      this.panelApariencia = false;
       this.errorPassword = null;
       this.passwordOk = false;
     }
@@ -98,7 +103,17 @@ export class Perfil implements OnInit {
     this.panelNotificaciones = !this.panelNotificaciones;
     if (this.panelNotificaciones) {
       this.panelCuenta = false;
+      this.panelApariencia = false;
       this.errorPreferencias = null;
+    }
+  }
+
+  protected togglePanelApariencia(): void {
+    this.panelApariencia = !this.panelApariencia;
+    if (this.panelApariencia) {
+      this.panelCuenta = false;
+      this.panelNotificaciones = false;
+      this.errorFondo = null;
     }
   }
 
@@ -195,6 +210,29 @@ export class Perfil implements OnInit {
     });
   }
 
+  protected onFondoSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.subiendoFondo) {
+      return;
+    }
+
+    this.subiendoFondo = true;
+    this.errorFondo = null;
+    this.usuarioService.subirFondoPantalla(file).subscribe({
+      next: (perfil) => {
+        this.subiendoFondo = false;
+        this.perfil.set(perfil);
+        this.themeService.setFondoPantallaUrl(perfil.fondoPantallaUrl);
+      },
+      error: () => {
+        this.subiendoFondo = false;
+        this.errorFondo = 'No se pudo actualizar tu fondo de pantalla.';
+      },
+    });
+  }
+
   protected cerrarSesion(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
@@ -202,7 +240,10 @@ export class Perfil implements OnInit {
 
   private refrescarPerfil(): void {
     this.usuarioService.obtenerPerfil().subscribe({
-      next: (perfil) => this.perfil.set(perfil),
+      next: (perfil) => {
+        this.perfil.set(perfil);
+        this.themeService.setFondoPantallaUrl(perfil.fondoPantallaUrl);
+      },
       error: () => this.perfil.set(null),
     });
   }

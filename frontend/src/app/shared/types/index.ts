@@ -30,6 +30,7 @@ export interface UsuarioPerfil {
   email: string;
   nombre: string;
   avatarUrl: string | null;
+  fondoPantallaUrl: string | null;
   notificacionesGastos: boolean;
   notificacionesPlanes: boolean;
 }

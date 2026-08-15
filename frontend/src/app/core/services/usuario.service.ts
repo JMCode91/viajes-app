@@ -35,4 +35,11 @@ export class UsuarioService {
       preferencias
     );
   }
+
+  /** POST /api/usuarios/me/fondo -> sube el fondo de pantalla personalizado (multipart `file`). */
+  subirFondoPantalla(file: File): Observable<UsuarioPerfil> {
+    const formData = new FormData();
+    formData.append('file', file);
+    return this.http.post<UsuarioPerfil>('/api/usuarios/me/fondo', formData);
+  }
 }
