@@ -25,7 +25,9 @@
   <section
     class="mb-6 rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800"
   >
-    <div class="mb-4 flex items-center justify-between">
+    <div
+      class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+    >
       <div>
         <h2 class="text-lg font-bold text-gray-900 dark:text-white">
           Traductor
@@ -34,29 +36,31 @@
           Escribe o dicta y traduce al instante.
         </p>
       </div>
-      <div class="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-800">
-        <button
-          type="button"
-          (click)="cambiarIdiomaTraduccion('ja')"
-          class="rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-          [class.bg-blue-600]="idiomaTraduccion() === 'ja'"
-          [class.text-white]="idiomaTraduccion() === 'ja'"
-          [class.bg-gray-200]="idiomaTraduccion() !== 'ja'"
-          [class.text-gray-700]="idiomaTraduccion() !== 'ja'"
+      <div class="relative w-full sm:w-48">
+        <select
+          [ngModel]="idiomaTraduccion()"
+          (ngModelChange)="cambiarIdiomaTraduccion($event)"
+          aria-label="Idioma de destino"
+          class="h-12 w-full cursor-pointer appearance-none rounded-xl border border-gray-200 bg-gray-100 pl-4 pr-10 text-base font-semibold text-gray-900 outline-none transition-colors focus:border-blue-400 focus:bg-white dark:border-gray-700 dark:bg-gray-800 dark:text-white dark:focus:bg-gray-700"
         >
-          Japonés 🇯🇵
-        </button>
-        <button
-          type="button"
-          (click)="cambiarIdiomaTraduccion('en')"
-          class="rounded-lg px-3 py-2 text-sm font-semibold transition-colors"
-          [class.bg-blue-600]="idiomaTraduccion() === 'en'"
-          [class.text-white]="idiomaTraduccion() === 'en'"
-          [class.bg-gray-200]="idiomaTraduccion() !== 'en'"
-          [class.text-gray-700]="idiomaTraduccion() !== 'en'"
+          <option value="es">Español (ES)</option>
+          <option value="en">Inglés (EN)</option>
+          <option value="ja">Japonés (JA)</option>
+        </select>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke-width="1.5"
+          stroke="currentColor"
+          class="pointer-events-none absolute right-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400"
         >
-          Inglés 🇬🇧
-        </button>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="m19.5 8.25-7.5 7.5-7.5-7.5"
+          />
+        </svg>
       </div>
     </div>
 

@@ -30,7 +30,7 @@ export class Diccionario implements OnInit {
   protected readonly idiomaDestino = signal<'ja' | 'en'>('ja');
 
   protected readonly textoOrigen = signal('');
-  protected readonly idiomaTraduccion = signal<'ja' | 'en'>('ja');
+  protected readonly idiomaTraduccion = signal<'es' | 'en' | 'ja'>('ja');
   protected readonly traduccion = signal<TraduccionResponseDTO | null>(null);
   protected readonly traduciendo = signal(false);
   protected readonly estaGrabando = signal(false);
@@ -88,7 +88,7 @@ export class Diccionario implements OnInit {
     this.idiomaDestino.set(idioma);
   }
 
-  protected cambiarIdiomaTraduccion(idioma: 'ja' | 'en'): void {
+  protected cambiarIdiomaTraduccion(idioma: 'es' | 'en' | 'ja'): void {
     this.idiomaTraduccion.set(idioma);
   }
 
@@ -172,7 +172,12 @@ export class Diccionario implements OnInit {
     }
 
     const utterance = new SpeechSynthesisUtterance(texto);
-    utterance.lang = this.idiomaTraduccion() === 'ja' ? 'ja-JP' : 'en-US';
+    const lang = this.idiomaTraduccion() === 'ja'
+      ? 'ja-JP'
+      : this.idiomaTraduccion() === 'en'
+        ? 'en-US'
+        : 'es-ES';
+    utterance.lang = lang;
     window.speechSynthesis.speak(utterance);
   }
 
