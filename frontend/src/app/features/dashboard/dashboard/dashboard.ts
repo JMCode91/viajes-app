@@ -1,5 +1,5 @@
 import { Component, inject, OnInit } from '@angular/core';
-import { CurrencyPipe, DatePipe, NgClass } from '@angular/common';
+import { DatePipe, NgClass } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
@@ -8,7 +8,7 @@ import { Viaje } from '../../../shared/types';
 
 @Component({
   selector: 'app-dashboard',
-  imports: [DatePipe, CurrencyPipe, NgClass, ReactiveFormsModule, RouterLink],
+  imports: [DatePipe, NgClass, ReactiveFormsModule, RouterLink],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
@@ -65,6 +65,11 @@ export class Dashboard implements OnInit {
 
   protected esEliminar(viaje: Viaje): boolean {
     return viaje.rolEnViaje === 'PROPIETARIO';
+  }
+
+  protected inicialParticipante(nombre: string | null | undefined): string {
+    const limpio = (nombre ?? '').trim();
+    return limpio ? limpio.charAt(0).toUpperCase() : '?';
   }
 
   protected abrirAccion(viaje: Viaje, tipo: 'eliminar' | 'abandonar'): void {

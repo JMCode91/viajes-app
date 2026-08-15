@@ -89,27 +89,44 @@
                 : 'bg-gray-50 dark:bg-gray-900'
             "
           >
-            <p
-              class="text-sm"
-              [ngClass]="
-                viaje.fotoPortada
-                  ? 'text-gray-200'
-                  : 'text-gray-500 dark:text-gray-400'
-              "
-            >
-              Presupuesto base
-            </p>
-            <div class="flex items-center gap-3">
-              <p
-                class="text-base font-semibold"
-                [ngClass]="
-                  viaje.fotoPortada
-                    ? 'text-white'
-                    : 'text-gray-900 dark:text-white'
-                "
-              >
-                {{ viaje.presupuestoBase | currency: 'EUR' }}
-              </p>
+            @if (viaje.participantes.length > 0) {
+              <div class="flex -space-x-2 overflow-hidden">
+                @for (participante of viaje.participantes; track participante.usuarioId) {
+                  <span
+                    class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold ring-2 ring-white"
+                    [ngClass]="
+                      viaje.fotoPortada
+                        ? 'bg-white/20 text-white'
+                        : 'bg-blue-600 text-white'
+                    "
+                    [title]="participante.nombre"
+                  >
+                    @if (participante.avatarUrl) {
+                      <img [src]="participante.avatarUrl" [alt]="participante.nombre" class="h-full w-full object-cover" />
+                    } @else {
+                      {{ inicialParticipante(participante.nombre) }}
+                    }
+                  </span>
+                }
+              </div>
+            } @else {
+              <div class="flex -space-x-2 overflow-hidden" aria-hidden="true">
+                @for (mock of [1, 2, 3]; track mock) {
+                  <span
+                    class="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full ring-2 ring-white"
+                    [ngClass]="
+                      viaje.fotoPortada
+                        ? 'bg-white/20 text-white'
+                        : 'bg-blue-600 text-white'
+                    "
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0ZM4.501 20.118a7.5 7.5 0 0 1 14.998 0A17.933 17.933 0 0 1 12 21.75c-2.676 0-5.216-.584-7.499-1.632Z" />
+                    </svg>
+                  </span>
+                }
+              </div>
+            }
               <button
                 type="button"
                 [attr.aria-label]="esEliminar(viaje) ? 'Eliminar viaje' : 'Abandonar viaje'"
@@ -131,7 +148,6 @@
                   </svg>
                 }
               </button>
-            </div>
           </div>
         </div>
       </article>
