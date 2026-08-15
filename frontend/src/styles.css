@@ -10,3 +10,64 @@ html,
 body {
   @apply bg-gray-100 text-gray-900;
 }
+
+/* ========================================================================
+   MODO IMAGEN (body.theme-image)
+   Fondo fotografico global + overlay oscuro + glassmorfismo en las
+   tarjetas principales. El modo imagen tambien activa la clase `dark`
+   en <html> (via ThemeService) para reutilizar todas las variantes
+   `dark:` de texto/inputs y garantizar el contraste.
+   ======================================================================== */
+body.theme-image {
+  color: rgba(255, 255, 255, 0.9);
+  background-image: url('https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=2070&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+}
+
+body.theme-image::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: -1;
+}
+
+/* Shell del MainLayout y raiz de cada vista: transparentes para que la
+   foto del body se vea a traves (el resto de colores ya los cubre .dark). */
+body.theme-image .app-shell,
+body.theme-image .app-view {
+  background-color: transparent;
+}
+
+/* Barra de navegacion inferior: cristal */
+body.theme-image .app-bottom-nav {
+  background-color: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border-top-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.25);
+}
+
+body.theme-image .app-bottom-nav a {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+body.theme-image .app-bottom-nav a.text-blue-600 {
+  color: #7cb4ff;
+}
+
+body.theme-image .app-bottom-nav a:active {
+  background-color: rgba(255, 255, 255, 0.14);
+}
+
+/* Tarjetas grandes (p. ej. "Mis viajes" y las secciones del Perfil): glass */
+body.theme-image .glass-card {
+  color: #fff;
+  background-color: rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35);
+}

@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 
 import { AuthService } from '../../core/services/auth.service';
-import { ThemeService } from '../../core/services/theme.service';
+import { ThemeService, type Theme } from '../../core/services/theme.service';
 import { UsuarioService } from '../../core/services/usuario.service';
 import { UsuarioPerfil } from '../../shared/types';
 
@@ -81,8 +81,8 @@ export class Perfil implements OnInit {
       : 'bg-gray-300 dark:bg-gray-600'
   );
 
-  protected toggleTheme(): void {
-    this.themeService.toggle();
+  protected cambiarTema(tema: Theme): void {
+    this.themeService.setTheme(tema);
   }
 
   protected togglePanelCuenta(): void {

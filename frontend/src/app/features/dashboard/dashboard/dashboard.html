@@ -1,4 +1,4 @@
-<div class="min-h-full bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
+<div class="app-view min-h-full bg-gray-50 dark:bg-gray-950 px-4 pb-28 pt-6">
   <header class="mb-6 flex items-center justify-between gap-4">
     <div class="min-w-0">
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Mis viajes</h1>
@@ -23,7 +23,7 @@
     @for (viaje of viajes(); track viaje.id) {
       <article
         routerLink="/viajes/{{ viaje.id }}"
-        class="relative cursor-pointer overflow-hidden rounded-3xl shadow-lg active:scale-[0.99]"
+        class="glass-card relative cursor-pointer overflow-hidden rounded-3xl shadow-lg active:scale-[0.99]"
         [ngClass]="
           viaje.fotoPortada
             ? 'bg-gray-900 shadow-gray-900/40'
