@@ -44,6 +44,12 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 15/08/2026
+- **Completado en esta sesión (Iconos de sección en las cabeceras principales — consistencia visual con la bottom nav):**
+  - **`dashboard.html` — "Mis viajes":** el `<h1>` pasa a `flex items-center gap-2` y gana el **SVG del avión** (mismo path Material `flight` del botón Viajes de la bottom nav) a la izquierda del texto.
+  - **`conversor.html` — "Conversor de Divisas":** el `<h1>` pasa a `flex items-center gap-2` con el **SVG de la moneda/billete** (mismo path Heroicons `currency-dollar` del botón Conversor de la bottom nav) a la izquierda.
+  - **`perfil.html` — "Perfil":** el `<h1>` pasa a `flex items-center gap-2` con el **SVG del usuario** (mismo path Heroicons del botón Perfil de la bottom nav) a la izquierda.
+  - **Restricciones respetadas:** iconos SVG inline con `fill="none"` + `stroke="currentColor"` (heredan el color del texto, `text-gray-900 dark:text-white`), tamaño `h-7 w-7` proporcional al título `text-2xl`. Sin cambios en `ts`, subtítulos, estilos ni lógica.
+  - **Verificación:** `ng build` compila sin errores (chunks dashboard ~15.37 kB, conversor ~8.26 kB y perfil ~25.18 kB regenerados). Commit: `feat(frontend): add section icons to main headers for better UI consistency.`.
 - **Completado en esta sesión (Auditoría de bugs en la subida de fondo + limpieza del empty state):**
   - **Backend verificado (sin cambios):** el 500 NO es por mapeo ni por storage — `POST /api/usuarios/me/fondo` espera `@RequestParam("file")` y Angular hace `formData.append('file', file)`; `actualizarFondoPantalla` usa `securityUtils.getUsuarioAutenticado()` y `StorageServiceImpl.subirImagen` (whitelist de imágenes, sin ID de viaje). Un 500 real vendría de Cloudflare R2 (credenciales/bucket/red) vía `StorageException`, no del código de mapeo.
   - **UI de subida verificada (sin cambios):** `onFondoSelected` en `perfil.ts` ya gestiona el error en la suscripción (`error: () => { this.subiendoFondo = false; ... }`), por lo que el spinner "Subiendo fondo…" no se queda bloqueado tras un 500.
