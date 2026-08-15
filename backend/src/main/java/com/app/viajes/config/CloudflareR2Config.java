@@ -33,16 +33,12 @@ public class CloudflareR2Config {
     /**
      * Cliente S3 configurado para Cloudflare R2:
      * usa el endpoint personalizado de la cuenta y la region "auto"
-     * (la que espera Cloudflare para R2). Se fuerza el acceso Path-Style
-     * (URL tipo endpoint/bucket) porque R2 no resuelve URLs Virtual-Hosted
-     * (bucket.account.r2.cloudflarestorage.com), que provocan timeouts por
-     * fallo de resolución DNS.
+     * (la que espera Cloudflare para R2).
      */
     @Bean
     public S3Client s3Client() {
         return S3Client.builder()
                 .endpointOverride(URI.create(endpoint))
-                .forcePathStyle(true)
                 .region(Region.of("auto"))
                 .credentialsProvider(StaticCredentialsProvider.create(
                         AwsBasicCredentials.create(accessKey, secretKey)))

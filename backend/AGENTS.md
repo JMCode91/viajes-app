@@ -46,6 +46,10 @@ Desarrollo de una aplicación web de gestión integral de viajes enfocada estric
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 15/08/2026
+- **Completado en esta sesión (Fix de red R2 — revert Path-Style + forzar IPv4 en la JVM):**
+  - **`CloudflareR2Config.s3Client()` — revertido:** eliminado el `.forcePathStyle(true)` añadido en la sesión anterior; el cliente vuelve a su configuración original por defecto (endpointOverride + region `auto` + credenciales estáticas).
+  - **`ViajesApplication.main` — IPv4 forzado:** primera línea del `main` (antes de `SpringApplication.run`): **`System.setProperty("java.net.preferIPv4Stack", "true");`**. Es la causa nº1 de `Connect timed out` del AWS SDK en conexiones locales: el SDK resuelve `r2.cloudflarestorage.com` a IPv6 y la conexión se cuelga hasta el timeout; con esta propiedad la JVM prefiere la pila IPv4 y las subidas a R2 se completan.
+  - **Verificación:** `.\mvnw.cmd clean compile` (BUILD SUCCESS). Commit: `fix(backend): revert path style config and force IPv4 stack to bypass local DNS timeouts`.
 - **Completado en esta sesión (Path-Style Access forzado en el cliente S3 de R2 — fix de Connect timed out):**
   - **`CloudflareR2Config.s3Client()` — `.forcePathStyle(true)`:** añadido a la cadena del `S3Client.builder()`. Cloudflare R2 no resuelve URLs Virtual-Hosted (`<bucket>.<account>.r2.cloudflarestorage.com`) y el SDK las generaba por defecto al construir los endpoints, provocando timeouts por fallo de resolución DNS. Con Path-Style el SDK usa URLs `endpoint/bucket/key` (ej. `<endpoint>/<bucket>/<uuid>.jpg`), que R2 sí resuelve. Sintaxis nativa del SDK v2 (`S3ClientBuilder.forcePathStyle(boolean)`), sin necesidad de `S3Configuration`.
   - **Verificación:** `.\mvnw.cmd clean compile` (BUILD SUCCESS). Commit: `fix(backend): enable forcePathStyle on S3Client config to resolve R2 connection timeouts`.
