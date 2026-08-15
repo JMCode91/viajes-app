@@ -3,6 +3,7 @@ package com.app.viajes.service.impl;
 import com.app.viajes.exception.DatosInvalidosException;
 import com.app.viajes.exception.StorageException;
 import com.app.viajes.service.StorageService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -24,6 +25,7 @@ import java.util.UUID;
  * Seguridad anti web shell: antes de guardar se valida por Lista Blanca la
  * extension del archivo Y su tipo MIME declarado (defensa en profundidad).
  */
+@Slf4j
 @Service
 public class StorageServiceImpl implements StorageService {
 
@@ -134,6 +136,7 @@ public class StorageServiceImpl implements StorageService {
         } catch (IOException ex) {
             throw new StorageException("No se pudo leer el documento para subir a Cloudflare R2");
         } catch (Exception ex) {
+            log.error("Fallo critico al subir a Cloudflare R2: ", ex);
             throw new StorageException("No se pudo subir el documento a Cloudflare R2");
         }
     }
@@ -170,6 +173,7 @@ public class StorageServiceImpl implements StorageService {
                     .build();
             s3Client.deleteObject(request);
         } catch (Exception ex) {
+            log.error("Fallo critico al eliminar de Cloudflare R2: ", ex);
             throw new StorageException("No se pudo eliminar el documento de Cloudflare R2");
         }
     }
