@@ -44,10 +44,10 @@ export class AuthService {
     return this.http.post<MensajeResponse>(`/api/auth/register`, userData);
   }
 
-  verificarCuenta(token: string): Observable<MensajeResponse> {
-    return this.http.get<MensajeResponse>(`/api/auth/verificar`, {
+  verificarCuenta(token: string): Observable<AuthResponse> {
+    return this.http.get<AuthResponse>(`/api/auth/verificar`, {
       params: { token },
-    });
+    }).pipe(tap((response) => this.saveAuth(response)));
   }
 
   logout(): void {

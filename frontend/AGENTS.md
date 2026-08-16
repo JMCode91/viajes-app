@@ -44,6 +44,14 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 16/08/2026
+- **Completado en esta sesión (Fix Verificar y Auto-Login — la confirmación por email inicia sesión y redirige al dashboard):**
+  - **`AuthService.verificarCuenta(token)` — cambio de contrato (`auth.service.ts`):** el método pasa de devolver `Observable<MensajeResponse>` a **`Observable<AuthResponse>`** y añade **`.pipe(tap((response) => this.saveAuth(response)))`** — exactamente el mismo patrón que `login`. El backend ahora devuelve el JWT en `GET /api/auth/verificar`, así que al verificar la cuenta se **guarda el token + sesión (`auth_token`/`auth_usuario`)** en `localStorage` y se actualiza `isAuthenticated`/`usuario` automáticamente (auto-login). `MensajeResponse` se conserva en el import (lo usa `register`).
+  - **`VerificarCuenta` (`verificar-cuenta.ts`):**
+    - **`ChangeDetectorRef` inyectado:** nueva dependencia **`private readonly cdr = inject(ChangeDetectorRef)`** (con `inject()` según la norma del proyecto; Router y AuthService ya estaban inyectados).
+    - **Bloque `next` (Éxito):** ya NO fija `estado = 'exito'` — con la sesión guardada por el servicio, navega directo con **`this.router.navigate(['/dashboard'])`** (ruta real del listado de viajes, protegida por `authGuard`; el token ya está en localStorage, así que el guard deja pasar). No se muestra mensaje de éxito porque se redirige al instante.
+    - **Bloque `error` (Fallo):** asigna `estado = 'error'`, extrae el mensaje con `extraerMensajeError` (fallback genérico) y **NUEVO: `this.cdr.detectChanges()`** al final, forzando a Angular a repintar el DOM y salir del estado de carga infinito "Verificando cuenta…" aunque la detección de cambios automática no se dispare.
+  - **HTML intacto (`verificar-cuenta.html`):** las 3 ramas de estado se conservan tal cual (la rama `exito` queda inalcanzable porque el `next` navega, pero no rompe el build; el `RouterLink`/`irAlLogin()` siguen referenciados y en uso).
+  - **Verificación:** `ng build` compila sin errores (lazy chunk `verificar-cuenta` regenerado, ~4.37 kB). Commit: `feat(frontend): handle auto-login on verification success and fix infinite loading state`.
 - **Completado en esta sesión (Fix Definitivo Login — detección de cambios forzada + burbujeo garantizado del error):**
   - **`AuthService.login()` auditado (sin cambios):** ya retorna directamente `this.http.post<AuthResponse>(...)` con solo `tap(saveAuth)` en el éxito y **sin `catchError`**, por lo que el error nunca se traga en el servicio (en caso de añadir un `catchError`, la norma es `return throwError(() => err);`).
   - **`login.ts` — `ChangeDetectorRef` inyectado:** nueva dependencia **`private readonly cdr = inject(ChangeDetectorRef)`** (con `inject()` según la norma del proyecto de prohibir constructores para DI; equivale al "inyecta en el constructor" de la tarea).

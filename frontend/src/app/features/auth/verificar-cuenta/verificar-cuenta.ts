@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { ChangeDetectorRef, Component, inject, OnInit } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
@@ -16,6 +16,7 @@ export class VerificarCuenta implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   protected estado: EstadoVerificacion = 'verificando';
   protected error = '';
@@ -31,13 +32,16 @@ export class VerificarCuenta implements OnInit {
 
     this.authService.verificarCuenta(token).subscribe({
       next: () => {
-        this.estado = 'exito';
+        // Auto-login: AuthService ya guardó el token y la sesión del usuario.
+        // Redirigimos directo al dashboard sin mensaje de éxito.
+        this.router.navigate(['/dashboard']);
       },
       error: (err: unknown) => {
         this.estado = 'error';
         this.error =
           this.extraerMensajeError(err) ??
           'No se pudo verificar la cuenta. Inténtalo de nuevo.';
+        this.cdr.detectChanges();
       },
     });
   }
