@@ -68,5 +68,5 @@ export class ThemeService {
 
 function readTheme(): Theme {
   const stored = localStorage.getItem(THEME_KEY) as Theme | null;
-  return VALID_THEMES.includes(stored as Theme) ? (stored as Theme) : 'light';
+  return VALID_THEMES.includes(stored as Theme) ? (stored as Theme) : 'image';
 }
