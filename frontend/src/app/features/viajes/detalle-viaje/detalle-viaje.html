@@ -1,10 +1,18 @@
-<div class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 px-4 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+<div
+  class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 bg-cover bg-center px-4 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black"
+  [style.background-image]="esModoImagen() ? 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(' + fondoImagenUrl() + ')' : null"
+>
   <header class="mb-6 flex items-center gap-3">
     <button
       type="button"
       aria-label="Volver al dashboard"
       (click)="goBack()"
-      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md active:scale-95"
+      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full active:scale-95"
+      [ngClass]="
+        esModoImagen()
+          ? 'border border-gray-700/50 bg-gray-900/60 text-gray-200 shadow-lg backdrop-blur-md'
+          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md'
+      "
     >
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -43,7 +51,9 @@
         [class]="
           tabActiva() === tab.key
             ? 'flex h-11 shrink-0 items-center gap-2 rounded-full bg-blue-600 px-5 text-sm font-semibold text-white shadow-lg shadow-blue-600/30 active:scale-95'
-            : 'flex h-11 shrink-0 items-center gap-2 rounded-full bg-white dark:bg-gray-800 px-5 text-sm font-semibold text-gray-600 dark:text-gray-300 active:scale-95'
+            : (esModoImagen()
+              ? 'flex h-11 shrink-0 items-center gap-2 rounded-full border border-gray-700/50 bg-gray-900/60 px-5 text-sm font-semibold text-gray-200 backdrop-blur-md active:scale-95'
+              : 'flex h-11 shrink-0 items-center gap-2 rounded-full bg-white dark:bg-gray-800 px-5 text-sm font-semibold text-gray-600 dark:text-gray-300 active:scale-95')
         "
       >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor" class="h-4 w-4">
@@ -64,7 +74,9 @@
             [class]="
               diaSeleccionado() === null
                 ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-blue-600 px-2 py-3 shadow-lg shadow-blue-600/30 active:scale-95'
-                : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95'
+                : (esModoImagen()
+                  ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl border border-gray-700/50 bg-gray-900/60 px-2 py-3 text-gray-200 backdrop-blur-md active:scale-95'
+                  : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95')
             "
           >
             <span
@@ -91,7 +103,9 @@
               [class]="
                 diaSeleccionado() === dia.valor
                   ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-blue-600 px-2 py-3 shadow-lg shadow-blue-600/30 active:scale-95'
-                  : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95'
+                  : (esModoImagen()
+                  ? 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl border border-gray-700/50 bg-gray-900/60 px-2 py-3 text-gray-200 backdrop-blur-md active:scale-95'
+                  : 'flex w-20 shrink-0 snap-center flex-col items-center rounded-2xl bg-white px-2 py-3 text-gray-600 dark:bg-gray-800 dark:text-gray-300 active:scale-95')
               "
             >
               <span
@@ -138,7 +152,12 @@
               ></span>
               <article
                 (click)="abrirDetalleActividad(actividad)"
-                class="w-full overflow-hidden cursor-pointer rounded-2xl bg-white dark:bg-gray-800 p-4 shadow-md shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700 active:scale-[0.98] active:shadow-none"
+                class="w-full overflow-hidden cursor-pointer rounded-2xl p-4 active:scale-[0.98] active:shadow-none"
+                [ngClass]="
+                  esModoImagen()
+                    ? 'border border-gray-700/50 bg-gray-900/60 shadow-2xl backdrop-blur-md'
+                    : 'bg-white dark:bg-gray-800 shadow-md shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-700'
+                "
               >
                 <p class="text-xs font-bold text-blue-600 dark:text-blue-400">{{ actividad.fechaHoraInicio | date: 'HH:mm' }}</p>
                 <div class="mt-0.5 flex items-center gap-1">

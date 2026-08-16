@@ -1,10 +1,18 @@
-<div class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 px-6 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black">
+<div
+  class="min-h-screen bg-gradient-to-b from-blue-50 via-white to-gray-100 bg-cover bg-center px-6 py-6 dark:from-gray-900 dark:via-gray-900 dark:to-black"
+  [style.background-image]="esModoImagen() ? 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url(' + fondoImagenUrl() + ')' : null"
+>
   <header class="mb-8 flex items-center gap-3">
     <button
       type="button"
       aria-label="Volver al dashboard"
       (click)="goBack()"
-      class="flex h-9 w-9 items-center justify-center rounded-full bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md active:scale-95"
+      class="flex h-9 w-9 items-center justify-center rounded-full active:scale-95"
+      [ngClass]="
+        esModoImagen()
+          ? 'border border-gray-700/50 bg-gray-900/60 text-gray-200 shadow-lg backdrop-blur-md'
+          : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 shadow-md'
+      "
     >
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="h-5 w-5">
         <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
@@ -19,7 +27,12 @@
   <form
     [formGroup]="form"
     (ngSubmit)="onSubmit()"
-    class="flex flex-col gap-5 rounded-3xl bg-white dark:bg-gray-900 p-7 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800"
+    class="flex flex-col gap-5 rounded-3xl p-7"
+    [ngClass]="
+      esModoImagen()
+        ? 'border border-gray-700/50 bg-gray-900/60 shadow-2xl backdrop-blur-md'
+        : 'bg-white dark:bg-gray-900 shadow-xl shadow-gray-200/50 dark:shadow-none border border-gray-100 dark:border-gray-800'
+    "
   >
     <div class="flex flex-col gap-2">
       <label for="titulo" class="text-sm font-medium text-gray-700 dark:text-gray-300">Nombre del viaje</label>
@@ -65,7 +78,15 @@
 
       <div formArrayName="paradas" class="flex flex-col gap-3">
         @for (parada of paradas.controls; track $index; let i = $index) {
-          <div [formGroupName]="i" class="rounded-2xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50">
+          <div
+            [formGroupName]="i"
+            class="rounded-2xl p-4"
+            [ngClass]="
+              esModoImagen()
+                ? 'border border-gray-700/50 bg-gray-900/60 backdrop-blur-md'
+                : 'border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50'
+            "
+          >
             <div class="mb-3 flex items-center justify-between">
               <span class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-bold text-blue-600 dark:bg-blue-500/20 dark:text-blue-400">
                 {{ i + 1 }}

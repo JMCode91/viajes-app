@@ -9,7 +9,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, NgClass } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { FormsModule } from '@angular/forms';
 import { GoogleMap, MapAdvancedMarker, MapInfoWindow } from '@angular/google-maps';
@@ -34,6 +34,7 @@ import { ViajeService } from '../../../core/services/viaje.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { GaleriaService } from '../../../core/services/galeria.service';
 import { ClimaService } from '../../../core/services/clima.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { Finanzas } from '../../finanzas/finanzas';
 import {
   Actividad,
@@ -87,6 +88,7 @@ export interface ResultadoBusqueda {
   imports: [
     DatePipe,
     DecimalPipe,
+    NgClass,
     ReactiveFormsModule,
     FormsModule,
     CustomTimePicker,
@@ -109,6 +111,12 @@ export class DetalleViaje implements OnDestroy {
   private readonly authService = inject(AuthService);
   private readonly galeriaService = inject(GaleriaService);
   private readonly climaService = inject(ClimaService);
+  private readonly themeService = inject(ThemeService);
+
+  protected readonly esModoImagen = computed(
+    () => this.themeService.theme() === 'image'
+  );
+  protected readonly fondoImagenUrl = this.themeService.fondoImagenUrl;
 
   protected readonly climasPorDia = signal<Map<string, Clima>>(new Map());
 

@@ -1,4 +1,4 @@
-import { effect, inject, Injectable, signal } from '@angular/core';
+import { computed, effect, inject, Injectable, signal } from '@angular/core';
 
 import { UsuarioService } from './usuario.service';
 
@@ -39,6 +39,9 @@ export class ThemeService {
   setFondoPantallaUrl(url: string | null): void {
     this.fondoPantallaUrl.set(url);
   }
+
+  /** URL efectiva del fondo del Modo Imagen (la del perfil o la de Unsplash). */
+  readonly fondoImagenUrl = computed(() => this.fondoPantallaUrl() || DEFAULT_IMAGE_URL);
 
   private cargarFondoPantalla(): void {
     this.usuarioService.obtenerPerfil().subscribe({

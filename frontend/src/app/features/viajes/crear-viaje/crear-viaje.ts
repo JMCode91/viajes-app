@@ -1,4 +1,5 @@
-import { Component, inject, OnDestroy, signal } from '@angular/core';
+import { Component, computed, inject, OnDestroy, signal } from '@angular/core';
+import { NgClass } from '@angular/common';
 import {
   AbstractControl,
   FormArray,
@@ -21,6 +22,7 @@ import {
 
 import { ViajeService } from '../../../core/services/viaje.service';
 import { GoogleMapsService } from '../../../core/services/google-maps.service';
+import { ThemeService } from '../../../core/services/theme.service';
 import { CustomDatePicker } from '../../../shared/components/custom-date-picker/custom-date-picker';
 import { ParadaViaje } from '../../../shared/types';
 
@@ -56,7 +58,7 @@ function esParadaCompleta(parada: Partial<ValorParada>): parada is ValorParada {
 
 @Component({
   selector: 'app-crear-viaje',
-  imports: [ReactiveFormsModule, CustomDatePicker],
+  imports: [NgClass, ReactiveFormsModule, CustomDatePicker],
   templateUrl: './crear-viaje.html',
   styleUrl: './crear-viaje.css',
 })
@@ -65,6 +67,12 @@ export class CrearViaje implements OnDestroy {
   private readonly viajeService = inject(ViajeService);
   private readonly router = inject(Router);
   private readonly googleMapsService = inject(GoogleMapsService);
+  private readonly themeService = inject(ThemeService);
+
+  protected readonly esModoImagen = computed(
+    () => this.themeService.theme() === 'image'
+  );
+  protected readonly fondoImagenUrl = this.themeService.fondoImagenUrl;
 
   private readonly busquedaParada$ = new Subject<{
     index: number;
