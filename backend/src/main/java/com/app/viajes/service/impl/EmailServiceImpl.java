@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
@@ -30,7 +31,14 @@ public class EmailServiceImpl implements EmailService {
         this.mailSender = mailSender;
     }
 
+    /**
+     * Envia el correo de confirmacion de forma <b>asincrona</b> para no
+     * bloquear la peticion HTTP de registro: el proxy de Spring (@Async)
+     * despacha la ejecucion a un hilo separado y el flujo de registro
+     * responde de inmediato.
+     */
     @Override
+    @Async
     public void enviarCorreoConfirmacion(String email, String token) {
         try {
             SimpleMailMessage mensaje = new SimpleMailMessage();
