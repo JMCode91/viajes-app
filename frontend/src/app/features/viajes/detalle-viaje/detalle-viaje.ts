@@ -248,6 +248,7 @@ export class DetalleViaje implements OnDestroy {
   protected readonly errorAlbum = signal<string | null>(null);
   protected readonly borrandoFotoId = signal<UUID | null>(null);
   protected readonly borrandoAlbumId = signal<UUID | null>(null);
+  protected readonly fotoActivaIndex = signal<number | null>(null);
 
   protected readonly fotosVisibles = computed<Foto[]>(() => {
     const idAlbum = this.albumSeleccionado();
@@ -1301,6 +1302,35 @@ export class DetalleViaje implements OnDestroy {
     return (
       this.esOrganizador() || this.usuarioIdPropio() === foto.usuarioId
     );
+  }
+
+  protected abrirFoto(index: number): void {
+    if (index < 0 || index >= this.fotosVisibles().length) {
+      return;
+    }
+    this.fotoActivaIndex.set(index);
+  }
+
+  protected cerrarFoto(): void {
+    this.fotoActivaIndex.set(null);
+  }
+
+  protected siguienteFoto(): void {
+    this.fotoActivaIndex.update((actual) => {
+      if (actual === null) {
+        return actual;
+      }
+      return Math.min(actual + 1, this.fotosVisibles().length - 1);
+    });
+  }
+
+  protected fotoAnterior(): void {
+    this.fotoActivaIndex.update((actual) => {
+      if (actual === null) {
+        return actual;
+      }
+      return Math.max(actual - 1, 0);
+    });
   }
 
   protected inicial(nombre: string | null | undefined): string {
