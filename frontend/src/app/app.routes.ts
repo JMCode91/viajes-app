@@ -71,4 +71,11 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./features/auth/registro/registro').then((m) => m.Registro),
   },
+  {
+    path: 'auth/verificar',
+    loadComponent: () =>
+      import('./features/auth/verificar-cuenta/verificar-cuenta').then(
+        (m) => m.VerificarCuenta
+      ),
+  },
 ];

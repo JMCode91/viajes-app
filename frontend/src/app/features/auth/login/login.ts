@@ -24,15 +24,27 @@ export class Login {
     password: ['', Validators.required],
   });
 
+  protected logueando = false;
+  protected error = '';
+
   protected onSubmit(): void {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
     }
 
+    this.logueando = true;
+    this.error = '';
+
     const { email, password } = this.form.getRawValue();
     this.authService.login({ email, password }).subscribe({
       next: () => this.router.navigate(['/dashboard']),
+      error: (err: unknown) => {
+        this.logueando = false;
+        this.error =
+          this.extraerMensajeError(err) ??
+          'No se pudo iniciar sesión. Inténtalo de nuevo.';
+      },
     });
   }
 
@@ -53,5 +65,12 @@ export class Login {
   protected hasError(field: 'email' | 'password'): boolean {
     const control = this.form.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  private extraerMensajeError(error: unknown): string | null {
+    const body = error as { error?: { message?: string } };
+    return typeof body?.error?.message === 'string'
+      ? body.error.message
+      : null;
   }
 }

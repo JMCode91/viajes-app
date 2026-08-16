@@ -2,7 +2,12 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
-import { AuthResponse, LoginRequest, RegisterRequest } from '../../shared/types';
+import {
+  AuthResponse,
+  LoginRequest,
+  MensajeResponse,
+  RegisterRequest,
+} from '../../shared/types';
 
 const TOKEN_KEY = 'auth_token';
 const USUARIO_KEY = 'auth_usuario';
@@ -35,10 +40,14 @@ export class AuthService {
     );
   }
 
-  register(userData: RegisterRequest): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>(`/api/auth/register`, userData).pipe(
-      tap((response) => this.saveAuth(response))
-    );
+  register(userData: RegisterRequest): Observable<MensajeResponse> {
+    return this.http.post<MensajeResponse>(`/api/auth/register`, userData);
+  }
+
+  verificarCuenta(token: string): Observable<MensajeResponse> {
+    return this.http.get<MensajeResponse>(`/api/auth/verificar`, {
+      params: { token },
+    });
   }
 
   logout(): void {
