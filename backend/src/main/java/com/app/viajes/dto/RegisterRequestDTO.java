@@ -18,6 +18,9 @@ public record RegisterRequestDTO(
 
         @NotBlank(message = "La contrasena es obligatoria")
         @Size(min = 6, message = "La contrasena debe tener al menos 6 caracteres")
-        String password
+        String password,
+
+        @NotBlank(message = "La confirmacion de contrasena es obligatoria")
+        String confirmarPassword
 ) {
 }

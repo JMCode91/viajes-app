@@ -45,6 +45,9 @@ public class DatabaseSeeder implements CommandLineRunner {
         usuario.setNombre(nombre);
         usuario.setEmail(email);
         usuario.setPassword(passwordEncoder.encode(PASSWORD_DEV));
+        // Los usuarios de desarrollo nacen activados: el flujo real de registro
+        // exige confirmar la cuenta por email, pero estos se crean listos para login.
+        usuario.setActivo(true);
 
         usuarioRepository.save(usuario);
         log.info("Creado usuario de desarrollo: {} <{}>", nombre, email);

@@ -35,6 +35,11 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
     }
 
+    @ExceptionHandler(CuentaNoActivadaException.class)
+    public ResponseEntity<ApiError> handleCuentaNoActivada(CuentaNoActivadaException ex) {
+        return buildResponse(HttpStatus.FORBIDDEN, ex.getMessage());
+    }
+
     @ExceptionHandler({ViajeNoEncontradoException.class, UsuarioNoEncontradoException.class})
     public ResponseEntity<ApiError> handleNotFound(RuntimeException ex) {
         return buildResponse(HttpStatus.NOT_FOUND, ex.getMessage());
