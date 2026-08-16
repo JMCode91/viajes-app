@@ -124,14 +124,16 @@ public class StorageServiceImpl implements StorageService {
     /**
      * Sube el archivo al bucket de Cloudflare R2 con el nombre y MIME dados.
      */
-    private void subirAlBucket(String nombreGenerado, String contentType, MultipartFile archivo) {
+   private void subirAlBucket(String nombreGenerado, String contentType, MultipartFile archivo) {
         try {
             PutObjectRequest request = PutObjectRequest.builder()
                     .bucket(bucket)
                     .key(nombreGenerado)
                     .contentType(contentType)
                     .build();
-            s3Client.putObject(request, RequestBody.fromBytes(archivo.getBytes()));
+            // Restaurado a fromInputStream para solucionar el Timeout de red
+            s3Client.putObject(request, RequestBody.fromInputStream(
+                    archivo.getInputStream(), archivo.getSize()));
         } catch (IOException ex) {
             throw new StorageException("No se pudo leer el documento para subir a Cloudflare R2");
         } catch (Exception ex) {
