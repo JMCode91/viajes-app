@@ -5,6 +5,7 @@ import {
   Validators,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
+import { finalize } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -24,7 +25,7 @@ export class Login {
     password: ['', Validators.required],
   });
 
-  protected logueando = false;
+  protected cargando = false;
   protected mensajeError = '';
 
   protected onSubmit(): void {
@@ -33,20 +34,26 @@ export class Login {
       return;
     }
 
-    this.logueando = true;
+    this.cargando = true;
     this.mensajeError = '';
 
     const { email, password } = this.form.getRawValue();
-    this.authService.login({ email, password }).subscribe({
-      next: () => this.router.navigate(['/dashboard']),
-      error: (err: unknown) => {
-        this.logueando = false;
-        this.mensajeError =
-          this.mensajeCuentaNoActivada(err) ??
-          this.extraerMensajeError(err) ??
-          'No se pudo iniciar sesión. Inténtalo de nuevo.';
-      },
-    });
+    this.authService
+      .login({ email, password })
+      .pipe(
+        finalize(() => {
+          this.cargando = false;
+        })
+      )
+      .subscribe({
+        next: () => this.router.navigate(['/dashboard']),
+        error: (err: unknown) => {
+          this.mensajeError =
+            this.mensajeCuentaNoActivada(err) ??
+            this.extraerMensajeError(err) ??
+            'No se pudo iniciar sesión. Inténtalo de nuevo.';
+        },
+      });
   }
 
   /**

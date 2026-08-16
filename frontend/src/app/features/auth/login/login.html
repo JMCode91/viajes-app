@@ -88,10 +88,10 @@
 
         <button
           type="submit"
-          [disabled]="logueando"
+          [disabled]="cargando"
           class="mt-2 h-14 w-full rounded-2xl bg-blue-600 text-base font-semibold text-white shadow-lg shadow-blue-600/40 transition-colors hover:bg-blue-700 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none disabled:active:scale-100"
         >
-          {{ logueando ? 'Entrando…' : 'Entrar' }}
+          {{ cargando ? 'Entrando…' : 'Entrar' }}
         </button>
       </form>
 
