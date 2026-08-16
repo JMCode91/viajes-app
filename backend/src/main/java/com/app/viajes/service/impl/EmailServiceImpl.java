@@ -3,6 +3,7 @@ package com.app.viajes.service.impl;
 import com.app.viajes.service.EmailService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.scheduling.annotation.Async;
@@ -21,9 +22,12 @@ public class EmailServiceImpl implements EmailService {
     private static final Logger log = LoggerFactory.getLogger(EmailServiceImpl.class);
 
     /**
-     * URL del frontend que procesa el token de verificacion de la cuenta.
+     * URL base del frontend que procesa el token de verificacion de la cuenta.
+     * Configurable via la propiedad {@code app.frontend.url} (por defecto el
+     * entorno de desarrollo local); en produccion se sobrescribe con la URL real.
      */
-    private static final String URL_FRONTEND_VERIFICACION = "http://localhost:4200/auth/verificar?token=";
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
 
     private final JavaMailSender mailSender;
 
@@ -48,11 +52,11 @@ public class EmailServiceImpl implements EmailService {
                     Bienvenido a Viajes.
 
                     Para activar tu cuenta pulsa en el siguiente enlace:
-                    %s%s
+                    %s/auth/verificar?token=%s
 
                     El enlace es valido durante 24 horas.
                     Si no has solicitado este registro, ignora este correo.
-                    """.formatted(URL_FRONTEND_VERIFICACION, token));
+                    """.formatted(frontendUrl, token));
 
             mailSender.send(mensaje);
             log.info("Correo de confirmacion enviado a {}", email);
