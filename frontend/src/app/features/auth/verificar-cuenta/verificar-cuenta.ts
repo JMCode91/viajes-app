@@ -3,6 +3,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
 
+/** Estados posibles del flujo de verificacion de la cuenta. */
+type EstadoVerificacion = 'verificando' | 'exito' | 'error';
+
 @Component({
   selector: 'app-verificar-cuenta',
   imports: [RouterLink],
@@ -14,26 +17,24 @@ export class VerificarCuenta implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
 
-  protected verificando = true;
-  protected verificado = false;
+  protected estado: EstadoVerificacion = 'verificando';
   protected error = '';
 
   ngOnInit(): void {
     const token = this.route.snapshot.queryParamMap.get('token');
 
     if (!token) {
-      this.verificando = false;
+      this.estado = 'error';
       this.error = 'No se encontró el token de verificación.';
       return;
     }
 
     this.authService.verificarCuenta(token).subscribe({
       next: () => {
-        this.verificando = false;
-        this.verificado = true;
+        this.estado = 'exito';
       },
       error: (err: unknown) => {
-        this.verificando = false;
+        this.estado = 'error';
         this.error =
           this.extraerMensajeError(err) ??
           'No se pudo verificar la cuenta. Inténtalo de nuevo.';

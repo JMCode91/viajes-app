@@ -25,7 +25,7 @@ export class Login {
   });
 
   protected logueando = false;
-  protected error = '';
+  protected mensajeError = '';
 
   protected onSubmit(): void {
     if (this.form.invalid) {
@@ -34,14 +34,15 @@ export class Login {
     }
 
     this.logueando = true;
-    this.error = '';
+    this.mensajeError = '';
 
     const { email, password } = this.form.getRawValue();
     this.authService.login({ email, password }).subscribe({
       next: () => this.router.navigate(['/dashboard']),
       error: (err: unknown) => {
         this.logueando = false;
-        this.error =
+        this.mensajeError =
+          this.mensajeCuentaNoActivada(err) ??
           this.extraerMensajeError(err) ??
           'No se pudo iniciar sesión. Inténtalo de nuevo.';
       },
@@ -65,6 +66,22 @@ export class Login {
   protected hasError(field: 'email' | 'password'): boolean {
     const control = this.form.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
+  }
+
+  /**
+   * Detecta el 403 de una cuenta no activada (backend lanza
+   * `CuentaNoActivadaException`) y devuelve un mensaje claro para el banner.
+   */
+  private mensajeCuentaNoActivada(error: unknown): string | null {
+    const body = error as { status?: number; error?: { message?: string } };
+    const es403 = body?.status === 403;
+    const mensaje = body?.error?.message ?? '';
+    const esCuentaNoActivada =
+      mensaje.toLowerCase().includes('no activada') ||
+      mensaje.toLowerCase().includes('verificar');
+    return es403 || esCuentaNoActivada
+      ? 'Falta verificar el correo. Revisa tu bandeja de entrada.'
+      : null;
   }
 
   private extraerMensajeError(error: unknown): string | null {
