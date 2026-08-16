@@ -45,6 +45,12 @@ public class EmailServiceImpl implements EmailService {
     @Async
     public void enviarCorreoConfirmacion(String email, String token) {
         try {
+            String urlVerificacion = frontendUrl + "/auth/verificar?token=" + token;
+
+            log.info("==========================================================");
+            log.info("ENLACE DE VERIFICACIÓN (ENTORNO DEV): {}", urlVerificacion);
+            log.info("==========================================================");
+
             SimpleMailMessage mensaje = new SimpleMailMessage();
             mensaje.setTo(email);
             mensaje.setSubject("Confirma tu cuenta en Viajes");
@@ -52,11 +58,11 @@ public class EmailServiceImpl implements EmailService {
                     Bienvenido a Viajes.
 
                     Para activar tu cuenta pulsa en el siguiente enlace:
-                    %s/auth/verificar?token=%s
+                    %s
 
                     El enlace es valido durante 24 horas.
                     Si no has solicitado este registro, ignora este correo.
-                    """.formatted(frontendUrl, token));
+                    """.formatted(urlVerificacion));
 
             mailSender.send(mensaje);
             log.info("Correo de confirmacion enviado a {}", email);
