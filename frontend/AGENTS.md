@@ -44,6 +44,11 @@ src/app/
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
 - **Última actualización:** 16/08/2026
+- **Completado en esta sesión (Limpieza para Producción — eliminados el acceso rápido y los usuarios de desarrollo del login):**
+  - **`login.html`:** eliminada la sección **"Acceso rápido de desarrollo"** completa (separador `border-t` + label + los dos botones chip "Entrar como Javi" / "Entrar como Cynthia" con `(click)="accesoRapido('javi')"` / `"cynthia"`). El formulario queda solo con email, contraseña, el botón "Entrar" y el enlace "Regístrate" — sin rastro de las credenciales dev.
+  - **`login.ts`:** eliminado el método **`accesoRapido(usuario: 'javi' | 'cynthia')`** (y su JSDoc) que hacía `patchValue` con `javi@viajes.com`/`cynthia@viajes.com` + `password` y disparaba `onSubmit()`. Código muerto eliminado; `onSubmit`, `hasError`, `mensajeCuentaNoActivada` y `extraerMensajeError` intactos.
+  - **Backend alineado (mismo commit):** eliminado `DatabaseSeeder.java` (los usuarios Javi/Cynthia con contraseña `password`). El login real ahora depende del registro con confirmación por email (`activo=false` → verificación).
+  - **Verificación:** `ng build` compila sin errores (lazy chunk `login` regenerado, ~5.25 kB) y backend `.\mvnw.cmd clean compile` en BUILD SUCCESS. Commit: `refactor: remove development mock users and quick login UI for production readiness`.
 - **Completado en esta sesión (Fix Dynamic Theme — Crear Viaje y Detalle Viaje reaccionan al Modo Imagen con glassmorphism condicional):**
   - **`ThemeService` ampliado (`core/services/theme.service.ts`):** nuevo **computed público `fondoImagenUrl`** (`import { computed }` añadido) que devuelve la URL efectiva del fondo del Modo Imagen — la del perfil (`fondoPantallaUrl()`) si existe; si no, el Unsplash por defecto (`DEFAULT_IMAGE_URL`). Es reactivo (se recalcula al cambiar el fondo personalizado).
   - **`CrearViaje` (`crear-viaje.ts`):** inyectado **`ThemeService` con `inject()`** (norma del proyecto). Nuevos miembros protegidos **`esModoImagen`** (`computed` → `theme() === 'image'`) y **`fondoImagenUrl`** (delegado al servicio). `NgClass` añadido a los imports del componente (con `computed` y `NgClass` en los imports).

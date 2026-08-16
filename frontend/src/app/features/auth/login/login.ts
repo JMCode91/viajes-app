@@ -55,20 +55,6 @@ export class Login {
     });
   }
 
-  /**
-   * Inicio de sesion de un solo clic para los usuarios de desarrollo
-   * sembrados por el backend (DatabaseSeeder): rellena el formulario y
-   * dispara el login inmediatamente.
-   */
-  protected accesoRapido(usuario: 'javi' | 'cynthia'): void {
-    const credenciales =
-      usuario === 'javi'
-        ? { email: 'javi@viajes.com', password: 'password' }
-        : { email: 'cynthia@viajes.com', password: 'password' };
-    this.form.patchValue(credenciales);
-    this.onSubmit();
-  }
-
   protected hasError(field: 'email' | 'password'): boolean {
     const control = this.form.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);
