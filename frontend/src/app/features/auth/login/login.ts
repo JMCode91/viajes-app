@@ -1,11 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, inject } from '@angular/core';
 import {
   FormBuilder,
   ReactiveFormsModule,
   Validators,
 } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { finalize } from 'rxjs';
 
 import { AuthService } from '../../../core/services/auth.service';
 
@@ -19,6 +18,7 @@ export class Login {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly cdr = inject(ChangeDetectorRef);
 
   protected readonly form = this.fb.nonNullable.group({
     email: ['', [Validators.required, Validators.email]],
@@ -38,22 +38,21 @@ export class Login {
     this.mensajeError = '';
 
     const { email, password } = this.form.getRawValue();
-    this.authService
-      .login({ email, password })
-      .pipe(
-        finalize(() => {
-          this.cargando = false;
-        })
-      )
-      .subscribe({
-        next: () => this.router.navigate(['/dashboard']),
-        error: (err: unknown) => {
-          this.mensajeError =
-            this.mensajeCuentaNoActivada(err) ??
-            this.extraerMensajeError(err) ??
-            'No se pudo iniciar sesión. Inténtalo de nuevo.';
-        },
-      });
+    this.authService.login({ email, password }).subscribe({
+      next: () => {
+        this.cargando = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: (err: unknown) => {
+        console.error('Error capturado en login:', err);
+        this.mensajeError =
+          this.mensajeCuentaNoActivada(err) ??
+          this.extraerMensajeError(err) ??
+          'No se pudo iniciar sesión. Inténtalo de nuevo.';
+        this.cargando = false;
+        this.cdr.detectChanges();
+      },
+    });
   }
 
   /**
