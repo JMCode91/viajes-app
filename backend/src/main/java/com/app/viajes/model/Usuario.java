@@ -56,4 +56,12 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     @Column(name = "rol", nullable = false, length = 20)
     private Rol rol = Rol.USER;
+
+    /**
+     * Indica si el usuario ha confirmado su registro por email.
+     * Un usuario recien registrado nace con {@code activo = false} y pasa a
+     * {@code true} cuando verifica su cuenta mediante el token de confirmacion.
+     */
+    @Column(name = "activo", nullable = false, columnDefinition = "boolean default false")
+    private boolean activo = false;
 }
