@@ -15,5 +15,5 @@ public interface AuthService {
 
     AuthResponseDTO login(LoginRequestDTO request);
 
-    MensajeResponseDTO verificarCuenta(String token);
+    AuthResponseDTO verificarCuenta(String token);
 }

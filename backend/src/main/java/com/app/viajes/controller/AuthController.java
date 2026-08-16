@@ -42,8 +42,8 @@ public class AuthController {
     }
 
     @GetMapping("/verificar")
-    public ResponseEntity<MensajeResponseDTO> verificar(@RequestParam String token) {
-        MensajeResponseDTO response = authService.verificarCuenta(token);
+    public ResponseEntity<AuthResponseDTO> verificar(@RequestParam String token) {
+        AuthResponseDTO response = authService.verificarCuenta(token);
         return ResponseEntity.ok(response);
     }
 }

@@ -107,7 +107,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     @Transactional
-    public MensajeResponseDTO verificarCuenta(String token) {
+    public AuthResponseDTO verificarCuenta(String token) {
         VerificationToken verificationToken = verificationTokenRepository.findByToken(token)
                 .orElseThrow(() -> new DatosInvalidosException(
                         "Token de verificacion no encontrado"));
@@ -124,8 +124,9 @@ public class AuthServiceImpl implements AuthService {
         // El token es de un solo uso: se elimina tras verificar la cuenta.
         verificationTokenRepository.delete(verificationToken);
 
-        return new MensajeResponseDTO(
-                "Cuenta verificada correctamente. Ya puedes iniciar sesion");
+        // Auto-login: la cuenta queda verificada y se devuelve el JWT
+        // para que el frontend inicie sesion sin reautenticarse.
+        return construirRespuestaLogin(usuario);
     }
 
     /**
