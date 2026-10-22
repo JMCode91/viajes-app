@@ -43,7 +43,12 @@ src/app/
 
 *Esta sección será actualizada automáticamente por el agente OpenCode al finalizar cada sesión.*
 
-- **Última actualización:** 16/08/2026
+- **Última actualización:** 22/10/2026
+- **Completado en esta sesión (Fix Theme Lifecycle — inicialización global del ThemeService y recarga del fondo personalizado al entrar al Dashboard):**
+  - **`app.ts`:** inyectado **`ThemeService` con `inject()`** (`private readonly themeService = inject(ThemeService)`) para que el servicio se instancie al arrancar la app y aplique el tema global desde el primer render. Se eliminó el constructor (norma del proyecto: DI solo con `inject()`) y la carga de Google Maps se movió a **`ngOnInit()`** implementando `OnInit`.
+  - **`theme.service.ts`:** **`cargarFondoPantalla()` pasa de `private` a público** para que otros componentes puedan forzar la recarga del `fondoPantallaUrl` del perfil.
+  - **`dashboard.ts`:** inyectado **`ThemeService` con `inject()`** y añadida la llamada **`this.themeService.cargarFondoPantalla();`** al inicio de **`ngOnInit()`** — al pisar el Dashboard autenticado se recupera la URL de fondo personalizada y el `effect()` del servicio actualiza el DOM (variable CSS `--theme-image-bg`) al instante.
+  - **Verificación:** `ng build` compila sin errores (lazy chunk `dashboard` regenerado ~17.07 kB).
 - **Completado en esta sesión (Lightbox a pantalla completa en la galería del viaje — visor fullscreen con carrusel):**
   - **`detalle-viaje.ts`:** nueva señal **`fotoActivaIndex = signal<number | null>(null)`** (índice de la foto visible en el visor; `null` = cerrado). Nuevos métodos protegidos: **`abrirFoto(index)`** (valida `0 <= index < fotosVisibles().length` antes de fijar la señal), **`cerrarFoto()`** (la pone a `null`), **`siguienteFoto()`** y **`fotoAnterior()`** — ambos con `fotoActivaIndex.update(...)` y **clamping** contra los límites de `fotosVisibles()` (`Math.min(actual + 1, length - 1)` / `Math.max(actual - 1, 0)`; no-op si `null`). Todo sobre la lista filtrada por álbum (`fotosVisibles()`), coherente con la cuadrícula.
   - **`detalle-viaje.html` — cuadrícula:** el `<a href target="_blank">` de cada tile de foto se sustituye por un `<button type="button" (click)="abrirFoto(i)">` con `cursor-pointer` (el `@for` gana `let i = $index`). Se conservan el avatar/autor, la papelera con permisos y el resto del tile.

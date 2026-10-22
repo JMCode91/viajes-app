@@ -1,6 +1,7 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { GoogleMapsService } from './core/services/google-maps.service';
+import { ThemeService } from './core/services/theme.service';
 
 @Component({
   selector: 'app-root',
@@ -8,12 +9,13 @@ import { GoogleMapsService } from './core/services/google-maps.service';
   templateUrl: './app.html',
   styleUrl: './app.css',
 })
-export class App {
+export class App implements OnInit {
   protected readonly title = signal('frontend');
 
   private readonly googleMapsService = inject(GoogleMapsService);
+  private readonly themeService = inject(ThemeService);
 
-  constructor() {
+  ngOnInit(): void {
     void this.googleMapsService.cargar();
   }
 }

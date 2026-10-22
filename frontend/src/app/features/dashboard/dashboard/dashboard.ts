@@ -3,6 +3,7 @@ import { DatePipe, NgClass } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { ThemeService } from '../../../core/services/theme.service';
 import { ViajeService } from '../../../core/services/viaje.service';
 import { Viaje } from '../../../shared/types';
 
@@ -14,6 +15,7 @@ import { Viaje } from '../../../shared/types';
 })
 export class Dashboard implements OnInit {
   private readonly viajeService = inject(ViajeService);
+  private readonly themeService = inject(ThemeService);
   private readonly fb = inject(FormBuilder);
 
   protected readonly viajes = this.viajeService.viajes;
@@ -32,6 +34,7 @@ export class Dashboard implements OnInit {
   });
 
   ngOnInit(): void {
+    this.themeService.cargarFondoPantalla();
     this.viajeService.cargarMisViajes();
   }
 

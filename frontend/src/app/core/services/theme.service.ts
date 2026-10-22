@@ -43,7 +43,7 @@ export class ThemeService {
   /** URL efectiva del fondo del Modo Imagen (la del perfil o la de Unsplash). */
   readonly fondoImagenUrl = computed(() => this.fondoPantallaUrl() || DEFAULT_IMAGE_URL);
 
-  private cargarFondoPantalla(): void {
+  cargarFondoPantalla(): void {
     this.usuarioService.obtenerPerfil().subscribe({
       next: (perfil) => this.fondoPantallaUrl.set(perfil.fondoPantallaUrl),
       error: () => this.fondoPantallaUrl.set(null),
