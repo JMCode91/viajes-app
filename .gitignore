@@ -1,0 +1,62 @@
+# =====================================================================
+# 1. Secretos y Entornos Globales
+# =====================================================================
+infra/.env
+postgres_data/
+
+# =====================================================================
+# 2. Configuración de Entornos de Angular (Bloqueo clave Google Maps)
+# =====================================================================
+frontend/src/environments/environment*.ts
+
+# =====================================================================
+# 3. Compilados y Artefactos de Backend & Frontend
+# =====================================================================
+backend/src/main/resources/static/*
+backend/target/
+frontend/dist/
+frontend/tmp/
+frontend/out-tsc/
+frontend/bazel-out/
+
+# =====================================================================
+# 4. Dependencias (Node & Java)
+# =====================================================================
+frontend/node_modules/
+frontend/npm-debug.log
+frontend/yarn-error.log
+backend/*.class
+
+# =====================================================================
+# 5. IDEs y Editores (IntelliJ IDEA, VS Code, etc.)
+# =====================================================================
+.idea/
+*.iml
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/mcp.json
+.history/
+
+# =====================================================================
+# 6. Caché y Miscelánea (Angular cache, OS)
+# =====================================================================
+frontend/.angular/cache/
+frontend/.sass-cache/
+frontend/connect.lock
+frontend/coverage/
+frontend/libpeerconnection.log
+frontend/testem.log
+frontend/typings/
+frontend/__screenshots__/
+.DS_Store
+Thumbs.db
+*.local
