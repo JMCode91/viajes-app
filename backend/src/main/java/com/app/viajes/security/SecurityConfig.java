@@ -52,7 +52,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         
                         // 2. BLINDAJE DEL BACKEND: Cualquier llamada a tu API requiere token JWT
-                        .requestMatchers("/api/**").authenticated()
+                        // Todo el mundo con un token válido puede leer (GET)
+                        .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/**").authenticated()
+                        // PERO solo los usuarios reales pueden escribir, modificar o borrar datos (gastando cuota de Gemini/BD)
+                        .requestMatchers("/api/**").hasAuthority("USER")
                         
                         // 3. ENRUTAMIENTO FRONTEND: Dejamos pasar todo lo demás (estáticos y rutas virtuales)
                         // Así evitamos el 403 y permitimos que SpaErrorController devuelva el index.html

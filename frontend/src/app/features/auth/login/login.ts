@@ -55,6 +55,27 @@ export class Login {
     });
   }
 
+
+  protected onLoginDemo(): void {
+    this.cargando = true;
+    this.mensajeError = '';
+
+    this.authService.loginDemo().subscribe({
+      next: () => {
+        this.cargando = false;
+        this.router.navigate(['/dashboard']);
+      },
+      error: (err: unknown) => {
+        console.error('Error capturado en login demo:', err);
+        this.mensajeError =
+          this.extraerMensajeError(err) ??
+          'No se pudo iniciar sesión en modo Demo. Inténtalo de nuevo.';
+        this.cargando = false;
+        this.cdr.detectChanges();
+      },
+    });
+  }
+
   protected hasError(field: 'email' | 'password'): boolean {
     const control = this.form.get(field);
     return !!control && control.invalid && (control.dirty || control.touched);

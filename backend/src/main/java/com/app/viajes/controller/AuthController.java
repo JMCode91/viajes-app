@@ -46,4 +46,11 @@ public class AuthController {
         AuthResponseDTO response = authService.verificarCuenta(token);
         return ResponseEntity.ok(response);
     }
+
+
+    @PostMapping("/login-demo")
+    public ResponseEntity<AuthResponseDTO> loginDemo() {
+        AuthResponseDTO response = authService.loginDemo();
+        return ResponseEntity.ok(response);
+    }
 }

@@ -5,5 +5,6 @@ package com.app.viajes.model.enums;
  */
 public enum Rol {
     USER,
-    ADMIN
+    ADMIN,
+    DEMO
 }

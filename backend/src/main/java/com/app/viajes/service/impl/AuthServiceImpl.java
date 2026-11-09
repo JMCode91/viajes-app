@@ -138,4 +138,16 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponseDTO(
                 token, usuario.getEmail(), usuario.getNombre(), usuario.getAvatarUrl());
     }
+
+
+    @Override
+    public AuthResponseDTO loginDemo() {
+        // Buscamos al usuario demo por un correo fijo que crearemos en la BD
+        Usuario usuarioDemo = usuarioRepository.findByEmail("demo@viajes-app.com")
+                .orElseThrow(() -> new DatosInvalidosException("Usuario demo no configurado en la base de datos"));
+
+        // Como es un acceso demo público, generamos el JWT directamente 
+        // sin pedir contraseña ni validar con AuthenticationManager.
+        return construirRespuestaLogin(usuarioDemo);
+    }
 }

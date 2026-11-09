@@ -93,13 +93,29 @@
         >
           {{ cargando ? 'Entrando…' : 'Entrar' }}
         </button>
+
+        <!-- NUEVO BOTÓN DEMO -->
+        <div class="relative flex items-center">
+          <div class="flex-grow border-t border-white/20"></div>
+          <span class="mx-4 flex-shrink-0 text-sm text-white/50">O entra sin contraseña</span>
+          <div class="flex-grow border-t border-white/20"></div>
+        </div>
+
+        <button
+          type="button"
+          (click)="onLoginDemo()"
+          [disabled]="cargando"
+          class="h-14 w-full rounded-2xl border border-emerald-400/50 bg-emerald-500/20 text-base font-semibold text-emerald-300 shadow-lg transition-colors hover:bg-emerald-500/30 hover:border-emerald-300 active:scale-[0.98] disabled:opacity-60 disabled:shadow-none disabled:active:scale-100"
+        >
+          Acceso Modo Demo (Visitante)
+        </button>
       </form>
 
       <p class="mt-8 text-center text-sm text-white/70">
         ¿Aún no tienes cuenta?
         <a
           routerLink="/registro"
-          class="font-semibold text-white underline decoration-white/40 underline-offset-2"
+          class="font-semibold text-white underline decoration-white/40 underline-offset-2 hover:text-white"
         >
           Regístrate
         </a>

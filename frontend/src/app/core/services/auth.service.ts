@@ -40,6 +40,15 @@ export class AuthService {
     );
   }
 
+
+
+  // NUEVO MÉTODO PARA EL ACCESO DEMO
+  loginDemo(): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`/api/auth/login-demo`, {}).pipe(
+      tap((response) => this.saveAuth(response))
+    );
+  }
+
   register(userData: RegisterRequest): Observable<MensajeResponse> {
     return this.http.post<MensajeResponse>(`/api/auth/register`, userData);
   }
